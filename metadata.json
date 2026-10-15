@@ -1,0 +1,8 @@
+{
+  "name": "E-Commerce Return Unboxing Processor",
+  "description": "Backend Logic Processor dan Stasiun Inspeksi Retur Gudang e-Commerce dengan validasi multi-baris SKU, analisis ucapan operator, dan standarisasi video.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

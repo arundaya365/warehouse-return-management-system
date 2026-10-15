@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 475" width="1200" height="475">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#021C1E" />
+      <stop offset="35%" stop-color="#042F2E" />
+      <stop offset="70%" stop-color="#0B132B" />
+      <stop offset="100%" stop-color="#071926" />
+    </linearGradient>
+
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#14B8A6" />
+      <stop offset="50%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#5EEAD4" />
+    </linearGradient>
+
+    <linearGradient id="boxFront" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D9488" />
+      <stop offset="100%" stop-color="#0F766E" />
+    </linearGradient>
+
+    <linearGradient id="boxSide" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F766E" />
+      <stop offset="100%" stop-color="#115E59" />
+    </linearGradient>
+
+    <linearGradient id="boxTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#14B8A6" />
+    </linearGradient>
+
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="glowGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#042F2E" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+
+    <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Pattern -->
+    <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#134E4A" stroke-width="0.75" stroke-opacity="0.35" />
+      <circle cx="40" cy="0" r="1.5" fill="#2DD4BF" fill-opacity="0.3" />
+    </pattern>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1200" height="475" fill="url(#bgGrad)" />
+
+  <!-- Background Grid Texture -->
+  <rect width="1200" height="475" fill="url(#gridPattern)" />
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="220" cy="240" r="280" fill="url(#glowGlow)" filter="blur(60px)" />
+  <circle cx="1020" cy="180" r="240" fill="#0E7490" fill-opacity="0.18" filter="blur(50px)" />
+  <circle cx="650" cy="400" r="260" fill="#0F766E" fill-opacity="0.2" filter="blur(70px)" />
+
+  <!-- Geometric Accent Lines & Circuit Traces -->
+  <g opacity="0.3" stroke="#2DD4BF" stroke-width="1.2" fill="none">
+    <path d="M 50 80 L 180 80 L 220 120 L 450 120" />
+    <circle cx="50" cy="80" r="3.5" fill="#2DD4BF" />
+    <path d="M 750 60 L 920 60 L 960 100 L 1150 100" />
+    <circle cx="1150" cy="100" r="3.5" fill="#2DD4BF" />
+    <path d="M 100 400 L 260 400 L 300 360 L 480 360" />
+    <circle cx="100" cy="400" r="3.5" fill="#2DD4BF" />
+  </g>
+
+  <!-- ==================== LEFT ICON / 3D ISOMETRIC UNBOXING BOX ==================== -->
+  <g transform="translate(130, 110)" filter="url(#softShadow)">
+    <!-- Aura Glow Behind Box -->
+    <ellipse cx="110" cy="190" rx="130" ry="40" fill="#0D9488" fill-opacity="0.25" filter="blur(20px)" />
+
+    <!-- Isometric Package Group -->
+    <g transform="translate(0, 10)">
+      <!-- Top Face of Box (Open flap style) -->
+      <polygon points="110,20 200,65 110,110 20,65" fill="url(#boxTop)" />
+      
+      <!-- Box Tape (Packaging Tape) -->
+      <polygon points="110,20 125,27 75,92 60,85" fill="url(#amberGrad)" opacity="0.95" />
+
+      <!-- Left Face of Box -->
+      <polygon points="20,65 110,110 110,215 20,170" fill="url(#boxFront)" />
+
+      <!-- Right Face of Box -->
+      <polygon points="110,110 200,65 200,170 110,215" fill="url(#boxSide)" />
+
+      <!-- Barcode Graphic on Left Face -->
+      <g transform="translate(42, 115) skewY(26)">
+        <rect x="0" y="0" width="3" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="5" y="0" width="2" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="9" y="0" width="5" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="16" y="0" width="2" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="20" y="0" width="4" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="26" y="0" width="2" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="30" y="0" width="6" height="32" fill="#CCFBF1" opacity="0.85" />
+        <rect x="38" y="0" width="3" height="32" fill="#CCFBF1" opacity="0.85" />
+      </g>
+
+      <!-- Up Arrows / Handle with Care -->
+      <g transform="translate(142, 105) skewY(-26)" fill="#FEF08A" opacity="0.9">
+        <path d="M 8 18 L 8 8 L 4 8 L 11 0 L 18 8 L 14 8 L 14 18 Z" />
+        <path d="M 24 18 L 24 8 L 20 8 L 27 0 L 34 8 L 30 8 L 30 18 Z" />
+      </g>
+
+      <!-- Laser Scanner Beam -->
+      <line x1="-15" y1="115" x2="235" y2="115" stroke="#F43F5E" stroke-width="3" opacity="0.85" filter="url(#glowFilter)" />
+      <line x1="-15" y1="115" x2="235" y2="115" stroke="#FECDD3" stroke-width="1.2" opacity="0.95" />
+
+      <!-- Floating Unboxing Checkmark Badge -->
+      <g transform="translate(160, 25)" filter="url(#softShadow)">
+        <circle cx="28" cy="28" r="28" fill="#10B981" />
+        <circle cx="28" cy="28" r="25" fill="#047857" />
+        <path d="M 18 28 L 25 35 L 38 21" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+
+      <!-- Video Recording REC Badge -->
+      <g transform="translate(0, 15)">
+        <rect x="0" y="0" width="68" height="24" rx="12" fill="#881337" opacity="0.9" />
+        <circle cx="12" cy="12" r="5" fill="#EF4444" />
+        <text x="24" y="16" fill="#FFFFFF" font-family="'Inter', sans-serif" font-size="10" font-weight="700" letter-spacing="1">REC</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ==================== CENTER & RIGHT CONTENT ==================== -->
+  <g transform="translate(420, 95)">
+    <!-- Category Pill Badge -->
+    <g>
+      <rect x="0" y="0" width="310" height="32" rx="16" fill="#134E4A" stroke="#2DD4BF" stroke-width="1.2" opacity="0.8" />
+      <circle cx="16" cy="16" r="5" fill="#2DD4BF" />
+      <text x="30" y="21" fill="#CCFBF1" font-family="'Inter', system-ui, sans-serif" font-size="12" font-weight="700" letter-spacing="1.2">
+        E-COMMERCE RETURN WMS
+      </text>
+      <text x="215" y="21" fill="#99F6E4" font-family="'Inter', system-ui, sans-serif" font-size="11" font-weight="500">
+        • AI ASSISTED
+      </text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="0" y="92" fill="#FFFFFF" font-family="'Inter', system-ui, sans-serif" font-size="52" font-weight="900" letter-spacing="-1">
+      UNBOXIN <tspan fill="url(#tealGrad)">PROCESSOR</tspan>
+    </text>
+
+    <!-- Subtitle / Mission -->
+    <text x="0" y="132" fill="#E2E8F0" font-family="'Inter', system-ui, sans-serif" font-size="19" font-weight="600">
+      Sistem Stasiun Unboxing &amp; Verifikasi Retur Gudang e-Commerce Terpadu
+    </text>
+
+    <text x="0" y="160" fill="#94A3B8" font-family="'Inter', system-ui, sans-serif" font-size="14" font-weight="400">
+      Validasi multi-baris SKU otomatis, inspeksi rekaman video, pembuktian klaim marketplace, dan audit trail logistik.
+    </text>
+
+    <!-- Feature Tags / Chips -->
+    <g transform="translate(0, 195)">
+      <!-- Chip 1: AI Vision & Speech -->
+      <g transform="translate(0, 0)">
+        <rect x="0" y="0" width="165" height="34" rx="10" fill="#0F172A" stroke="#334155" stroke-width="1" />
+        <text x="14" y="22" fill="#38BDF8" font-family="'Inter', sans-serif" font-size="12" font-weight="600">
+          ✦ Gemini AI Vision
+        </text>
+      </g>
+
+      <!-- Chip 2: Multi-SKU Engine -->
+      <g transform="translate(175, 0)">
+        <rect x="0" y="0" width="165" height="34" rx="10" fill="#0F172A" stroke="#334155" stroke-width="1" />
+        <text x="14" y="22" fill="#2DD4BF" font-family="'Inter', sans-serif" font-size="12" font-weight="600">
+          📦 Multi-SKU Barcode
+        </text>
+      </g>
+
+      <!-- Chip 3: Video Evidence Link -->
+      <g transform="translate(350, 0)">
+        <rect x="0" y="0" width="175" height="34" rx="10" fill="#0F172A" stroke="#334155" stroke-width="1" />
+        <text x="14" y="22" fill="#FBBF24" font-family="'Inter', sans-serif" font-size="12" font-weight="600">
+          📹 Google Drive Video
+        </text>
+      </g>
+
+      <!-- Chip 4: Dispute Automation -->
+      <g transform="translate(535, 0)">
+        <rect x="0" y="0" width="175" height="34" rx="10" fill="#0F172A" stroke="#334155" stroke-width="1" />
+        <text x="14" y="22" fill="#F472B6" font-family="'Inter', sans-serif" font-size="12" font-weight="600">
+          ⚖️ Marketplace Dispute
+        </text>
+      </g>
+    </g>
+
+    <!-- Enterprise & Author Meta Bar -->
+    <g transform="translate(0, 260)">
+      <line x1="0" y1="0" x2="710" y2="0" stroke="#1E293B" stroke-width="1.5" />
+      
+      <text x="0" y="26" fill="#64748B" font-family="'Inter', sans-serif" font-size="12" font-weight="500">
+        Enterprise Deployment:
+      </text>
+      <text x="135" y="26" fill="#CBD5E1" font-family="'Inter', sans-serif" font-size="12" font-weight="700">
+        PT. Tirta Kumala Sari
+      </text>
+
+      <text x="320" y="26" fill="#64748B" font-family="'Inter', sans-serif" font-size="12" font-weight="500">
+        Lead Architect:
+      </text>
+      <text x="410" y="26" fill="#5EEAD4" font-family="'Inter', sans-serif" font-size="12" font-weight="700">
+        Yaya Sanjaya
+      </text>
+
+      <text x="540" y="26" fill="#64748B" font-family="'Inter', sans-serif" font-size="12" font-weight="500">
+        Security:
+      </text>
+      <text x="595" y="26" fill="#A7F3D0" font-family="'Inter', sans-serif" font-size="12" font-weight="600">
+        Super Admin RBAC
+      </text>
+    </g>
+  </g>
+
+  <!-- Border Gradient Accent Frame -->
+  <rect x="1.5" y="1.5" width="1197" height="472" rx="12" fill="none" stroke="url(#tealGrad)" stroke-width="2.5" opacity="0.65" />
+</svg>

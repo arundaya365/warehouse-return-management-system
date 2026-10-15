@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Robust fix for browser extensions and interceptors attempting to set window.fetch
+      (function() {
+        try {
+          var origFetch = (typeof window !== 'undefined' && window.fetch) ? window.fetch.bind(window) : null;
+          var customFetch = null;
+
+          function getFetch() {
+            return customFetch || origFetch || (typeof fetch === 'function' ? fetch : null);
+          }
+          function setFetch(fn) {
+            customFetch = fn;
+            if (typeof window !== 'undefined') {
+              window.__customFetch = fn;
+            }
+          }
+
+          // 1. Prototype level patch (Window.prototype)
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                get: function() {
+                  return this.__customFetch || getFetch();
+                },
+                set: function(fn) {
+                  this.__customFetch = fn;
+                  setFetch(fn);
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e1) {}
+          }
+
+          // 2. Instance level patch (window)
+          if (typeof window !== 'undefined') {
+            try {
+              Object.defineProperty(window, 'fetch', {
+                get: function() {
+                  return window.__customFetch || getFetch();
+                },
+                set: function(fn) {
+                  window.__customFetch = fn;
+                  setFetch(fn);
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e2) {}
+          }
+
+          // 3. Global scope fallback
+          if (typeof globalThis !== 'undefined' && globalThis !== window) {
+            try {
+              Object.defineProperty(globalThis, 'fetch', {
+                get: function() {
+                  return getFetch();
+                },
+                set: function(fn) {
+                  setFetch(fn);
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e3) {}
+          }
+        } catch (err) {}
+      })();
+    </script>
+    <title>Unboxin — PT. Tirta Kumala Sari (Copyright Yaya Sanjaya)</title>
+    <meta name="description" content="Unboxin — Sistem Manajemen Stasiun Unboxing Retur Gudang e-Commerce PT. Tirta Kumala Sari. Copyright Yaya Sanjaya." />
+    <meta property="og:title" content="Unboxin — PT. Tirta Kumala Sari (Copyright Yaya Sanjaya)" />
+    <meta property="og:description" content="Unboxin — Sistem Manajemen Stasiun Unboxing Retur Gudang e-Commerce PT. Tirta Kumala Sari. Copyright Yaya Sanjaya." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="/unboxin-logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      body {
+        font-family: var(--font-sans);
+        background-color: #F8FAFC;
+        color: #0F172A;
+      }
+      .font-mono, code, pre, .tabular-nums {
+        font-variant-numeric: tabular-nums;
+        font-family: var(--font-sans);
+      }
+    </style>
+  </head>
+  <body class="bg-[#F8FAFC] min-h-screen text-slate-900 antialiased selection:bg-teal-700 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

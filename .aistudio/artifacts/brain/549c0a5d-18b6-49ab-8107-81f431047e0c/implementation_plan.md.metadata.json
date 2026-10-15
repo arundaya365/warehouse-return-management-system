@@ -1,0 +1,6 @@
+{
+  "summary": "Implementasi checklist multi-kriteria untuk Status Kondisi Retur pada halaman Laporan:\n- Menggantikan dropdown tunggal dengan panel kartu checklist interaktif untuk kelima kondisi standar (Good, Damage Product, Damage Packaging, Missing, Unexpected).\n- Dilengkapi tombol shortcut seleksi cepat: 'Pilih Semua', 'Hanya Good', 'Hanya Defect/Masalah', dan 'Reset'.\n- Menampilkan live counter badge jumlah data riil untuk masing-masing kondisi.\n- Terintegrasi penuh dengan filter data tabel, paginasi, export CSV, dan modal unduhan.",
+  "updatedAt": "2026-10-14T09:08:08.498225331Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
