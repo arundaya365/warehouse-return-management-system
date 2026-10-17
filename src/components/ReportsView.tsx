@@ -22,12 +22,15 @@ import {
   ShieldAlert,
   CheckSquare,
   Square,
-  Check
+  Check,
+  ShoppingBag,
+  Truck
 } from 'lucide-react';
 import { ProcessedReturnRow } from '../processor';
 import { ResultViewer } from './ResultViewer';
 import { ExportFilteredModal } from './ExportFilteredModal';
 import { useLanguage } from '../context/LanguageContext';
+import { detectMarketplaceAndLogistics, STANDARD_MARKETPLACES, STANDARD_LOGISTICS } from '../utils/awbDetection';
 
 interface ReportsViewProps {
   rows: ProcessedReturnRow[];
@@ -121,6 +124,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [filterOrderId, setFilterOrderId] = useState<string>('');
   const [filterOperator, setFilterOperator] = useState<string>('');
   const [filterSkuId, setFilterSkuId] = useState<string>('');
+  const [filterMarketplace, setFilterMarketplace] = useState<string>('');
+  const [filterLogistics, setFilterLogistics] = useState<string>('');
+
+  // Helper resolusi Marketplace & Logistik baris laporan
+  const getRowMarketplace = (r: ProcessedReturnRow) => {
+    return r.Marketplace || detectMarketplaceAndLogistics(r.Order_ID).marketplace || 'Lainnya';
+  };
+  const getRowLogistics = (r: ProcessedReturnRow) => {
+    return r.Ekspedisi || detectMarketplaceAndLogistics(r.Order_ID).logistics || 'Lainnya';
+  };
   // Extract distinct kondisi yang ada di rows (menggabungkan standar + data riil)
   const allConditionOptions = useMemo(() => {
     const standardKeys = new Set(STANDARD_CONDITIONS.map((c) => c.key));
@@ -215,6 +228,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return Array.from(new Set(rows.map((r) => r.SKU_ID).filter(Boolean)));
   }, [rows]);
 
+  const distinctMarketplaces = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => set.add(getRowMarketplace(r)));
+    return Array.from(set).filter(Boolean);
+  }, [rows]);
+
+  const distinctLogistics = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => set.add(getRowLogistics(r)));
+    return Array.from(set).filter(Boolean);
+  }, [rows]);
+
   // Hitung jumlah filter yang aktif
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -222,9 +247,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     if (filterOrderId.trim()) count++;
     if (filterOperator.trim()) count++;
     if (filterSkuId.trim()) count++;
+    if (filterMarketplace) count++;
+    if (filterLogistics) count++;
     if (selectedConditions.size < allConditionKeys.length) count++;
     return count;
-  }, [filterStartDate, filterEndDate, filterOrderId, filterOperator, filterSkuId, selectedConditions, allConditionKeys.length]);
+  }, [filterStartDate, filterEndDate, filterOrderId, filterOperator, filterSkuId, filterMarketplace, filterLogistics, selectedConditions, allConditionKeys.length]);
 
   const handleResetFilters = () => {
     setFilterStartDate('');
@@ -232,6 +259,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     setFilterOrderId('');
     setFilterOperator('');
     setFilterSkuId('');
+    setFilterMarketplace('');
+    setFilterLogistics('');
     setSelectedConditions(new Set(allConditionKeys));
   };
 
@@ -328,7 +357,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         if (!r.SKU_ID.toLowerCase().includes(q)) return false;
       }
 
-      // 5. Filter Kondisi (Multi-select Checklist)
+      // 5. Filter Marketplace (Platform)
+      if (filterMarketplace) {
+        if (getRowMarketplace(r).toLowerCase() !== filterMarketplace.toLowerCase()) return false;
+      }
+
+      // 6. Filter Ekspedisi (Logistik)
+      if (filterLogistics) {
+        if (getRowLogistics(r).toLowerCase() !== filterLogistics.toLowerCase()) return false;
+      }
+
+      // 7. Filter Kondisi (Multi-select Checklist)
       if (selectedConditions.size < allConditionKeys.length) {
         if (!selectedConditions.has(r.Kondisi)) return false;
       }
@@ -338,7 +377,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       return true;
     });
-  }, [rows, filterStartDate, filterEndDate, filterOrderId, filterOperator, filterSkuId, selectedConditions, allConditionKeys.length]);
+  }, [rows, filterStartDate, filterEndDate, filterOrderId, filterOperator, filterSkuId, filterMarketplace, filterLogistics, selectedConditions, allConditionKeys.length]);
 
   // =========================================================================
   // STATS CALCULATION: HITUNG JUMLAH RETURN BERDASARKAN ORDER ID, JUMLAH QTY, DAN VARIASI SKU
@@ -631,10 +670,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
-        {/* ROW 1: 4 PARAMETER PENCARIAN (TANGGAL PROSES, ORDER ID, OPERATOR, SKU ID) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        {/* ROW 1: PARAMETER PENCARIAN (TANGGAL, ORDER ID, OPERATOR, SKU, MARKETPLACE, LOGISTIK) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
           {/* FILTER 1: TANGGAL PROSES (DARI TANGGAL KE TANGGAL) */}
-          <div className="md:col-span-2 lg:col-span-2 space-y-1.5 p-3 rounded-2xl bg-teal-50/50 border border-teal-100 shadow-2xs">
+          <div className="md:col-span-2 lg:col-span-1 xl:col-span-2 space-y-1.5 p-3 rounded-2xl bg-teal-50/50 border border-teal-100 shadow-2xs">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold text-slate-800 flex items-center space-x-1.5">
                 <Calendar className="w-3.5 h-3.5 text-[#0F766E]" />
@@ -858,6 +897,90 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               {distinctSkus.length} SKU terdata
             </p>
           </div>
+
+          {/* FILTER 5: MARKETPLACE / PLATFORM */}
+          <div className="space-y-1 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#0F766E]" />
+                  <span>5. Marketplace</span>
+                </label>
+                {filterMarketplace && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterMarketplace('')}
+                    className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title="Hapus filter marketplace"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <div className="relative mt-1">
+                <select
+                  value={filterMarketplace}
+                  onChange={(e) => setFilterMarketplace(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-[#0F766E] font-medium cursor-pointer"
+                >
+                  <option value="">Semua Marketplace</option>
+                  {distinctMarketplaces.map((mp) => {
+                    const count = rows.filter((r) => getRowMarketplace(r).toLowerCase() === mp.toLowerCase()).length;
+                    return (
+                      <option key={mp} value={mp}>
+                        {mp} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 pt-1">
+              {distinctMarketplaces.length} Platform terdeteksi
+            </p>
+          </div>
+
+          {/* FILTER 6: EKSPEDISI / LOGISTIK */}
+          <div className="space-y-1 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                  <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>6. Logistik</span>
+                </label>
+                {filterLogistics && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterLogistics('')}
+                    className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title="Hapus filter ekspedisi"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <div className="relative mt-1">
+                <select
+                  value={filterLogistics}
+                  onChange={(e) => setFilterLogistics(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-[#0F766E] font-medium cursor-pointer"
+                >
+                  <option value="">Semua Ekspedisi</option>
+                  {distinctLogistics.map((lg) => {
+                    const count = rows.filter((r) => getRowLogistics(r).toLowerCase() === lg.toLowerCase()).length;
+                    return (
+                      <option key={lg} value={lg}>
+                        {lg} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 pt-1">
+              {distinctLogistics.length} Ekspedisi terdeteksi
+            </p>
+          </div>
         </div>
 
         {/* ROW 2: FILTER 5 - CHECKLIST STATUS KONDISI RETUR (MULTI-SELECTION CHECKBOXES) */}
@@ -1022,6 +1145,34 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               {filterSkuId && (
                 <span className="px-2 py-0.5 rounded-md bg-teal-50 text-[#0F766E] border border-teal-200 font-mono font-medium">
                   SKU: {filterSkuId}
+                </span>
+              )}
+              {filterMarketplace && (
+                <span className="px-2 py-0.5 rounded-md bg-teal-50 text-[#0F766E] border border-teal-200 font-medium flex items-center space-x-1">
+                  <ShoppingBag className="w-3 h-3 text-teal-600" />
+                  <span>Marketplace: {filterMarketplace}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMarketplace('')}
+                    className="p-0.5 hover:text-rose-600 cursor-pointer"
+                    title="Hapus filter marketplace"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filterLogistics && (
+                <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium flex items-center space-x-1">
+                  <Truck className="w-3 h-3 text-indigo-600" />
+                  <span>Logistik: {filterLogistics}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilterLogistics('')}
+                    className="p-0.5 hover:text-rose-600 cursor-pointer"
+                    title="Hapus filter logistik"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               )}
               {selectedConditions.size < allConditionKeys.length && (

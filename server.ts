@@ -141,13 +141,17 @@ Berikan catatan tambahan yang jelas dan faktual berdasarkan ucapan operator.`;
     // Jalankan pemrosesan aturan wajib 1 - 6
     const processedRows = processUnboxingReport(payload);
 
-    // Otomatis sinkronkan hasil unboxing ke database bersama (Web & Mobile)
+    // Otomatis sinkronkan hasil unboxing ke database bersama Cloud SQL (Web & Mobile)
     try {
       const orderId = payload.Order_ID || payload.order_id;
       WarehouseStore.saveReturns(processedRows, orderId);
+      dbSaveReturns(processedRows, orderId).catch((dbErr) => {
+        console.warn('Gagal async save return ke PostgreSQL Cloud SQL:', dbErr);
+      });
     } catch (saveErr) {
       console.warn('Gagal sinkron otomatis return ke WarehouseStore:', saveErr);
     }
+
 
     // KEMBALIKAN FORMAT OUTPUT WAJIB: JSON ARRAY murni
     res.setHeader('Content-Type', 'application/json');
@@ -161,145 +165,213 @@ Berikan catatan tambahan yang jelas dan faktual berdasarkan ucapan operator.`;
   }
 });
 
+import {
+  getWarehouseData,
+  dbSaveReturns,
+  dbSetAllReturns,
+  dbDeleteOrder,
+  dbDeleteRow,
+  dbDeleteBulkOrders,
+  dbDeleteBulkRows,
+  dbSaveDisputes,
+  dbSaveMasterDatabase,
+  dbSaveUsers,
+  ensureDatabaseSeeded
+} from './src/db/warehouseDb.ts';
+
+// Inisialisasi seeding database di background
+ensureDatabaseSeeded().catch((err) => {
+  console.warn('Database seeding check deferred:', err);
+});
+
 /**
  * =========================================================================
  * ENDPOINTS SINKRONISASI DATA MULTI-PERANGKAT (WEB BROWSER & MOBILE BROWSER)
+ * DENGAN CLOUD SQL POSTGRESQL (PERSISTENSI LINTAS DEVICE)
  * =========================================================================
  */
 
 // 1. Ambil seluruh data pusat gudang (Returns, Disputes, Master SKU, Users)
-app.get('/api/sync', (_req: Request, res: Response) => {
+app.get('/api/sync', async (_req: Request, res: Response) => {
   try {
-    const data = WarehouseStore.getAll();
+    const data = await getWarehouseData();
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Gagal membaca data sinkronisasi server' });
+    console.warn('Fallback to in-memory store for /api/sync:', error);
+    try {
+      const fallbackData = WarehouseStore.getAll();
+      res.json(fallbackData);
+    } catch (fbErr) {
+      res.status(500).json({ error: 'Gagal membaca data sinkronisasi server' });
+    }
   }
 });
 
 // 2. Simpan / perbarui baris return hasil unboxing
-app.post('/api/sync/returns', (req: Request, res: Response) => {
+app.post('/api/sync/returns', async (req: Request, res: Response) => {
   try {
     const { rows, orderId } = req.body;
     if (!Array.isArray(rows)) {
       res.status(400).json({ error: 'rows harus berupa array data return' });
       return;
     }
-    const updated = WarehouseStore.saveReturns(rows, orderId);
-    res.json({ success: true, count: updated.returns.length, lastUpdated: updated.lastUpdated });
+    // Simpan ke PostgreSQL Cloud SQL
+    const result = await dbSaveReturns(rows, orderId);
+    // Simpan juga ke in-memory cache
+    WarehouseStore.saveReturns(rows, orderId);
+    res.json({ success: true, count: result.count, lastUpdated: result.lastUpdated });
   } catch (error) {
-    res.status(500).json({ error: 'Gagal sinkron data return' });
+    console.error('Error saving returns to database, fallback in-memory:', error);
+    try {
+      const { rows, orderId } = req.body;
+      const updated = WarehouseStore.saveReturns(rows, orderId);
+      res.json({ success: true, count: updated.returns.length, lastUpdated: updated.lastUpdated });
+    } catch (fbErr) {
+      res.status(500).json({ error: 'Gagal sinkron data return' });
+    }
   }
 });
 
 // 3. Timpa seluruh daftar return (bulk sync / full refresh)
-app.post('/api/sync/replace-returns', (req: Request, res: Response) => {
+app.post('/api/sync/replace-returns', async (req: Request, res: Response) => {
   try {
     const { rows } = req.body;
     if (!Array.isArray(rows)) {
       res.status(400).json({ error: 'rows harus berupa array' });
       return;
     }
-    const updated = WarehouseStore.setAllReturns(rows);
-    res.json({ success: true, count: updated.returns.length, lastUpdated: updated.lastUpdated });
+    const result = await dbSetAllReturns(rows);
+    WarehouseStore.setAllReturns(rows);
+    res.json({ success: true, count: result.count, lastUpdated: result.lastUpdated });
   } catch (error) {
-    res.status(500).json({ error: 'Gagal sinkron full returns' });
+    console.error('Error replacing returns:', error);
+    try {
+      const { rows } = req.body;
+      const updated = WarehouseStore.setAllReturns(rows);
+      res.json({ success: true, count: updated.returns.length, lastUpdated: updated.lastUpdated });
+    } catch (fbErr) {
+      res.status(500).json({ error: 'Gagal sinkron full returns' });
+    }
   }
 });
 
 // 4. Hapus order spesifik
-app.post('/api/sync/delete-order', (req: Request, res: Response) => {
+app.post('/api/sync/delete-order', async (req: Request, res: Response) => {
   try {
     const { orderId } = req.body;
     if (!orderId) {
       res.status(400).json({ error: 'orderId wajib diisi' });
       return;
     }
-    const updated = WarehouseStore.deleteOrder(orderId);
-    res.json({ success: true, count: updated.returns.length });
+    const count = await dbDeleteOrder(orderId);
+    WarehouseStore.deleteOrder(orderId);
+    res.json({ success: true, count });
   } catch (error) {
-    res.status(500).json({ error: 'Gagal menghapus order dari server' });
+    console.error('Error deleting order:', error);
+    try {
+      const updated = WarehouseStore.deleteOrder(req.body.orderId);
+      res.json({ success: true, count: updated.returns.length });
+    } catch (fbErr) {
+      res.status(500).json({ error: 'Gagal menghapus order dari server' });
+    }
   }
 });
 
 // 5. Hapus baris spesifik (orderId + skuId)
-app.post('/api/sync/delete-row', (req: Request, res: Response) => {
+app.post('/api/sync/delete-row', async (req: Request, res: Response) => {
   try {
     const { orderId, skuId } = req.body;
     if (!orderId || !skuId) {
       res.status(400).json({ error: 'orderId dan skuId wajib diisi' });
       return;
     }
-    const updated = WarehouseStore.deleteRow(orderId, skuId);
-    res.json({ success: true, count: updated.returns.length });
+    const count = await dbDeleteRow(orderId, skuId);
+    WarehouseStore.deleteRow(orderId, skuId);
+    res.json({ success: true, count });
   } catch (error) {
-    res.status(500).json({ error: 'Gagal menghapus baris dari server' });
+    console.error('Error deleting row:', error);
+    try {
+      const updated = WarehouseStore.deleteRow(req.body.orderId, req.body.skuId);
+      res.json({ success: true, count: updated.returns.length });
+    } catch (fbErr) {
+      res.status(500).json({ error: 'Gagal menghapus baris dari server' });
+    }
   }
 });
 
 // 6. Hapus massal (bulk delete orders atau rows)
-app.post('/api/sync/bulk-delete', (req: Request, res: Response) => {
+app.post('/api/sync/bulk-delete', async (req: Request, res: Response) => {
   try {
     const { orderIds, rowKeys } = req.body;
-    let updated;
+    let count = 0;
     if (Array.isArray(orderIds) && orderIds.length > 0) {
-      updated = WarehouseStore.deleteBulkOrders(orderIds);
+      count = await dbDeleteBulkOrders(orderIds);
+      WarehouseStore.deleteBulkOrders(orderIds);
     } else if (Array.isArray(rowKeys) && rowKeys.length > 0) {
-      updated = WarehouseStore.deleteBulkRows(rowKeys);
+      count = await dbDeleteBulkRows(rowKeys);
+      WarehouseStore.deleteBulkRows(rowKeys);
     } else {
       res.status(400).json({ error: 'orderIds atau rowKeys wajib diisi' });
       return;
     }
-    res.json({ success: true, count: updated.returns.length });
+    res.json({ success: true, count });
   } catch (error) {
+    console.error('Error bulk delete:', error);
     res.status(500).json({ error: 'Gagal hapus massal di server' });
   }
 });
 
 // 7. Simpan / perbarui catatan dispute claims CS
-app.post('/api/sync/disputes', (req: Request, res: Response) => {
+app.post('/api/sync/disputes', async (req: Request, res: Response) => {
   try {
     const { disputes } = req.body;
     if (!disputes || typeof disputes !== 'object') {
       res.status(400).json({ error: 'disputes harus berupa object' });
       return;
     }
-    const updated = WarehouseStore.saveDisputes(disputes);
-    res.json({ success: true, lastUpdated: updated.lastUpdated });
+    const lastUpdated = await dbSaveDisputes(disputes);
+    WarehouseStore.saveDisputes(disputes);
+    res.json({ success: true, lastUpdated });
   } catch (error) {
+    console.error('Error saving disputes:', error);
     res.status(500).json({ error: 'Gagal sinkron disputes' });
   }
 });
 
 // 8. Simpan / perbarui database master SKU
-app.post('/api/sync/master-db', (req: Request, res: Response) => {
+app.post('/api/sync/master-db', async (req: Request, res: Response) => {
   try {
     const { masterDatabase } = req.body;
     if (!Array.isArray(masterDatabase)) {
       res.status(400).json({ error: 'masterDatabase harus berupa array' });
       return;
     }
-    const updated = WarehouseStore.saveMasterDatabase(masterDatabase);
-    res.json({ success: true, count: updated.masterDatabase.length });
+    const count = await dbSaveMasterDatabase(masterDatabase);
+    WarehouseStore.saveMasterDatabase(masterDatabase);
+    res.json({ success: true, count });
   } catch (error) {
+    console.error('Error saving master database:', error);
     res.status(500).json({ error: 'Gagal sinkron master database' });
   }
 });
 
 // 9. Simpan / perbarui pengguna
-app.post('/api/sync/users', (req: Request, res: Response) => {
+app.post('/api/sync/users', async (req: Request, res: Response) => {
   try {
     const { users } = req.body;
     if (!Array.isArray(users)) {
       res.status(400).json({ error: 'users harus berupa array' });
       return;
     }
-    const updated = WarehouseStore.saveUsers(users);
-    res.json({ success: true, count: updated.users.length });
+    const count = await dbSaveUsers(users);
+    WarehouseStore.saveUsers(users);
+    res.json({ success: true, count });
   } catch (error) {
+    console.error('Error saving users:', error);
     res.status(500).json({ error: 'Gagal sinkron users' });
   }
 });
+
 
 // Setup Vite atau Static File serving
 async function initServer() {

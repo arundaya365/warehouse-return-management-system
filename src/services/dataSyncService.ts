@@ -1,6 +1,6 @@
 import { ProcessedReturnRow } from '../processor';
 import { MasterSKUItem } from '../utils/excelTemplate';
-import { UserAccount } from '../context/AccountContext';
+import type { UserAccount } from '../types/account';
 
 export interface SyncPayload {
   version: number;

@@ -3,17 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Navbar, AppNavTab } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { UnboxingStation } from './components/UnboxingStation';
 import { ReportsView } from './components/ReportsView';
 import { MasterDatabaseView } from './components/MasterDatabaseView';
 import { DisputeClaimsView } from './components/DisputeClaimsView';
+import { RMAClaimsView } from './components/RMAClaimsView';
 import { AccountManagementView } from './components/AccountManagementView';
 import { BackgroundFloating3D } from './components/BackgroundFloating3D';
 import { SAMPLE_SCENARIOS } from './data/sampleScenarios';
 import { HISTORICAL_RETURN_ROWS } from './data/historicalReturns';
+import { RmaClaimRecord } from './types/rma';
 import {
   ProcessedReturnRow,
   UnboxingSessionInput,
@@ -29,6 +31,8 @@ import type { User } from 'firebase/auth';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { LoginGateModal } from './components/LoginGateModal';
 import { AccountProvider, useAccount } from './context/AccountContext';
+import { syncService } from './services/dataSyncService';
+
 
 const STORAGE_PROCESSED_RETURNS_KEY = 'unboxin_processed_returns_v1';
 
@@ -44,6 +48,7 @@ function AppContent() {
       station: hasPermission('canAccessStation'),
       reports: hasPermission('canAccessReports'),
       disputes: hasPermission('canAccessDisputes'),
+      rma: hasPermission('canAccessRma'),
       database: hasPermission('canAccessDatabase'),
       accounts: hasPermission('canManageUsers') || currentUser.role === 'SUPER_ADMIN'
     };
@@ -56,6 +61,7 @@ function AppContent() {
     }
   }, [currentUser, activeTab, hasPermission]);
   const STORAGE_SEEDED_FLAG = 'rma_initial_seed_completed_v1';
+  const STORAGE_RMA_CLAIMS_KEY = 'rma_claims_records_v1';
 
   const [processedRows, setProcessedRows] = useState<ProcessedReturnRow[]>(() => {
     try {
@@ -67,12 +73,30 @@ function AppContent() {
     } catch {}
     return [];
   });
+
+  const [rmaClaims, setRmaClaims] = useState<RmaClaimRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_RMA_CLAIMS_KEY);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [disputeRecords, setDisputeRecords] = useState<Record<string, any>>(() => {
+    try {
+      const saved = localStorage.getItem('rma_cs_dispute_claims_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
   const [, setCurrentInput] = useState<UnboxingSessionInput | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Master Database SKU & Orders (Excel / CSV)
   const [masterDatabase, setMasterDatabase] = useState<MasterOrderSKU[]>([]);
-  const [selectedAwbForStation, setSelectedAwbForStation] = useState<string>('ORD-992-JKT');
+  const [selectedAwbForStation, setSelectedAwbForStation] = useState<string>('');
 
   // Google Drive Authentication State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
@@ -87,73 +111,79 @@ function AppContent() {
     };
   }, []);
 
-  // Load database pada inisialisasi awal
+  // Sinkronisasi data real-time dengan server database Cloud SQL (Mirroring Web & Mobile Browser)
+  useEffect(() => {
+    const unsubscribe = syncService.subscribe((payload) => {
+      if (payload.returns && Array.isArray(payload.returns)) {
+        setProcessedRows(payload.returns);
+        try {
+          localStorage.setItem(STORAGE_PROCESSED_RETURNS_KEY, JSON.stringify(payload.returns));
+        } catch {}
+      }
+      if (payload.disputes && typeof payload.disputes === 'object') {
+        if (Array.isArray(payload.disputes['_rma_claims_list_'])) {
+          setRmaClaims(payload.disputes['_rma_claims_list_']);
+          try {
+            localStorage.setItem(STORAGE_RMA_CLAIMS_KEY, JSON.stringify(payload.disputes['_rma_claims_list_']));
+          } catch {}
+        }
+        setDisputeRecords(payload.disputes);
+      }
+      if (payload.masterDatabase && Array.isArray(payload.masterDatabase) && payload.masterDatabase.length > 0) {
+        setMasterDatabase(payload.masterDatabase);
+      }
+    });
+
+    // Ambil data terbaru dari server saat mount
+    syncService.syncPull().catch((err) => {
+      console.warn('Initial sync pull warning:', err);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleSaveRmaClaims = (newClaims: RmaClaimRecord[]) => {
+    setRmaClaims(newClaims);
+    try {
+      localStorage.setItem(STORAGE_RMA_CLAIMS_KEY, JSON.stringify(newClaims));
+      const savedDisputes = localStorage.getItem('rma_cs_dispute_claims_v1');
+      const parsed = savedDisputes ? JSON.parse(savedDisputes) : {};
+      parsed['_rma_claims_list_'] = newClaims;
+      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(parsed));
+      syncService.pushDisputes(parsed);
+    } catch (err) {
+      console.error('Error saving RMA claims:', err);
+    }
+  };
+
+  const handleForwardToRma = (claim: RmaClaimRecord) => {
+    setRmaClaims((prev) => {
+      const filtered = prev.filter((c) => c.orderId !== claim.orderId);
+      const next = [claim, ...filtered];
+      handleSaveRmaClaims(next);
+      return next;
+    });
+  };
+
+  const handleUpdateRmaClaim = (updatedClaim: RmaClaimRecord) => {
+    setRmaClaims((prev) => {
+      const next = prev.map((c) => (c.id === updatedClaim.id ? updatedClaim : c));
+      handleSaveRmaClaims(next);
+      return next;
+    });
+  };
+
+  // Load database lokal pada inisialisasi awal jika offline
   useEffect(() => {
     const loaded = loadMasterDatabase();
-    setMasterDatabase(loaded);
-
-    // Initial preloaded result HANYA jika aplikasi baru pertama kali dibuka (belum pernah di-seed sebelumnya)
-    // Jika pengguna/admin menghapus data hingga kosong, data contoh TIDAK akan dimunculkan kembali.
-    const hasBeenSeeded = localStorage.getItem(STORAGE_SEEDED_FLAG);
-    if (!hasBeenSeeded) {
-      localStorage.setItem(STORAGE_SEEDED_FLAG, 'true');
-
-      const initialScenario = SAMPLE_SCENARIOS[0].payload;
-      const initialRows1 = processUnboxingReport({
-        ...initialScenario,
-        Operator_ID: 'OPR-992',
-        Order_ID: 'ORD-992-JKT',
-        Expected_SKUs: [
-          { SKU_ID: 'SKU-SKINCARE-01', Nama_Barang: 'Glow Radiance Vitamin C Serum 30ml' },
-          { SKU_ID: 'SKU-JACKET-02', Nama_Barang: 'Techwear Waterproof Windbreaker Navy - L' }
-        ],
-        Scanned_SKUs: [
-          { SKU_ID: 'SKU-SKINCARE-01', Nama_Barang: 'Glow Radiance Vitamin C Serum 30ml', Kondisi: 'Good' },
-          { SKU_ID: 'SKU-JACKET-02', Nama_Barang: 'Techwear Waterproof Windbreaker Navy - L', Kondisi: 'Damage Packaging' }
-        ]
-      });
-
-      // Sample Case 2: Shopee / SPX - Produk Retak Cacat & Kardus Hancur
-      const initialRows2 = processUnboxingReport({
-        Operator_ID: 'OPR-101',
-        Order_ID: 'SHP-9823441',
-        Video_Timestamp: '2026-10-07 14:20:15',
-        Link_Video: 'https://drive.google.com/file/d/evidence-video-shopee-9823441/view',
-        Expected_SKUs: [
-          { SKU_ID: 'SKU-ELEC-001', Nama_Barang: 'Headset Gaming 7.1 Surround RGB' },
-          { SKU_ID: 'SKU-ELEC-003', Nama_Barang: 'Mouse Wireless Ergonomic Silent Click' }
-        ],
-        Scanned_SKUs: [
-          { SKU_ID: 'SKU-ELEC-001', Nama_Barang: 'Headset Gaming 7.1 Surround RGB', Kondisi: 'Damage Packaging', Catatan_Tambahan: 'Kardus penyok hancur tertindih ekspedisi saat transit' },
-          { SKU_ID: 'SKU-ELEC-003', Nama_Barang: 'Mouse Wireless Ergonomic Silent Click', Kondisi: 'Damage Product', Catatan_Tambahan: 'Tombol klik retak & sensor mati' }
-        ]
-      });
-
-      // Sample Case 3: Tokopedia / J&T - Barang Hilang / Paket Kosong (Missing Item)
-      const initialRows3 = processUnboxingReport({
-        Operator_ID: 'OPR-042',
-        Order_ID: 'TKP-88492019',
-        Video_Timestamp: '2026-10-07 09:12:44',
-        Link_Video: 'https://drive.google.com/file/d/evidence-video-tkp-88492019/view',
-        Expected_SKUs: [
-          { SKU_ID: 'SKU-WATCH-001', Nama_Barang: 'Smartwatch AMOLED Bluetooth Call' },
-          { SKU_ID: 'SKU-ACC-002', Nama_Barang: 'Adaptor Charger Magnetic Original' }
-        ],
-        Scanned_SKUs: [
-          { SKU_ID: 'SKU-WATCH-001', Nama_Barang: 'Smartwatch AMOLED Bluetooth Call', Kondisi: 'Good' }
-        ]
-      });
-
-      const combinedInitial = [...initialRows1, ...initialRows2, ...initialRows3, ...HISTORICAL_RETURN_ROWS];
-      setProcessedRows(combinedInitial);
-      setCurrentInput(initialScenario);
-      try {
-        localStorage.setItem(STORAGE_PROCESSED_RETURNS_KEY, JSON.stringify(combinedInitial));
-      } catch {}
+    if (loaded && loaded.length > 0) {
+      setMasterDatabase(loaded);
     }
   }, []);
 
-  // Simpan perubahan data returns ke localStorage (termasuk saat seluruh data dihapus sehingga array kosong [])
+  // Simpan perubahan data returns ke localStorage sebagai offline cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_PROCESSED_RETURNS_KEY, JSON.stringify(processedRows));
@@ -161,9 +191,8 @@ function AppContent() {
   }, [processedRows]);
 
   const handleProcessComplete = (rows: ProcessedReturnRow[], rawInput: UnboxingSessionInput) => {
+    const orderId = rawInput.Order_ID || rawInput.order_id;
     setProcessedRows((prev) => {
-      const orderId = rawInput.Order_ID || rawInput.order_id;
-      // Perbarui jika order yang sama sudah ada, atau tambahkan di urutan teratas
       const remaining = prev.filter((r) => r.Order_ID !== orderId);
       const updated = [...rows, ...remaining];
       try {
@@ -171,6 +200,8 @@ function AppContent() {
       } catch {}
       return updated;
     });
+    // Kirim langsung ke server database bersama (Cloud SQL)
+    syncService.pushReturns(rows, orderId);
     setCurrentInput(rawInput);
   };
 
@@ -183,6 +214,9 @@ function AppContent() {
       } catch {}
       return remaining;
     });
+
+    // Sinkronkan penghapusan ke database bersama Cloud SQL
+    syncService.deleteOrder(orderId);
 
     // Bersihkan juga catatan klaim dispute di localStorage jika ada
     try {
@@ -198,6 +232,7 @@ function AppContent() {
         });
         if (changed) {
           localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(parsed));
+          syncService.pushDisputes(parsed);
         }
       }
     } catch {}
@@ -215,6 +250,7 @@ function AppContent() {
       } catch {}
       return next;
     });
+    syncService.deleteRow(orderId, skuId);
   };
 
   // Hapus massal beberapa Order ID sekaligus (Khusus Super Admin)
@@ -228,6 +264,8 @@ function AppContent() {
       } catch {}
       return remaining;
     });
+
+    syncService.deleteBulkOrders(orderIds);
 
     // Bersihkan juga catatan klaim dispute di localStorage jika ada
     try {
@@ -243,6 +281,7 @@ function AppContent() {
         });
         if (changed) {
           localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(parsed));
+          syncService.pushDisputes(parsed);
         }
       }
     } catch {}
@@ -259,7 +298,9 @@ function AppContent() {
       } catch {}
       return remaining;
     });
+    syncService.deleteBulkRows(rowKeys);
   };
+
 
   const handleSelectAwbFromDatabase = (awb: string) => {
     setSelectedAwbForStation(awb);
@@ -276,7 +317,68 @@ function AppContent() {
     setGoogleUser(null);
   };
 
-  const damageCount = processedRows.filter((r) => r.Kondisi !== 'Good').length;
+  // 1. Kumpulan order ID yang sudah dialihkan ke RMA Claim
+  const forwardedOrderIds = useMemo(() => {
+    return new Set((rmaClaims || []).map((c) => c.orderId));
+  }, [rmaClaims]);
+
+  // 2. Aturan baku penghitungan angka badge CS Claims:
+  // - Hanya menghitung barang dengan Kondisi !== 'Good'
+  // - Berkurang karena kasus dialihkan ke RMA Claim (forwardedOrderIds.has(r.Order_ID))
+  // - Berkurang karena status claim sudah disetujui (APPROVED / PARTIAL) atau ditolak (REJECTED)
+  // - Tetap aktif (dihitung) jika status PENDING (Siap Diajukan) atau SUBMITTED (Sedang Diajukan)
+  const activeCsDisputeCount = useMemo(() => {
+    const damageIndexByOrder: Record<string, number> = {};
+
+    return processedRows.filter((r) => {
+      // Aturan 1: Barang kondisi Good tidak masuk klaim kerusakan CS
+      if (r.Kondisi === 'Good') return false;
+
+      // Aturan 2: Berkurang karena Order ID sudah dialihkan ke RMA Claim
+      if (forwardedOrderIds.has(r.Order_ID)) return false;
+
+      const orderId = r.Order_ID || '';
+      const idxInOrder = damageIndexByOrder[orderId] || 0;
+      damageIndexByOrder[orderId] = idxInOrder + 1;
+
+      // Aturan 3: Periksa status di disputeRecords dengan kunci deterministik
+      const keyPrimary = `${orderId}__${r.SKU_ID}__${idxInOrder}`;
+      const keyLegacy = `${orderId}_${r.SKU_ID}_${idxInOrder}`;
+
+      const matchedRecord =
+        disputeRecords[keyPrimary] ||
+        disputeRecords[keyLegacy] ||
+        Object.entries(disputeRecords).find(([k]) =>
+          k.startsWith(`${orderId}__${r.SKU_ID}__${idxInOrder}`) ||
+          k.startsWith(`${orderId}_${r.SKU_ID}_${idxInOrder}`)
+        )?.[1] ||
+        Object.entries(disputeRecords).find(([k]) =>
+          k.startsWith(`${orderId}__${r.SKU_ID}`) ||
+          k.startsWith(`${orderId}_${r.SKU_ID}`)
+        )?.[1];
+
+      const defaultStatus =
+        r.Kondisi === 'Totally Damage' || r.Kondisi === 'Missing Item' || r.Kondisi === 'Missing'
+          ? 'SUBMITTED'
+          : 'PENDING';
+
+      const status = matchedRecord?.claimStatus || defaultStatus;
+
+      // Aturan 4: Angka di navigation bar berkurang karena status claim sudah disetujui atau ditolak
+      if (status === 'APPROVED' || status === 'REJECTED' || status === 'PARTIAL') {
+        return false;
+      }
+
+      // Tetap dihitung jika masih dalam proses (PENDING / SUBMITTED)
+      return true;
+    }).length;
+  }, [processedRows, forwardedOrderIds, disputeRecords]);
+
+  // 3. Aturan baku angka badge RMA Claim:
+  // - Kasus klaim logistik RMA yang masih aktif (stageStatus belum SELESAI)
+  const activeRmaCount = useMemo(() => {
+    return (rmaClaims || []).filter((c) => c.stageStatus !== 'SELESAI').length;
+  }, [rmaClaims]);
 
   return (
     <div className="min-h-screen relative overflow-x-hidden flex flex-col font-sans text-slate-800">
@@ -288,7 +390,8 @@ function AppContent() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         reportCount={processedRows.length}
-        damageCount={damageCount}
+        damageCount={activeCsDisputeCount}
+        rmaCount={activeRmaCount}
         masterCount={masterDatabase.length}
         operatorId="RMA Warehouse Otwoo"
         googleUser={googleUser}
@@ -304,6 +407,8 @@ function AppContent() {
             onNavigateToStation={() => setActiveTab('station')}
             onNavigateToReports={() => setActiveTab('reports')}
             onNavigateToDisputes={() => setActiveTab('disputes')}
+            onNavigateToRma={() => setActiveTab('rma')}
+            rmaClaims={rmaClaims}
           />
         )}
 
@@ -344,7 +449,21 @@ function AppContent() {
             masterDatabase={masterDatabase}
             onNavigateToStation={() => setActiveTab('station')}
             onNavigateToReports={() => setActiveTab('reports')}
+            onNavigateToRma={() => setActiveTab('rma')}
             onDeleteOrder={handleDeleteOrder}
+            rmaClaims={rmaClaims}
+            onForwardToRma={handleForwardToRma}
+            onDisputeRecordsChange={setDisputeRecords}
+          />
+        )}
+
+        {/* TAB 3B: Halaman RMA Claim (Eskalasi Klaim Logistik dari CS) */}
+        {activeTab === 'rma' && (
+          <RMAClaimsView
+            rmaClaims={rmaClaims}
+            onUpdateRmaClaim={handleUpdateRmaClaim}
+            onNavigateToDisputes={() => setActiveTab('disputes')}
+            masterDatabase={masterDatabase}
           />
         )}
 
@@ -356,7 +475,9 @@ function AppContent() {
               setMasterData={(data) => {
                 setMasterDatabase(data);
                 saveMasterDatabase(data);
+                syncService.pushMasterDatabase(data);
               }}
+
               onSelectAwbForUnboxing={handleSelectAwbFromDatabase}
             />
           </div>

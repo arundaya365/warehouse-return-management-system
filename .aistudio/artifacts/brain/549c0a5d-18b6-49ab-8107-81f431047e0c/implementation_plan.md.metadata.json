@@ -1,6 +1,6 @@
 {
-  "summary": "Implementasi checklist multi-kriteria untuk Status Kondisi Retur pada halaman Laporan:\n- Menggantikan dropdown tunggal dengan panel kartu checklist interaktif untuk kelima kondisi standar (Good, Damage Product, Damage Packaging, Missing, Unexpected).\n- Dilengkapi tombol shortcut seleksi cepat: 'Pilih Semua', 'Hanya Good', 'Hanya Defect/Masalah', dan 'Reset'.\n- Menampilkan live counter badge jumlah data riil untuk masing-masing kondisi.\n- Terintegrasi penuh dengan filter data tabel, paginasi, export CSV, dan modal unduhan.",
-  "updatedAt": "2026-10-14T09:08:08.498225331Z",
+  "summary": "Rencana implementasi automasi deteksi Marketplace & Logistik berbasis prefix nomor resi (AWB) sesuai rumus Excel, integrasi 2 dropdown dinamis dengan memori prefix baru, dan visualisasi di Stasiun Unboxing, Laporan, dan Klaim CS.",
+  "updatedAt": "2026-10-16T11:19:29.778211007Z",
   "requestFeedback": true,
   "userFacing": true
 }

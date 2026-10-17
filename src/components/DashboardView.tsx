@@ -24,11 +24,13 @@ import {
   Sparkles,
   Layers,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Share2
 } from 'lucide-react';
 import { ProcessedReturnRow, StandardKondisi } from '../processor';
 import { MasterSKUItem, formatRupiah } from '../utils/excelTemplate';
 import { useLanguage } from '../context/LanguageContext';
+import { RmaClaimRecord, RMA_STAGE_LABELS } from '../types/rma';
 
 interface DashboardViewProps {
   rows: ProcessedReturnRow[];
@@ -36,6 +38,8 @@ interface DashboardViewProps {
   onNavigateToStation: () => void;
   onNavigateToReports: () => void;
   onNavigateToDisputes: () => void;
+  onNavigateToRma?: () => void;
+  rmaClaims?: RmaClaimRecord[];
 }
 
 type TrendMode = 'daily' | 'monthly';
@@ -46,7 +50,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   masterDatabase = [],
   onNavigateToStation,
   onNavigateToReports,
-  onNavigateToDisputes
+  onNavigateToDisputes,
+  onNavigateToRma,
+  rmaClaims = []
 }) => {
   const { t, isEn, language } = useLanguage();
 
@@ -86,8 +92,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // ==========================================
   const kpiData = useMemo(() => {
     const totalItems = rows.length;
-    const distinctOrders = Array.from(new Set(rows.map((r) => r.Order_ID).filter(Boolean)));
-    const totalOrders = distinctOrders.length;
 
     let goodCount = 0;
     let damagePackagingCount = 0;
@@ -132,9 +136,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .filter((r) => r.Kondisi !== 'Good')
       .reduce((acc, curr) => acc + lookupItemPrice(curr.SKU_ID), 0);
 
+    // Ambil data RMA klaim logistik
+    let effectiveRmaClaims = rmaClaims;
+    if (!effectiveRmaClaims || effectiveRmaClaims.length === 0) {
+      try {
+        const savedRma = localStorage.getItem('rma_claims_records_v1');
+        if (savedRma) {
+          const parsed = JSON.parse(savedRma);
+          if (Array.isArray(parsed)) effectiveRmaClaims = parsed;
+        }
+      } catch {}
+    }
+
+    const distinctOrdersSet = new Set(rows.map((r) => r.Order_ID).filter(Boolean));
+    (effectiveRmaClaims || []).forEach((c) => {
+      if (c.orderId) distinctOrdersSet.add(c.orderId);
+    });
+    const totalOrders = distinctOrdersSet.size;
+
+    const rmaTotalCount = effectiveRmaClaims.length;
+    const rmaCompletedCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'SELESAI').length;
+    const rmaInvestigatingCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'INVESTIGASI').length;
+    const rmaTransferredCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'DIALIHKAN_KE_RMA').length;
+    const rmaReceivedCsCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'DITERIMA_CS').length;
+    const rmaTotalEstimated = effectiveRmaClaims.reduce((sum, c) => sum + (c.estimatedCompensation || 0), 0);
+    
+    // Nilai kompensasi RMA diperhitungkan saat status klaim sudah Selesai (sesuai konfirmasi user)
+    const rmaApprovedSettlement = effectiveRmaClaims
+      .filter((c) => c.stageStatus === 'SELESAI')
+      .reduce((sum, c) => sum + (c.approvedCompensation || 0), 0);
+
+    const csSettlementApproved = totalSettlementApproved;
+    const combinedSettlementApproved = csSettlementApproved + rmaApprovedSettlement;
+
     const recoveryRatePct =
       totalDamagedGoodsValue > 0
-        ? Math.min(100, Math.round((totalSettlementApproved / totalDamagedGoodsValue) * 100))
+        ? Math.min(100, Math.round((combinedSettlementApproved / totalDamagedGoodsValue) * 100))
         : 0;
 
     return {
@@ -151,10 +188,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       totalReturnGoodsValue,
       totalDamagedGoodsValue,
       totalClaimAmount,
-      totalSettlementApproved,
-      recoveryRatePct
+      totalSettlementApproved: combinedSettlementApproved,
+      csSettlementApproved,
+      rmaApprovedSettlement,
+      combinedSettlementApproved,
+      recoveryRatePct,
+      rmaTotalCount,
+      rmaCompletedCount,
+      rmaInvestigatingCount,
+      rmaTransferredCount,
+      rmaReceivedCsCount,
+      rmaTotalEstimated
     };
-  }, [rows, masterDatabase]);
+  }, [rows, masterDatabase, rmaClaims]);
 
   // =========================================================================
   // 2. DAILY TREND CALCULATION (Harian)
@@ -377,6 +423,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
   }, [rows]);
 
+  // Memoized recent RMA Claims untuk Kartu Aktivitas Dashboard
+  const recentRmaClaims = useMemo(() => {
+    let list = rmaClaims;
+    if (!list || list.length === 0) {
+      try {
+        const savedRma = localStorage.getItem('rma_claims_records_v1');
+        if (savedRma) {
+          const parsed = JSON.parse(savedRma);
+          if (Array.isArray(parsed)) list = parsed;
+        }
+      } catch {}
+    }
+    return [...(list || [])]
+      .sort((a, b) => new Date(b.updatedAt || b.forwardedAt).getTime() - new Date(a.updatedAt || a.forwardedAt).getTime())
+      .slice(0, 5);
+  }, [rmaClaims]);
+
   // =========================================================================
   // 6. EXPORT DASHBOARD SUMMARY CSV
   // =========================================================================
@@ -452,6 +515,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>{isEn ? 'Export Summary' : 'Unduh Ringkasan'}</span>
           </button>
 
+          {onNavigateToRma && (
+            <button
+              onClick={onNavigateToRma}
+              className="py-2.5 px-3.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs sm:text-sm border border-indigo-200 shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer"
+              title="Buka modul eskalasi klaim logistik RMA"
+            >
+              <Truck className="w-4 h-4 text-indigo-600" />
+              <span>RMA Claim</span>
+            </button>
+          )}
+
           <button
             onClick={onNavigateToStation}
             className="py-2.5 px-4 rounded-2xl bg-[#0F766E] hover:bg-[#115E59] text-white font-semibold text-xs sm:text-sm shadow-sm transition-all flex items-center space-x-2 active:scale-95 cursor-pointer shrink-0"
@@ -479,6 +553,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-[11px] text-slate-500 font-medium">
             {kpiData.totalItems} {isEn ? 'total units inspected' : 'total unit terverifikasi'}
           </div>
+          {kpiData.rmaTotalCount > 0 && (
+            <div className="text-[10px] text-indigo-700 font-semibold pt-1 border-t border-slate-200 flex items-center justify-between">
+              <span>Eskalasi RMA:</span>
+              <span className="font-mono font-bold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">
+                {kpiData.rmaTotalCount} Kasus
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Card 2: Total Unit Barang Retur */}
@@ -518,12 +600,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-lg sm:text-xl font-extrabold text-amber-950 font-mono truncate" title={formatRupiah(kpiData.totalReturnGoodsValue)}>
             {formatRupiah(kpiData.totalReturnGoodsValue)}
           </div>
-          <div className="text-[11px] text-amber-700 font-medium">
-            {isEn ? 'Master catalog pricing' : 'Berdasarkan harga Master SKU'}
+          <div className="text-[11px] text-amber-800 font-medium">
+            Kerugian: <span className="font-mono font-bold text-rose-700">{formatRupiah(kpiData.totalDamagedGoodsValue)}</span>
           </div>
+          {kpiData.rmaTotalEstimated > 0 && (
+            <div className="text-[10px] text-amber-900/80 pt-1 border-t border-amber-200 flex items-center justify-between">
+              <span>Tuntutan RMA:</span>
+              <span className="font-mono font-bold text-amber-900">{formatRupiah(kpiData.rmaTotalEstimated)}</span>
+            </div>
+          )}
         </div>
 
-        {/* Card 5: Tingkat Pencairan Klaim Ekspedisi */}
+        {/* Card 5: Tingkat Pencairan Klaim Ekspedisi & RMA */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/60 border border-emerald-200/90 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-emerald-700 text-xs font-bold">
             <span>{t('dash_kpi_recovery_rate')}</span>
@@ -532,9 +620,66 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-2xl font-extrabold text-emerald-950 font-mono">
             {kpiData.recoveryRatePct}%
           </div>
-          <div className="text-[11px] text-emerald-700 font-medium truncate" title={formatRupiah(kpiData.totalSettlementApproved)}>
-            {formatRupiah(kpiData.totalSettlementApproved)} {isEn ? 'settled' : 'cair'}
+          <div className="text-[11px] text-emerald-800 font-semibold truncate" title={`Total Cair Gabungan: ${formatRupiah(kpiData.combinedSettlementApproved)}`}>
+            {formatRupiah(kpiData.combinedSettlementApproved)} {isEn ? 'recovered' : 'cair'}
           </div>
+          {/* Rincian Kontribusi CS vs RMA */}
+          <div className="text-[10px] text-emerald-900 font-medium pt-1 border-t border-emerald-200/80 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">CS Selesai:</span>
+              <span className="font-mono font-bold text-emerald-700">{formatRupiah(kpiData.csSettlementApproved)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">RMA Selesai:</span>
+              <span className="font-mono font-bold text-indigo-700">{formatRupiah(kpiData.rmaApprovedSettlement)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================================= */}
+      {/* 2B. BANNER RINGKASAN PEMULIHAN SENGKETA LOGISTIK (CS & RMA CLAIM)      */}
+      {/* ======================================================================= */}
+      <div className="glass-card rounded-3xl p-4 sm:p-5 border border-indigo-100 bg-gradient-to-r from-white via-indigo-50/30 to-teal-50/30 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start space-x-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center shrink-0 shadow-2xs">
+            <Truck className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">
+                Penyelamatan Aset & Pemulihan Sengketa Logistik (CS & RMA)
+              </h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Recovery {kpiData.recoveryRatePct}%
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Hasil klaim dicairkan: CS Dispute <strong className="font-mono text-emerald-700 font-bold">{formatRupiah(kpiData.csSettlementApproved)}</strong> + RMA Logistik <strong className="font-mono text-indigo-700 font-bold">{formatRupiah(kpiData.rmaApprovedSettlement)}</strong> = Total <strong className="font-mono text-slate-900 font-bold">{formatRupiah(kpiData.combinedSettlementApproved)}</strong> dari beban kerusakan barang {formatRupiah(kpiData.totalDamagedGoodsValue)}.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            type="button"
+            onClick={onNavigateToDisputes}
+            className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center space-x-1 cursor-pointer shadow-2xs"
+          >
+            <span>Klaim CS ({kpiData.totalClaimAmount > 0 ? formatRupiah(kpiData.csSettlementApproved) : 'Buka'})</span>
+            <ArrowRight className="w-3 h-3 text-slate-400" />
+          </button>
+          {onNavigateToRma && (
+            <button
+              type="button"
+              onClick={onNavigateToRma}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-xs active:scale-95"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>RMA Claim ({kpiData.rmaCompletedCount} Selesai · {kpiData.rmaInvestigatingCount} Investigasi)</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -997,8 +1142,192 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* ======================================================================= */}
-      {/* 5. TOP 5 SKU PALING SERING RETUR                                        */}
+      {/* 4B. KARTU AKTIVITAS & RINGKASAN STATUS KLAIM RMA LOGISTIK               */}
       {/* ======================================================================= */}
+      <div className="glass-card rounded-3xl p-5 sm:p-6 shadow-xl border border-indigo-100/90 space-y-4 bg-gradient-to-br from-white via-indigo-50/25 to-slate-50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100/80">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold shadow-2xs shrink-0">
+              <Truck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight">
+                  {isEn ? 'RMA Logistics Claim Activity & Status' : 'Aktivitas & Ringkasan Status Klaim RMA Logistik'}
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  {kpiData.rmaTotalCount} {isEn ? 'Total Cases' : 'Total Kasus'}
+                </span>
+                {kpiData.rmaApprovedSettlement > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Cair: {formatRupiah(kpiData.rmaApprovedSettlement)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {isEn
+                  ? 'Real-time overview of cases forwarded by Customer Service to RMA logistics team for warehouse physical investigation'
+                  : 'Monitoring kasus sengketa logistik yang dialihkan Customer Service untuk investigasi fisik gudang dan bukti rekaman unboxing'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            {onNavigateToDisputes && (
+              <button
+                type="button"
+                onClick={onNavigateToDisputes}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center space-x-1 cursor-pointer shadow-2xs"
+              >
+                <span>{isEn ? 'CS Claim List' : 'Klaim CS'}</span>
+              </button>
+            )}
+            {onNavigateToRma && (
+              <button
+                type="button"
+                onClick={onNavigateToRma}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-xs active:scale-95"
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Open RMA Claims' : 'Buka RMA Claim'}</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 4 Status Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">1. Diterima CS</div>
+              <div className="text-xl font-mono font-extrabold text-amber-950 mt-0.5">{kpiData.rmaReceivedCsCount}</div>
+              <div className="text-[10px] text-amber-700/80 font-medium">Tiket masuk CS</div>
+            </div>
+            <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+          </div>
+
+          <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">2. Dialihkan ke RMA</div>
+              <div className="text-xl font-mono font-extrabold text-indigo-950 mt-0.5">{kpiData.rmaTransferredCount}</div>
+              <div className="text-[10px] text-indigo-700/80 font-medium">Diserahkan ke tim RMA</div>
+            </div>
+            <Truck className="w-5 h-5 text-indigo-500 shrink-0" />
+          </div>
+
+          <div className="p-3 rounded-2xl bg-purple-50/70 border border-purple-200/80 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-purple-700">3. Investigasi</div>
+              <div className="text-xl font-mono font-extrabold text-purple-950 mt-0.5">{kpiData.rmaInvestigatingCount}</div>
+              <div className="text-[10px] text-purple-700/80 font-medium">Cek fisik & video</div>
+            </div>
+            <AlertTriangle className="w-5 h-5 text-purple-500 shrink-0" />
+          </div>
+
+          <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">4. Selesai & Cair</div>
+              <div className="text-xl font-mono font-extrabold text-emerald-950 mt-0.5">{kpiData.rmaCompletedCount}</div>
+              <div className="text-[10px] text-emerald-700/90 font-mono font-bold">{formatRupiah(kpiData.rmaApprovedSettlement)}</div>
+            </div>
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          </div>
+        </div>
+
+        {/* Daftar Aktivitas Kasus RMA Terkini */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span>Kasus RMA Terkini ({recentRmaClaims.length})</span>
+            {recentRmaClaims.length > 0 && onNavigateToRma && (
+              <button
+                type="button"
+                onClick={onNavigateToRma}
+                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+              >
+                Lihat Semua Kasus RMA →
+              </button>
+            )}
+          </div>
+
+          {recentRmaClaims.length === 0 ? (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 text-center space-y-1.5 py-6">
+              <Truck className="w-7 h-7 text-slate-300 mx-auto" />
+              <p className="text-xs font-semibold text-slate-700">Belum ada klaim yang dialihkan dari CS ke Tim RMA</p>
+              <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                Customer Service dapat mengalihkan klaim kerusakan logistik bermasalah ke Tim RMA melalui tombol "Forward ke RMA" di daftar Klaim CS.
+              </p>
+              {onNavigateToDisputes && (
+                <button
+                  type="button"
+                  onClick={onNavigateToDisputes}
+                  className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 cursor-pointer transition-colors"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Buka Klaim CS untuk Forward Kasus</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentRmaClaims.map((claim) => {
+                const stage = RMA_STAGE_LABELS[claim.stageStatus] || RMA_STAGE_LABELS.DIALIHKAN_KE_RMA;
+                return (
+                  <div
+                    key={claim.id}
+                    onClick={() => onNavigateToRma && onNavigateToRma()}
+                    className="p-3 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer shadow-2xs group"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold shrink-0 mt-0.5 group-hover:bg-indigo-100 group-hover:text-indigo-700 transition-colors">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono font-bold text-xs text-slate-900">{claim.orderId}</span>
+                          <span className="text-[10px] font-semibold px-2 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                            {claim.channel}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${stage.badgeColor}`}>
+                            {stage.labelId}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-1">
+                          {claim.items.length} SKU ({claim.items.map((it) => it.skuId).join(', ')}) • Diteruskan oleh: <strong className="text-slate-700">{claim.forwardedBy}</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end space-x-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 text-right">
+                      <div>
+                        <div className="text-[10px] text-slate-500">
+                          {claim.stageStatus === 'SELESAI' ? 'Realisasi Cair:' : 'Estimasi Klaim:'}
+                        </div>
+                        <div className="font-mono font-bold text-xs text-slate-900">
+                          {claim.stageStatus === 'SELESAI' && claim.approvedCompensation !== undefined
+                            ? <span className="text-emerald-700">{formatRupiah(claim.approvedCompensation)}</span>
+                            : formatRupiah(claim.estimatedCompensation)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onNavigateToRma) onNavigateToRma();
+                        }}
+                        className="p-1.5 rounded-lg bg-indigo-50 group-hover:bg-indigo-600 text-indigo-700 group-hover:text-white transition-colors"
+                        title="Buka detail di modul RMA Claim"
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
       <div className="glass-card rounded-3xl overflow-hidden shadow-xl border border-white/80">
         <div className="p-4 sm:p-5 border-b border-slate-200 bg-white/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-2.5">

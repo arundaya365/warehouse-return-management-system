@@ -32,13 +32,20 @@ import {
   Eye,
   EyeOff,
   PackageCheck,
-  Trash2
+  Trash2,
+  Share2,
+  ArrowRight,
+  Send,
+  Lock
 } from 'lucide-react';
 import { ProcessedReturnRow, StandardKondisi } from '../processor';
 import { MasterSKUItem } from '../utils/excelTemplate';
 import { useLanguage } from '../context/LanguageContext';
 import { useAccount, ROLE_DEFINITIONS } from '../context/AccountContext';
 import { getDirectVideoUrl } from './ResultViewer';
+import { syncService } from '../services/dataSyncService';
+import { RmaClaimRecord, RmaClaimItem, RMA_STAGE_LABELS } from '../types/rma';
+import { detectMarketplaceAndLogistics } from '../utils/awbDetection';
 
 export type ClaimStatus = 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'PARTIAL' | 'REJECTED';
 
@@ -90,6 +97,8 @@ export interface DamagedDisputeItem {
 export interface OrderDisputeGroup {
   orderId: string;
   operatorId: string;
+  marketplace?: string;
+  ekspedisi?: string;
   waktuProses: string;
   videoTimestamp: string;
   namaFileVideo: string;
@@ -119,8 +128,12 @@ interface DisputeClaimsViewProps {
   rows: ProcessedReturnRow[];
   onNavigateToStation: () => void;
   onNavigateToReports: () => void;
+  onNavigateToRma?: () => void;
   masterDatabase?: MasterSKUItem[];
   onDeleteOrder?: (orderId: string) => void;
+  rmaClaims?: RmaClaimRecord[];
+  onForwardToRma?: (claim: RmaClaimRecord) => void;
+  onDisputeRecordsChange?: (records: Record<string, any>) => void;
 }
 
 const DEFAULT_CHANNELS: ClaimChannel[] = [
@@ -138,8 +151,12 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   rows,
   onNavigateToStation,
   onNavigateToReports,
+  onNavigateToRma,
   masterDatabase = [],
-  onDeleteOrder
+  onDeleteOrder,
+  rmaClaims = [],
+  onForwardToRma,
+  onDisputeRecordsChange
 }) => {
   const { t, isEn } = useLanguage();
   const { currentUser } = useAccount();
@@ -165,13 +182,34 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     return {};
   });
 
-  // Simpan perubahan ke localStorage
+  // Sinkronisasi klaim dispute dari database pusat Cloud SQL
+  useEffect(() => {
+    const unsubscribe = syncService.subscribe((payload) => {
+      if (payload.disputes && typeof payload.disputes === 'object') {
+        setDisputeRecords(payload.disputes);
+        if (onDisputeRecordsChange) {
+          onDisputeRecordsChange(payload.disputes);
+        }
+        try {
+          localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload.disputes));
+        } catch {}
+      }
+    });
+    return () => unsubscribe();
+  }, [onDisputeRecordsChange]);
+
+  // Simpan perubahan ke localStorage & server database Cloud SQL
   const saveDisputeRecords = (updated: Record<string, Partial<DisputeRecord>>) => {
     setDisputeRecords(updated);
+    if (onDisputeRecordsChange) {
+      onDisputeRecordsChange(updated);
+    }
     try {
       localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(updated));
     } catch {}
+    syncService.pushDisputes(updated);
   };
+
 
   // State Filter & Pencarian
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -220,21 +258,113 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Generate Key unik untuk setiap item retur kerusakan
-  const getItemKey = (row: ProcessedReturnRow, index: number) => {
-    return `${row.Order_ID || 'ORDER'}_${row.SKU_ID || 'SKU'}_${index}`;
+  // Modal Forward ke Tim RMA (Eskalasi Klaim Logistik)
+  const [forwardingOrder, setForwardingOrder] = useState<OrderDisputeGroup | null>(null);
+  const [forwardEstCompensation, setForwardEstCompensation] = useState<string>('');
+  const [forwardCsNotes, setForwardCsNotes] = useState<string>('');
+
+  const forwardedRmaMap = useMemo(() => {
+    const map = new Map<string, RmaClaimRecord>();
+    (rmaClaims || []).forEach((c) => {
+      map.set(c.orderId, c);
+    });
+    return map;
+  }, [rmaClaims]);
+
+  const handleOpenForwardModal = (order: OrderDisputeGroup) => {
+    setForwardingOrder(order);
+    const calculatedEst = order.totalClaimAmount > 0
+      ? order.totalClaimAmount
+      : order.damageItems.reduce((acc, curr) => acc + (curr.masterPrice || curr.basePrice || 150000), 0);
+    setForwardEstCompensation(String(calculatedEst || 150000));
+    setForwardCsNotes(
+      order.damageItems.map((d) => d.csNotes).filter(Boolean).join('; ') ||
+      'Ekspedisi menolak ganti rugi tingkat CS / butuh investigasi fisik gudang dan bukti rekaman unboxing.'
+    );
   };
 
-  // Guess default channel dari Order ID
+  const handleConfirmForwardToRma = () => {
+    if (!forwardingOrder) return;
+    const estCompNum = parseInt(forwardEstCompensation.replace(/[^0-9]/g, ''), 10) || 0;
+    const nowIso = new Date().toISOString();
+
+    const items: RmaClaimItem[] = forwardingOrder.damageItems.map((d) => ({
+      skuId: d.row.SKU_ID,
+      namaBarang: d.row.Nama_Barang,
+      qty: 1,
+      kondisi: d.row.Kondisi,
+      hargaSatuan: d.masterPrice || d.basePrice || 150000,
+      subtotalEstimasi: d.claimAmount || d.masterPrice || d.basePrice || 150000
+    }));
+
+    const primaryChannel = forwardingOrder.damageItems[0]?.channel || detectChannelFromOrderId(forwardingOrder.orderId);
+
+    const rmaRecord: RmaClaimRecord = {
+      id: `rma_${forwardingOrder.orderId}_${Date.now()}`,
+      orderId: forwardingOrder.orderId,
+      awb: (forwardingOrder.allItems[0] as Record<string, any>)?.No_Resi || forwardingOrder.orderId,
+      channel: primaryChannel,
+      stageStatus: 'DIALIHKAN_KE_RMA',
+      items,
+      estimatedCompensation: estCompNum,
+      csNotes: forwardCsNotes.trim(),
+      forwardedBy: currentUser?.fullName || 'CS Specialist',
+      forwardedAt: nowIso,
+      videoTimestamp: forwardingOrder.videoTimestamp,
+      namaFileVideo: forwardingOrder.namaFileVideo,
+      linkVideo: forwardingOrder.linkVideo,
+      operatorId: forwardingOrder.operatorId,
+      waktuProses: forwardingOrder.waktuProses,
+      updatedAt: nowIso
+    };
+
+    if (onForwardToRma) {
+      onForwardToRma(rmaRecord);
+    }
+
+    // Update dispute record to mark as forwarded
+    const updatedDisputes = { ...disputeRecords };
+    forwardingOrder.damageItems.forEach((d) => {
+      const existing = updatedDisputes[d.key] || {};
+      updatedDisputes[d.key] = {
+        ...existing,
+        id: d.key,
+        row: d.row,
+        channel: d.channel,
+        claimStatus: existing.claimStatus || d.claimStatus,
+        ticketNumber: existing.ticketNumber || d.ticketNumber,
+        claimAmount: existing.claimAmount !== undefined ? existing.claimAmount : d.claimAmount,
+        csNotes: `[DIALIHKAN KE RMA] ${forwardCsNotes.trim()}`,
+        updatedAt: nowIso
+      };
+    });
+    saveDisputeRecords(updatedDisputes);
+
+    setForwardingOrder(null);
+    showToast(`✓ Kasus Order ${forwardingOrder.orderId} berhasil dialihkan ke Tim RMA!`);
+  };
+
+  // Generate Key unik untuk setiap item retur kerusakan (deterministik per Order ID)
+  const getItemKey = (row: ProcessedReturnRow, index: number) => {
+    return `${row.Order_ID || 'ORDER'}__${row.SKU_ID || 'SKU'}__${index}`;
+  };
+
+  // Deteksi channel klaim baku dari Order ID menggunakan formula resmi Excel
   const detectChannelFromOrderId = (orderId: string): ClaimChannel => {
+    const detected = detectMarketplaceAndLogistics(orderId);
+    if (detected.marketplace === 'TikTok Shop') return 'TikTok Shop';
+    if (detected.marketplace === 'Tokopedia Indonesia') return 'Tokopedia';
+    if (detected.marketplace === 'Lazada Indonesia') return 'Lazada';
+    if (detected.marketplace === 'Shopee Indonesia') return 'Shopee';
+    if (detected.logistics === 'J&T') return 'J&T Express';
+    if (detected.logistics === 'SiCepat') return 'SiCepat';
+    if (detected.logistics === 'Shopee Express') return 'SPX Express';
+    if (detected.logistics === 'JNE') return 'JNE';
+    if (detected.logistics === 'Ninja Express') return 'Ninja Xpress';
     const id = (orderId || '').toUpperCase();
     if (id.includes('TOKOPEDIA') || id.includes('TKP')) return 'Tokopedia';
     if (id.includes('TIKTOK') || id.includes('TTS')) return 'TikTok Shop';
     if (id.includes('LAZADA') || id.includes('LZD')) return 'Lazada';
-    if (id.includes('JNT') || id.includes('JP')) return 'J&T Express';
-    if (id.includes('SCP') || id.includes('SICEPAT')) return 'SiCepat';
-    if (id.includes('SPX')) return 'SPX Express';
-    if (id.includes('JNE')) return 'JNE';
     return 'Shopee'; // default paling umum untuk e-commerce Indonesia
   };
 
@@ -259,16 +389,26 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     }
 
     const groups: OrderDisputeGroup[] = [];
-    let damagedGlobalIdx = 0;
 
     for (const [orderId, orderRows] of map.entries()) {
       const firstRow = orderRows[0];
       const goodRows = orderRows.filter((r) => r.Kondisi === 'Good');
       const damageRows = orderRows.filter((r) => r.Kondisi !== 'Good');
 
-      const damagedItems: DamagedDisputeItem[] = damageRows.map((row) => {
-        const key = getItemKey(row, damagedGlobalIdx++);
-        const claim = disputeRecords[key];
+      const damagedItems: DamagedDisputeItem[] = damageRows.map((row, idxInOrder) => {
+        const key = getItemKey(row, idxInOrder);
+        const legacyKey1 = `${row.Order_ID || 'ORDER'}_${row.SKU_ID || 'SKU'}_${idxInOrder}`;
+        const claim =
+          disputeRecords[key] ||
+          disputeRecords[legacyKey1] ||
+          Object.entries(disputeRecords).find(([k]) =>
+            k.startsWith(`${row.Order_ID}__${row.SKU_ID}__${idxInOrder}`) ||
+            k.startsWith(`${row.Order_ID}_${row.SKU_ID}_${idxInOrder}`)
+          )?.[1] ||
+          Object.entries(disputeRecords).find(([k]) =>
+            k.startsWith(`${row.Order_ID}__${row.SKU_ID}`) ||
+            k.startsWith(`${row.Order_ID}_${row.SKU_ID}`)
+          )?.[1];
         const channel = (claim?.channel as ClaimChannel) || detectChannelFromOrderId(row.Order_ID);
         const itemMasterPrice = lookupItemPrice(row.SKU_ID);
         const basePrice = itemMasterPrice !== undefined ? itemMasterPrice : 150000;
@@ -296,7 +436,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
 
         return {
           key,
-          itemIndex: damagedGlobalIdx,
+          itemIndex: idxInOrder,
           row,
           channel,
           claimStatus: status,
@@ -357,9 +497,15 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         sEntry.qty += 1;
       }
 
+      const detected = detectMarketplaceAndLogistics(orderId);
+      const marketplace = firstRow.Marketplace || detected.marketplace || 'Lainnya';
+      const ekspedisi = firstRow.Ekspedisi || detected.logistics || 'Lainnya';
+
       groups.push({
         orderId,
         operatorId: firstRow.Operator_ID || 'Operator',
+        marketplace,
+        ekspedisi,
         waktuProses: firstRow.Waktu_Proses || firstRow.Video_Timestamp || '-',
         videoTimestamp: firstRow.Video_Timestamp || '-',
         namaFileVideo: firstRow.Nama_File_Video || '',
@@ -627,6 +773,100 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const handleCancelInlineEdit = () => {
     setInlineEditingKey(null);
     setInlineSettlementInput('');
+  };
+
+  // Aksi Cepat: Setujui Klaim Item (Approved 100%) -> Mengurangi angka badge Klaim CS
+  const handleQuickApproveItem = (item: DamagedDisputeItem) => {
+    const { key, row, claimAmount, basePrice } = item;
+    const finalAmount = claimAmount || basePrice || 150000;
+    const existing = disputeRecords[key] || {};
+    const updated = {
+      ...disputeRecords,
+      [key]: {
+        ...existing,
+        id: key,
+        row,
+        channel: existing.channel || item.channel,
+        claimStatus: 'APPROVED' as ClaimStatus,
+        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
+        claimAmount: finalAmount,
+        settlementAmount: finalAmount,
+        csNotes: existing.csNotes || 'Disetujui penuh oleh ekspedisi/marketplace',
+        updatedAt: new Date().toISOString()
+      }
+    };
+    saveDisputeRecords(updated);
+    showToast(`✓ Klaim [${row.SKU_ID}] disetujui penuh (${formatRupiah(finalAmount)}). Angka badge Klaim CS berkurang!`);
+  };
+
+  // Aksi Cepat: Tolak Klaim Item (Rejected Rp 0) -> Mengurangi angka badge Klaim CS
+  const handleQuickRejectItem = (item: DamagedDisputeItem) => {
+    const { key, row, claimAmount } = item;
+    const existing = disputeRecords[key] || {};
+    const updated = {
+      ...disputeRecords,
+      [key]: {
+        ...existing,
+        id: key,
+        row,
+        channel: existing.channel || item.channel,
+        claimStatus: 'REJECTED' as ClaimStatus,
+        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
+        claimAmount: existing.claimAmount || claimAmount,
+        settlementAmount: 0,
+        csNotes: existing.csNotes || 'Klaim ditolak oleh ekspedisi/marketplace',
+        updatedAt: new Date().toISOString()
+      }
+    };
+    saveDisputeRecords(updated);
+    showToast(`✓ Klaim [${row.SKU_ID}] ditolak (Rp 0). Kasus selesai & angka badge Klaim CS berkurang.`);
+  };
+
+  // Aksi Cepat: Setujui Seluruh SKU dalam 1 Order
+  const handleQuickApproveAllOrder = (order: OrderDisputeGroup) => {
+    const updated = { ...disputeRecords };
+    const nowIso = new Date().toISOString();
+    order.damageItems.forEach((item) => {
+      const finalAmount = item.claimAmount || item.basePrice || 150000;
+      const existing = updated[item.key] || {};
+      updated[item.key] = {
+        ...existing,
+        id: item.key,
+        row: item.row,
+        channel: existing.channel || item.channel,
+        claimStatus: 'APPROVED' as ClaimStatus,
+        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
+        claimAmount: finalAmount,
+        settlementAmount: finalAmount,
+        csNotes: existing.csNotes || 'Disetujui penuh (Batch Order)',
+        updatedAt: nowIso
+      };
+    });
+    saveDisputeRecords(updated);
+    showToast(`✓ Seluruh klaim Order [${order.orderId}] (${order.damageCount} SKU) Disetujui. Angka badge Klaim CS berkurang!`);
+  };
+
+  // Aksi Cepat: Tolak Seluruh SKU dalam 1 Order
+  const handleQuickRejectAllOrder = (order: OrderDisputeGroup) => {
+    const updated = { ...disputeRecords };
+    const nowIso = new Date().toISOString();
+    order.damageItems.forEach((item) => {
+      const existing = updated[item.key] || {};
+      updated[item.key] = {
+        ...existing,
+        id: item.key,
+        row: item.row,
+        channel: existing.channel || item.channel,
+        claimStatus: 'REJECTED' as ClaimStatus,
+        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
+        claimAmount: existing.claimAmount || item.claimAmount,
+        settlementAmount: 0,
+        csNotes: existing.csNotes || 'Ditolak ekspedisi (Batch Order)',
+        updatedAt: nowIso
+      };
+    });
+    saveDisputeRecords(updated);
+    showToast(`✓ Seluruh klaim Order [${order.orderId}] (${order.damageCount} SKU) Ditolak. Kasus selesai & angka badge Klaim CS berkurang.`);
   };
 
   // Generator teks template surat / draf aju banding CS per item
@@ -1067,6 +1307,62 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
       </div>
 
       {/* ======================================================================= */}
+      {/* 2B. BANNER ATURAN BAKU PENGURANGAN ANGKA NAVIGATION BAR                 */}
+      {/* ======================================================================= */}
+      <div className="rounded-2xl p-4 bg-gradient-to-r from-violet-50/90 via-indigo-50/80 to-teal-50/70 border border-indigo-200/90 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ShieldAlert className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-extrabold text-indigo-950 flex items-center space-x-1.5">
+                <span>Aturan Baku Pengurangan Angka Badge di Navigation Bar</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  Resmi CS & RMA
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-600">
+                Angka badge merah pada tab <strong>Klaim CS</strong> menunjukkan jumlah produk rusak yang <strong>masih aktif memerlukan tindakan CS</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-indigo-100 grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
+          <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200 flex items-start space-x-2 shadow-2xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-emerald-900 block text-[11px]">1. Status Disetujui (Approved / Partial)</span>
+              <p className="text-[10px] text-emerald-700 leading-relaxed mt-0.5">
+                Angka badge <strong>otomatis berkurang</strong> karena dana ganti rugi telah disepakati dan dicairkan oleh ekspedisi/marketplace.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/90 border border-rose-200 flex items-start space-x-2 shadow-2xs">
+            <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-rose-900 block text-[11px]">2. Status Ditolak (Rejected)</span>
+              <p className="text-[10px] text-rose-700 leading-relaxed mt-0.5">
+                Angka badge <strong>otomatis berkurang</strong> karena tiket klaim ditolak final oleh ekspedisi (kasus ditutup / selesai).
+              </p>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/90 border border-indigo-200 flex items-start space-x-2 shadow-2xs">
+            <Truck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-indigo-900 block text-[11px]">3. Dialihkan ke RMA Logistik</span>
+              <p className="text-[10px] text-indigo-700 leading-relaxed mt-0.5">
+                Angka badge CS <strong>berkurang & berpindah</strong> ke tab <strong>RMA Claim</strong> untuk diproses investigasi oleh Tim RMA.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================================= */}
       {/* 3. TOOLBAR FILTER & PENCARIAN KLAIM                                     */}
       {/* ======================================================================= */}
       <div className="glass-card rounded-3xl p-5 shadow-[0_15px_35px_-10px_rgba(76,29,149,0.15)] space-y-3.5">
@@ -1477,6 +1773,20 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                               <Copy className="w-3 h-3" />
                             </button>
                           </div>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {order.marketplace && (
+                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold">
+                                <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
+                                <span>{order.marketplace}</span>
+                              </span>
+                            )}
+                            {order.ekspedisi && (
+                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
+                                <Truck className="w-2.5 h-2.5 text-indigo-600" />
+                                <span>{order.ekspedisi}</span>
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center space-x-1">
                             <span>Operator:</span>
                             <span className="font-mono text-slate-700 font-semibold">{order.operatorId}</span>
@@ -1594,8 +1904,18 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         {/* Status & Rincian CS */}
                         <td className="py-3 px-3">
                           <div className="flex flex-col items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <div className="shrink-0 scale-90 origin-center">
+                            <div className="shrink-0 scale-90 origin-center flex flex-col items-center gap-1">
                               {getClaimStatusBadge(order.overallStatus)}
+                              {forwardedRmaMap.has(order.orderId) && (
+                                <span
+                                  onClick={() => onNavigateToRma && onNavigateToRma()}
+                                  className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 text-[9px] font-bold border border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
+                                  title="Kasus telah dialihkan ke Tim RMA. Klik untuk buka di RMA Claim"
+                                >
+                                  <Truck className="w-2.5 h-2.5 text-indigo-600" />
+                                  <span>Dialihkan ke RMA</span>
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center space-x-1">
                               <button
@@ -1625,6 +1945,26 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                   <Copy className="w-3.5 h-3.5" />
                                 </button>
                               )}
+                              {/* Tombol Forward ke Tim RMA */}
+                              {forwardedRmaMap.has(order.orderId) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onNavigateToRma && onNavigateToRma()}
+                                  className="p-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
+                                  title="Kasus telah dialihkan ke Tim RMA. Klik untuk lihat di RMA Claim"
+                                >
+                                  <Truck className="w-3.5 h-3.5" />
+                                </button>
+                              ) : order.damageCount > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenForwardModal(order)}
+                                  className="p-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
+                                  title="Forward / Teruskan kasus yang tidak selesai di CS ke Tim RMA"
+                                >
+                                  <Share2 className="w-3.5 h-3.5" />
+                                </button>
+                              ) : null}
                               {canDelete && onDeleteOrder && (
                                 <button
                                   type="button"
@@ -1650,11 +1990,23 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                             <div className="p-4 sm:p-5 space-y-4">
                               {/* Sub-Header baris rincian (identik dengan laporan + ringkasan finansial CS) */}
                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-                                <div className="flex items-center space-x-2 text-xs font-bold text-slate-800">
+                                <div className="flex items-center space-x-2 text-xs font-bold text-slate-800 flex-wrap gap-y-1">
                                   <Package className="w-4 h-4 text-[#0F766E]" />
                                   <span>
                                     Rincian Barang dalam Order ID: <strong className="font-mono text-[#0F766E]">{order.orderId}</strong>
                                   </span>
+                                  {order.marketplace && (
+                                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-[10px] font-bold text-teal-800">
+                                      <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
+                                      <span>{order.marketplace}</span>
+                                    </span>
+                                  )}
+                                  {order.ekspedisi && (
+                                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-800">
+                                      <Truck className="w-2.5 h-2.5 text-indigo-600" />
+                                      <span>{order.ekspedisi}</span>
+                                    </span>
+                                  )}
                                   <span className="text-slate-400">•</span>
                                   <span className="text-slate-600 font-normal">
                                     Total <strong>{order.totalItemsCount} Unit</strong> ({order.skuVariationsCount} Variasi SKU)
@@ -1687,6 +2039,52 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                         <Copy className="w-3 h-3" />
                                         <span>Salin Surat Order</span>
                                       </button>
+                                      {/* Tombol Teruskan ke RMA di subpanel */}
+                                      {forwardedRmaMap.has(order.orderId) ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => onNavigateToRma && onNavigateToRma()}
+                                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold transition-all shadow-2xs flex items-center space-x-1 cursor-pointer"
+                                          title="Kasus telah dialihkan ke Tim RMA. Buka status di tab RMA Claim"
+                                        >
+                                          <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                                          <span>Lihat di RMA Claim ({RMA_STAGE_LABELS[forwardedRmaMap.get(order.orderId)!.stageStatus]?.labelId || 'RMA'})</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenForwardModal(order)}
+                                          className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
+                                          title="Teruskan kasus yang tidak dapat diselesaikan CS ke Tim RMA Logistik"
+                                        >
+                                          <Share2 className="w-3.5 h-3.5" />
+                                          <span>Forward ke RMA Logistik</span>
+                                        </button>
+                                      )}
+
+                                      {/* Tombol Cepat Selesaikan Order (Setujui / Tolak Semua SKU) */}
+                                      {!forwardedRmaMap.has(order.orderId) && (
+                                        <div className="flex items-center space-x-1 pl-1 border-l border-slate-200">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleQuickApproveAllOrder(order)}
+                                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
+                                            title="Setujui seluruh klaim barang dalam pesanan ini (langsung mengurangi angka Klaim CS di Navigation Bar)"
+                                          >
+                                            <Check className="w-3 h-3" />
+                                            <span>Setujui Semua</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleQuickRejectAllOrder(order)}
+                                            className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
+                                            title="Tolak seluruh klaim barang dalam pesanan ini (langsung mengurangi angka Klaim CS di Navigation Bar)"
+                                          >
+                                            <X className="w-3 h-3" />
+                                            <span>Tolak Semua</span>
+                                          </button>
+                                        </div>
+                                      )}
                                     </>
                                   )}
 
@@ -1836,9 +2234,22 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                         <div className="text-[10px] text-slate-400">Tuntutan</div>
                                       </td>
 
-                                      {/* Realisasi Ekspedisi (Manual Inline Edit) */}
+                                      {/* Realisasi Ekspedisi (Manual Inline Edit / Terkunci jika dialihkan ke RMA) */}
                                       <td className="py-3 px-2.5 bg-amber-50/40 border-x border-amber-100/80">
-                                        {isInlineEditing ? (
+                                        {forwardedRmaMap.has(order.orderId) ? (
+                                          <div
+                                            className="p-1.5 rounded-xl bg-indigo-50/80 border border-indigo-200/90 flex flex-col items-start gap-1 cursor-default select-none shadow-2xs"
+                                            title="Kasus order ini telah dialihkan ke Tim RMA. Nominal refund dan ganti rugi dikelola langsung oleh Tim RMA melalui menu RMA Claim."
+                                          >
+                                            <div className="font-mono font-bold text-xs text-indigo-950">
+                                              {actualCompensation > 0 ? formatRupiah(actualCompensation) : "Belum Ditentukan"}
+                                            </div>
+                                            <span className="inline-flex items-center space-x-1 text-[9px] font-bold text-indigo-700 bg-white px-1.5 py-0.5 rounded border border-indigo-200">
+                                              <Lock className="w-2.5 h-2.5 text-indigo-500" />
+                                              <span>Dikelola Tim RMA</span>
+                                            </span>
+                                          </div>
+                                        ) : isInlineEditing ? (
                                           <div className="space-y-1 p-1 bg-white rounded-xl border border-amber-300 shadow-md">
                                             <div className="flex items-center space-x-1">
                                               <span className="text-[10px] font-bold text-slate-400">Rp</span>
@@ -1906,11 +2317,23 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                           <button
                                             type="button"
                                             onClick={() => handleOpenEditModal(item)}
-                                            className="px-2 py-1 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
-                                            title="Kelola status klaim & formulir detail"
+                                            className={`px-2 py-1 rounded-lg text-white font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer ${
+                                              forwardedRmaMap.has(order.orderId)
+                                                ? "bg-indigo-600 hover:bg-indigo-700"
+                                                : "bg-[#0F766E] hover:bg-[#115E59]"
+                                            }`}
+                                            title={
+                                              forwardedRmaMap.has(order.orderId)
+                                                ? "Lihat rincian bukti klaim (Terkunci - Dikelola Tim RMA)"
+                                                : "Kelola status klaim & formulir detail"
+                                            }
                                           >
-                                            <Edit3 className="w-3 h-3" />
-                                            <span>Kelola</span>
+                                            {forwardedRmaMap.has(order.orderId) ? (
+                                              <Eye className="w-3 h-3" />
+                                            ) : (
+                                              <Edit3 className="w-3 h-3" />
+                                            )}
+                                            <span>{forwardedRmaMap.has(order.orderId) ? "Lihat" : "Kelola"}</span>
                                           </button>
 
                                           <button
@@ -1921,6 +2344,32 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                           >
                                             <Copy className="w-3.5 h-3.5" />
                                           </button>
+
+                                          {/* Aksi Cepat Setujui / Tolak Item (Mengurangi angka navigation bar) */}
+                                          {!forwardedRmaMap.has(order.orderId) && (
+                                            <>
+                                              {claimStatus !== 'APPROVED' && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleQuickApproveItem(item)}
+                                                  className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-300 transition-all cursor-pointer shadow-2xs"
+                                                  title="Aksi Cepat: Setujui Klaim 100% (langsung mengurangi angka Klaim CS di Navigation Bar)"
+                                                >
+                                                  <Check className="w-3.5 h-3.5" />
+                                                </button>
+                                              )}
+                                              {claimStatus !== 'REJECTED' && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleQuickRejectItem(item)}
+                                                  className="p-1 rounded-lg bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 border border-rose-300 transition-all cursor-pointer shadow-2xs"
+                                                  title="Aksi Cepat: Tolak Klaim Rp 0 (langsung mengurangi angka Klaim CS di Navigation Bar)"
+                                                >
+                                                  <X className="w-3.5 h-3.5" />
+                                                </button>
+                                              )}
+                                            </>
+                                          )}
                                         </div>
                                       </td>
                                     </tr>
@@ -2189,6 +2638,24 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
             <div className="p-5 flex-1 overflow-y-auto space-y-4">
               {activeModalTab === 'form' && (
                 <div className="space-y-4 text-xs">
+                  {/* Banner Kasus Dialihkan ke RMA */}
+                  {selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID) && (
+                    <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 flex items-start space-x-3">
+                      <Lock className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-extrabold text-xs">Kasus Order Telah Dialihkan ke Tim RMA Logistik</h4>
+                          <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                            🔒 Nominal Refund Terkunci
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-indigo-700 leading-relaxed">
+                          Penetapan nominal refund dan penyelesaian klaim logistik dikelola langsung oleh Tim RMA melalui menu <strong>RMA Claim</strong>. Formulir di menu CS Claim ini ditampilkan dalam mode baca saja (read-only).
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Info Box Ringkasan Kerusakan dari Gudang */}
                   <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -2212,7 +2679,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       <select
                         value={formChannel}
                         onChange={(e) => setFormChannel(e.target.value as ClaimChannel)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-semibold cursor-pointer"
+                        disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-semibold cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                       >
                         {DEFAULT_CHANNELS.map((ch) => (
                           <option key={ch} value={ch}>
@@ -2229,14 +2696,26 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       </label>
                       <select
                         value={formStatus}
-                        onChange={(e) => setFormStatus(e.target.value as ClaimStatus)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-bold cursor-pointer"
+                        onChange={(e) => {
+                          const newStatus = e.target.value as ClaimStatus;
+                          setFormStatus(newStatus);
+                          if (newStatus === 'APPROVED' && (!formSettlementAmount || formSettlementAmount === '0')) {
+                            setFormSettlementAmount(formClaimAmount || '150000');
+                          } else if (newStatus === 'REJECTED') {
+                            setFormSettlementAmount('0');
+                          }
+                        }}
+                        disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-bold cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                       >
-                        <option value="PENDING">🟡 Siap Diajukan (Draft CS)</option>
-                        <option value="SUBMITTED">🔵 Sedang Diajukan (Dalam Investigasi)</option>
-                        <option value="APPROVED">🟢 Disetujui (Ganti Rugi Cair)</option>
-                        <option value="REJECTED">🔴 Ditolak / Tidak Diganti</option>
+                        <option value="PENDING">🟡 Siap Diajukan (Draft CS - Angka Aktif)</option>
+                        <option value="SUBMITTED">🔵 Sedang Diajukan (Investigasi - Angka Aktif)</option>
+                        <option value="APPROVED">🟢 Disetujui (Ganti Rugi Cair - Mengurangi Angka Nav)</option>
+                        <option value="REJECTED">🔴 Ditolak (Tidak Diganti - Mengurangi Angka Nav)</option>
                       </select>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        💡 Memilih status <strong className="text-emerald-700">Disetujui</strong> atau <strong className="text-rose-700">Ditolak</strong> akan menyelesaikan kasus ini dan <strong>otomatis mengurangi angka di Navigation Bar</strong>.
+                      </p>
                     </div>
                   </div>
 
@@ -2251,7 +2730,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         placeholder="Contoh: SHP-DISPUTE-9901 atau JNT-CLM-88"
                         value={formTicketNumber}
                         onChange={(e) => setFormTicketNumber(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono"
+                        disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                       />
                     </div>
 
@@ -2264,7 +2743,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         placeholder="Contoh: 150000"
                         value={formClaimAmount}
                         onChange={(e) => setFormClaimAmount(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono font-bold"
+                        disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono font-bold disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -2279,7 +2758,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       placeholder="Tuliskan perkembangan respon agen CS marketplace, janji SLA investigasi, atau alasan jika ditolak..."
                       value={formCsNotes}
                       onChange={(e) => setFormCsNotes(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                      disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -2396,13 +2875,24 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 >
                   Batal
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSaveModalClaim}
-                  className="px-5 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-rose-500/20 active:scale-95 cursor-pointer"
-                >
-                  Simpan Perubahan
-                </button>
+                {selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID) ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDispute(null)}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer flex items-center space-x-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Tutup (Hanya Baca)</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSaveModalClaim}
+                    className="px-5 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-rose-500/20 active:scale-95 cursor-pointer"
+                  >
+                    Simpan Perubahan
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2459,6 +2949,133 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Ya, Hapus Permanen</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ESKALASI KLAIM LOGISTIK KE TIM RMA */}
+      {forwardingOrder && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setForwardingOrder(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl border border-indigo-100 max-w-xl w-full p-6 space-y-4 animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-200">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Teruskan Kasus Klaim ke Tim RMA Logistik
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Order ID: <strong className="text-slate-800">{forwardingOrder.orderId}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForwardingOrder(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="p-3 rounded-2xl bg-indigo-50/60 border border-indigo-200 text-indigo-900 space-y-1">
+                <p className="font-semibold">
+                  Tanggung jawab penanganan kasus klaim ini akan dialihkan dari Customer Service ke Tim RMA Logistik.
+                </p>
+                <p className="text-[11px] text-indigo-700">
+                  Tim RMA akan memproses investigasi fisik gudang dan bukti rekaman video unboxing untuk berkoordinasi langsung dengan pihak ekspedisi.
+                </p>
+              </div>
+
+              {/* Rincian Barang Rusak */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Daftar Barang yang Diteruskan ({forwardingOrder.damageItems.length} SKU):
+                </label>
+                <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 p-2 space-y-1 bg-slate-50">
+                  {forwardingOrder.damageItems.map((d, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px] py-1 px-1.5 bg-white rounded-lg border border-slate-200">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-mono font-bold text-indigo-700">{d.row.SKU_ID}</span>
+                        <span className="text-slate-600 ml-1.5 font-medium truncate">{d.row.Nama_Barang}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-rose-600 font-bold">[{d.row.Kondisi}]</span>
+                        <span className="font-mono text-slate-800 font-bold ml-2">
+                          {formatRupiah(d.claimAmount || d.masterPrice || d.basePrice || 150000)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Form Input: Estimasi Nilai Ganti Rugi Barang */}
+              <div>
+                <label className="font-bold text-slate-800 block mb-1">
+                  Estimasi Nilai Ganti Rugi Barang (IDR) <span className="text-rose-600">*</span>:
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rp</span>
+                  <input
+                    type="text"
+                    value={forwardEstCompensation}
+                    onChange={(e) => setForwardEstCompensation(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="Contoh: 350000"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Nilai estimasi kerugian barang untuk diajukan klaim ganti rugi ke pihak logistik oleh Tim RMA.
+                </p>
+              </div>
+
+              {/* Form Input: Alasan Pelimpahan & Catatan CS */}
+              <div>
+                <label className="font-bold text-slate-800 block mb-1">
+                  Alasan Kasus Tidak Selesai di CS & Catatan untuk Tim RMA:
+                </label>
+                <textarea
+                  rows={3}
+                  value={forwardCsNotes}
+                  onChange={(e) => setForwardCsNotes(e.target.value)}
+                  placeholder="Jelaskan kendala: misal ekspedisi menolak bukti foto CS, butuh BAP fisik gudang, paket hilang total di transit hub, dll..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <span>Pelimpah: <strong className="text-slate-700">{currentUser?.fullName || 'CS Specialist'}</strong></span>
+                <span>Ekspedisi: <strong className="text-slate-700">{forwardingOrder.damageItems[0]?.channel || 'Ekspedisi'}</strong></span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setForwardingOrder(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmForwardToRma}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Konfirmasi Forward ke RMA</span>
               </button>
             </div>
           </div>

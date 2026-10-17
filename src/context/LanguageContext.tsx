@@ -8,6 +8,7 @@ export interface Translations {
   nav_station: string;
   nav_reports: string;
   nav_disputes: string;
+  nav_rma: string;
   nav_database: string;
   nav_accounts: string;
   nav_subtitle: string;
@@ -176,6 +177,7 @@ const translations: Record<Language, Translations> = {
     nav_station: 'Unboxing',
     nav_reports: 'Laporan',
     nav_disputes: 'Klaim CS',
+    nav_rma: 'RMA Claim',
     nav_database: 'Database',
     nav_accounts: 'Akun',
     nav_subtitle: 'PT. Tirta Kumala Sari — Warehouse Unboxing & Returns',
@@ -342,6 +344,7 @@ const translations: Record<Language, Translations> = {
     nav_station: 'Unboxing',
     nav_reports: 'Reports',
     nav_disputes: 'CS Claims',
+    nav_rma: 'RMA Claim',
     nav_database: 'Database',
     nav_accounts: 'Accounts',
     nav_subtitle: 'PT. Tirta Kumala Sari — Warehouse Returns System',

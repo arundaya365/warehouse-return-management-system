@@ -29,7 +29,8 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Truck
 } from 'lucide-react';
 import {
   useAccount,
@@ -74,6 +75,14 @@ export const MODULE_PERMISSIONS_LIST: ModulePermissionConfig[] = [
     desc: 'Bisa mengelola aju banding klaim ganti rugi ekspedisi/marketplace (Shopee/Tokopedia/TikTok)',
     icon: ShieldAlert,
     color: 'text-rose-600 bg-rose-50 border-rose-200'
+  },
+  {
+    key: 'canAccessRma',
+    label: 'RMA Claim & Eskalasi Klaim Logistik',
+    shortLabel: 'RMA Claim Logistik',
+    desc: 'Bisa membuka modul klaim logistik tingkat lanjut yang diteruskan dari Customer Service',
+    icon: Truck,
+    color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
   },
   {
     key: 'canAccessDatabase',
@@ -1081,6 +1090,7 @@ export const AccountManagementView: React.FC = () => {
                         canAccessStation: true,
                         canAccessReports: true,
                         canAccessDisputes: true,
+                        canAccessRma: true,
                         canAccessDatabase: true,
                         canManageUsers: true,
                         canExportData: true,

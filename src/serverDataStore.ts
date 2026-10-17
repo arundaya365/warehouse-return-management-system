@@ -1,11 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ProcessedReturnRow, processUnboxingReport } from './processor.ts';
-import { MasterSKUItem, DEFAULT_MASTER_DATABASE } from './utils/excelTemplate.ts';
+import { type ProcessedReturnRow, processUnboxingReport } from './processor.ts';
+import { type MasterSKUItem, DEFAULT_MASTER_DATABASE } from './utils/excelTemplate.ts';
+
 import { SAMPLE_SCENARIOS } from './data/sampleScenarios.ts';
 import { HISTORICAL_RETURN_ROWS } from './data/historicalReturns.ts';
-import { INITIAL_ACCOUNTS, UserAccount } from './context/AccountContext.tsx';
+import { INITIAL_ACCOUNTS, type UserAccount } from './types/account.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

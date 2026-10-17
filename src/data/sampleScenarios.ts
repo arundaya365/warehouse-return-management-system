@@ -1,4 +1,6 @@
-import { UnboxingSessionInput } from '../processor';
+import type { UnboxingSessionInput } from '../processor.ts';
+
+
 
 export interface ScenarioPreset {
   id: string;

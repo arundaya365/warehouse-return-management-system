@@ -52,10 +52,17 @@
     animation: floatDelayed 9.5s ease-in-out infinite 1.5s;
   }
 
-  .animate-wave-flow {
-    animation: waveFlow 14s ease-in-out infinite;
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+
+  .animate-shake {
+    animation: shake 0.35s ease-in-out;
   }
 }
+
 
 /* Glassmorphism custom styling - Calm Teal Enterprise */
 .glass-card {

@@ -60,6 +60,11 @@ export interface UnboxingSessionInput {
   Scanned_SKUs?: (ScannedSKUItem | string | Record<string, unknown>)[];
   scanned_skus?: (ScannedSKUItem | string | Record<string, unknown>)[];
   scannedSkus?: (ScannedSKUItem | string | Record<string, unknown>)[];
+
+  Marketplace?: string;
+  marketplace?: string;
+  Ekspedisi?: string;
+  ekspedisi?: string;
 }
 
 export interface ProcessedReturnRow {
@@ -73,7 +78,11 @@ export interface ProcessedReturnRow {
   Video_Timestamp: string;
   Nama_File_Video: string;
   Link_Video: string;
+  Marketplace?: string;
+  Ekspedisi?: string;
 }
+
+import { detectMarketplaceAndLogistics } from './utils/awbDetection.ts';
 
 /**
  * Format current date to 'YYYY-MM-DD HH:MM:SS'
@@ -417,6 +426,13 @@ export function processUnboxingReport(payload: UnboxingSessionInput): ProcessedR
     payload.audio_transcript || payload.Audio_Transcript || payload.transcript || ''
   ).trim();
 
+  // Deteksi / Ambil data Marketplace & Ekspedisi Logistik
+  const rawMarketplace = payload.Marketplace || payload.marketplace;
+  const rawEkspedisi = payload.Ekspedisi || payload.ekspedisi;
+  const autoDetect = (!rawMarketplace || !rawEkspedisi) ? detectMarketplaceAndLogistics(orderId) : null;
+  const marketplace = rawMarketplace || autoDetect?.marketplace || '';
+  const ekspedisi = rawEkspedisi || autoDetect?.logistics || '';
+
   // Ekstrak nama file video terstandarisasi (Rule 5)
   const namaFileVideo = generateStandardVideoFilename(orderId, videoTimestamp);
 
@@ -470,7 +486,9 @@ export function processUnboxingReport(payload: UnboxingSessionInput): ProcessedR
         Catatan_Tambahan: catatan,
         Video_Timestamp: videoTimestamp,
         Nama_File_Video: namaFileVideo,
-        Link_Video: linkVideo
+        Link_Video: linkVideo,
+        Marketplace: marketplace,
+        Ekspedisi: ekspedisi
       });
     } else {
       // Barang di-scan & ada dalam pesanan -> Validasi Kondisi & Ucapan
@@ -523,7 +541,9 @@ export function processUnboxingReport(payload: UnboxingSessionInput): ProcessedR
         Catatan_Tambahan: catatan,
         Video_Timestamp: videoTimestamp,
         Nama_File_Video: namaFileVideo,
-        Link_Video: linkVideo
+        Link_Video: linkVideo,
+        Marketplace: marketplace,
+        Ekspedisi: ekspedisi
       });
     }
   }
@@ -563,7 +583,9 @@ export function processUnboxingReport(payload: UnboxingSessionInput): ProcessedR
         Catatan_Tambahan: catatan,
         Video_Timestamp: videoTimestamp,
         Nama_File_Video: namaFileVideo,
-        Link_Video: linkVideo
+        Link_Video: linkVideo,
+        Marketplace: marketplace,
+        Ekspedisi: ekspedisi
       });
     }
   }

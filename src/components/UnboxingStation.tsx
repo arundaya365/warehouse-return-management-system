@@ -34,9 +34,17 @@ import {
   Sliders,
   FlipHorizontal,
   RefreshCw,
-  Laptop
+  Laptop,
+  ShoppingBag,
+  Truck
 } from 'lucide-react';
 import { CameraSettingsModal, isExternalDevice, getCleanCameraLabel } from './CameraSettingsModal';
+import {
+  detectMarketplaceAndLogistics,
+  saveLearnedAwbPrefix,
+  STANDARD_MARKETPLACES,
+  STANDARD_LOGISTICS
+} from '../utils/awbDetection';
 import {
   UnboxingSessionInput,
   ProcessedReturnRow,
@@ -173,11 +181,46 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
   const warehouseName = `${companyName} — ${currentUser.operatorCode}`;
   const operatorId = `${currentUser.fullName} (${currentUser.operatorCode})`;
 
-  // State 1: AWB / Order ID
-  const [awbInput, setAwbInput] = useState(initialAwb || 'ORD-992-JKT');
-  const [tempAwbModalInput, setTempAwbModalInput] = useState(initialAwb || 'ORD-992-JKT');
+  // State 1: AWB / Order ID (Kosong di awal agar scanner fisik langsung scan)
+  const [awbInput, setAwbInput] = useState(initialAwb || '');
+  const [tempAwbModalInput, setTempAwbModalInput] = useState(initialAwb || '');
   // Step 1: Popup scan no awb / no order (dikontrol oleh gatekeeper Google Drive)
   const [isAwbModalOpen, setIsAwbModalOpen] = useState(false);
+
+  // State Otomasi Marketplace & Ekspedisi Logistik dari Resi / AWB
+  const [currentMarketplace, setCurrentMarketplace] = useState<string>(() => {
+    if (initialAwb) return detectMarketplaceAndLogistics(initialAwb).marketplace;
+    return '';
+  });
+  const [currentLogistics, setCurrentLogistics] = useState<string>(() => {
+    if (initialAwb) return detectMarketplaceAndLogistics(initialAwb).logistics;
+    return '';
+  });
+  const [modalMarketplace, setModalMarketplace] = useState<string>('');
+  const [modalLogistics, setModalLogistics] = useState<string>('');
+  const [detectionInfo, setDetectionInfo] = useState<{
+    marketplace: string;
+    logistics: string;
+    matchedPrefix: string | null;
+    isAutoDetected: boolean;
+    isLearned: boolean;
+    prefixCandidate: string;
+  } | null>(null);
+
+  // Deteksi otomatis saat operator scan / ketik nomor resi di modal
+  useEffect(() => {
+    const clean = (tempAwbModalInput || '').trim();
+    if (clean.length >= 2) {
+      const res = detectMarketplaceAndLogistics(clean);
+      setDetectionInfo(res);
+      setModalMarketplace(res.marketplace || 'Lainnya');
+      setModalLogistics(res.logistics || 'Lainnya');
+    } else {
+      setDetectionInfo(null);
+      setModalMarketplace('');
+      setModalLogistics('');
+    }
+  }, [tempAwbModalInput]);
 
   // State Klasifikasi Kondisi Dinamis (Bisa Ditambah & Dihapus Simple)
   const [conditions, setConditions] = useState<string[]>(() => {
@@ -714,7 +757,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
       // Perekaman ultra-ringan dengan static HUD cache & direct video element
       const composited = createWebcamCompositedStream(
         rawStream,
-        () => awbInputRef.current || 'ORD-992-JKT',
+        () => awbInputRef.current || 'UNBOXING',
         () => warehouseName,
         () => isMirrorPreviewRef.current,
         videoRef.current
@@ -822,7 +865,29 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
       return;
     }
 
-    const finalAwb = (tempAwbModalInput || awbInput || 'ORD-992-JKT').trim().toUpperCase();
+    const finalAwb = (tempAwbModalInput || awbInput || '').trim().toUpperCase();
+    if (!finalAwb) {
+      playBeep(440, 'triangle', 0.15);
+      setSkuFeedbackToast(isEn ? '⚠️ Scan AWB barcode with your scanner first.' : '⚠️ Scan barcode nomor resi (AWB) terlebih dahulu.');
+      setTimeout(() => setSkuFeedbackToast(null), 3000);
+      awbModalInputRef.current?.focus();
+      return;
+    }
+
+    // Tentukan Marketplace & Logistik terpilih dari modal / deteksi otomatis
+    const effectiveMp = modalMarketplace || detectionInfo?.marketplace || detectMarketplaceAndLogistics(finalAwb).marketplace || 'Lainnya';
+    const effectiveLog = modalLogistics || detectionInfo?.logistics || detectMarketplaceAndLogistics(finalAwb).logistics || 'Lainnya';
+    setCurrentMarketplace(effectiveMp);
+    setCurrentLogistics(effectiveLog);
+
+    // Jika prefix baru atau dipilih manual oleh operator, otomatis simpan ke memori sistem agar scan berikutnya langsung terdeteksi
+    if (finalAwb.length >= 2) {
+      const p3 = finalAwb.slice(0, 3);
+      const p2 = finalAwb.slice(0, 2);
+      const prefixToSave = detectionInfo?.matchedPrefix || (finalAwb.length >= 3 ? p3 : p2);
+      saveLearnedAwbPrefix(prefixToSave, effectiveMp, effectiveLog);
+    }
+
     setAwbInput(finalAwb);
     awbInputRef.current = finalAwb;
     setIsAwbModalOpen(false);
@@ -1306,13 +1371,19 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
       };
     });
 
+    const detectedFallback = detectMarketplaceAndLogistics(effectiveOrderId);
+    const finalMarketplace = currentMarketplace || detectedFallback.marketplace || 'Lainnya';
+    const finalLogistics = currentLogistics || detectedFallback.logistics || 'Lainnya';
+
     const payload: UnboxingSessionInput = {
       Operator_ID: operatorId,
       Order_ID: effectiveOrderId,
       Video_Timestamp: effectiveTimestamp,
       Link_Video: finalDriveLink,
       Expected_SKUs: expectedSkus,
-      Scanned_SKUs: scannedSkus
+      Scanned_SKUs: scannedSkus,
+      Marketplace: finalMarketplace,
+      Ekspedisi: finalLogistics
     };
 
     const registerAutoClaims = (processedRows: ProcessedReturnRow[]) => {
@@ -1383,7 +1454,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
 
   const handleDownloadVideo = () => {
     if (!downloadableVideoUrl) return;
-    const effectiveOrderId = awbInput || 'ORD-992-JKT';
+    const effectiveOrderId = awbInput || 'UNBOXING';
     const effectiveTimestamp = videoTimestamp || liveClock || formatProcessTime();
     const filename = generateStandardVideoFilename(effectiveOrderId, effectiveTimestamp);
 
@@ -1405,10 +1476,9 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
     setRecordingSeconds(0);
     setRecordingState('stopped');
 
-    // Default next order proposal
-    const nextAwb = `ORD-${Math.floor(100 + Math.random() * 900)}-JKT`;
-    setAwbInput(nextAwb);
-    setTempAwbModalInput(nextAwb);
+    // Reset input nomor resi ke kosong agar operator langsung menembak barcode scanner fisik
+    setAwbInput('');
+    setTempAwbModalInput('');
 
     // Langsung buka popup scan no awb lagi!
     setIsAwbModalOpen(true);
@@ -1856,8 +1926,24 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
                   {isEn ? 'AWB / Order ID' : 'No. AWB / Order ID'}
                 </div>
-                <div className="text-sm font-mono font-extrabold text-slate-900">
-                  {awbInput}
+                <div className="text-sm font-mono font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
+                  <span>{awbInput}</span>
+                  {(currentMarketplace || currentLogistics) && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {currentMarketplace && (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-[10px] font-bold text-teal-800">
+                          <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
+                          <span>{currentMarketplace}</span>
+                        </span>
+                      )}
+                      {currentLogistics && (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-800">
+                          <Truck className="w-2.5 h-2.5 text-indigo-600" />
+                          <span>{currentLogistics}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2519,42 +2605,111 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
               }}
               className="space-y-4"
             >
-              <div className="relative">
-                <input
-                  ref={awbModalInputRef}
-                  type="text"
-                  value={tempAwbModalInput}
-                  onChange={(e) => setTempAwbModalInput(e.target.value.toUpperCase())}
-                  placeholder={isEn ? "Scan AWB barcode or type here..." : "Scan barcode AWB atau ketik disini..."}
-                  className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-[#0F766E] rounded-2xl text-base font-mono font-bold text-slate-900 shadow-inner focus:outline-none focus:ring-4 focus:ring-teal-500/20"
-                />
-                <Barcode className="w-5 h-5 text-[#0F766E] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    ref={awbModalInputRef}
+                    type="text"
+                    value={tempAwbModalInput}
+                    onChange={(e) => setTempAwbModalInput(e.target.value.toUpperCase())}
+                    onFocus={(e) => e.target.select()}
+                    autoFocus
+                    placeholder={isEn ? "Scan barcode AWB with scanner gun..." : "Scan barcode no resi (AWB) dengan scanner..."}
+                    className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-[#0F766E] rounded-2xl text-base font-mono font-bold text-slate-900 shadow-inner focus:outline-none focus:ring-4 focus:ring-teal-500/20"
+                  />
+                  <Barcode className="w-5 h-5 text-[#0F766E] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                </div>
+
+                {/* Indikator Status Deteksi Prefix Resi */}
+                {tempAwbModalInput.trim().length >= 2 && detectionInfo && (
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
+                        <span>Hasil Deteksi Prefix Resi</span>
+                        <span className="font-mono bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded text-[10px]">
+                          [{detectionInfo.matchedPrefix || detectionInfo.prefixCandidate}]
+                        </span>
+                      </span>
+
+                      {detectionInfo.isAutoDetected && !detectionInfo.isLearned && (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-extrabold">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>✓ Terdeteksi Otomatis (Formula Excel)</span>
+                        </span>
+                      )}
+
+                      {detectionInfo.isLearned && (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 text-[10px] font-extrabold">
+                          <CheckCircle2 className="w-3 h-3 text-indigo-600" />
+                          <span>✓ Dari Memori Sistem</span>
+                        </span>
+                      )}
+
+                      {!detectionInfo.isAutoDetected && (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-extrabold">
+                          <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          <span>🔍 Prefix Baru (Pilihan Akan Disimpan)</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 2 Dropdown Berdampingan: Marketplace & Logistik */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* Dropdown 1: Marketplace */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1">
+                          <ShoppingBag className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Marketplace / Platform</span>
+                        </label>
+                        <select
+                          value={modalMarketplace}
+                          onChange={(e) => setModalMarketplace(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 cursor-pointer shadow-2xs"
+                        >
+                          <option value="">-- Pilih Marketplace --</option>
+                          {STANDARD_MARKETPLACES.map((mp) => (
+                            <option key={mp} value={mp}>
+                              {mp}
+                            </option>
+                          ))}
+                          {modalMarketplace && !STANDARD_MARKETPLACES.includes(modalMarketplace as any) && (
+                            <option value={modalMarketplace}>{modalMarketplace}</option>
+                          )}
+                        </select>
+                      </div>
+
+                      {/* Dropdown 2: Logistik */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center space-x-1">
+                          <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Logistik / Ekspedisi</span>
+                        </label>
+                        <select
+                          value={modalLogistics}
+                          onChange={(e) => setModalLogistics(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 cursor-pointer shadow-2xs"
+                        >
+                          <option value="">-- Pilih Logistik --</option>
+                          {STANDARD_LOGISTICS.map((lg) => (
+                            <option key={lg} value={lg}>
+                              {lg}
+                            </option>
+                          ))}
+                          {modalLogistics && !STANDARD_LOGISTICS.includes(modalLogistics as any) && (
+                            <option value={modalLogistics}>{modalLogistics}</option>
+                          )}
+                        </select>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      💡 Kedua dropdown terisi otomatis sesuai prefix dan tetap dapat diedit operator. Pilihan prefix baru otomatis dipelajari sistem.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Preset cepat untuk test / percepat lead time */}
-              <div className="space-y-1">
-                <div className="text-[11px] text-slate-500 font-medium">
-                  {isEn ? 'Or choose quick sample AWB:' : 'Atau pilih contoh AWB cepat:'}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {['ORD-992-JKT', 'AWB-SKN-2041', 'TOKOPEDIA-8841', 'SHOPEE-RETURN-109'].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setTempAwbModalInput(preset)}
-                      className={`text-xs font-mono px-2.5 py-1 rounded-xl transition-all ${
-                        tempAwbModalInput === preset
-                          ? 'bg-[#0F766E] text-white font-semibold shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center gap-3">
+              <div className="pt-1 flex items-center gap-3">
                 {isDriveLoggedIn ? (
                   <button
                     type="submit"

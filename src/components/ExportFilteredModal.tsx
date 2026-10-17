@@ -59,6 +59,8 @@ const ALL_COLUMNS: ColumnOption[] = [
   { key: 'Waktu_Proses', label: 'Waktu Proses' },
   { key: 'Operator_ID', label: 'Operator ID' },
   { key: 'Order_ID', label: 'Order ID' },
+  { key: 'Marketplace', label: 'Marketplace / Platform' },
+  { key: 'Ekspedisi', label: 'Ekspedisi Logistik' },
   { key: 'SKU_ID', label: 'SKU ID' },
   { key: 'Nama_Barang', label: 'Nama Barang' },
   { key: 'Kondisi', label: 'Status Kondisi' },

@@ -1,4 +1,6 @@
-import { ProcessedReturnRow } from '../processor';
+import type { ProcessedReturnRow } from '../processor.ts';
+
+
 
 /**
  * Historical Return Dataset for Analytics & Trend Monitoring

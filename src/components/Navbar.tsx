@@ -1,16 +1,17 @@
 import React from 'react';
-import { Package, Video, FileSpreadsheet, User, Cloud, FileText, ShieldAlert, Globe, LayoutDashboard, Users, Building2, KeyRound, LogOut } from 'lucide-react';
+import { Package, Video, FileSpreadsheet, User, Cloud, FileText, ShieldAlert, Globe, LayoutDashboard, Users, Building2, KeyRound, LogOut, Truck } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { useLanguage } from '../context/LanguageContext';
 import { useAccount, ROLE_DEFINITIONS } from '../context/AccountContext';
 
-export type AppNavTab = 'dashboard' | 'station' | 'reports' | 'disputes' | 'database' | 'accounts';
+export type AppNavTab = 'dashboard' | 'station' | 'reports' | 'disputes' | 'rma' | 'database' | 'accounts';
 
 interface NavbarProps {
   activeTab: AppNavTab;
   setActiveTab: (tab: AppNavTab) => void;
   reportCount: number;
   damageCount?: number;
+  rmaCount?: number;
   masterCount: number;
   operatorId: string;
   googleUser?: FirebaseUser | null;
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   reportCount = 0,
   damageCount = 0,
+  rmaCount = 0,
   masterCount,
   googleUser
 }) => {
@@ -41,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const canStation = hasPermission('canAccessStation');
   const canReports = hasPermission('canAccessReports');
   const canDisputes = hasPermission('canAccessDisputes');
+  const canRma = hasPermission('canAccessRma');
   const canDatabase = hasPermission('canAccessDatabase');
   const canManageUsers = hasPermission('canManageUsers') || currentUser.role === 'SUPER_ADMIN';
 
@@ -217,7 +220,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {canDisputes && (
               <button
                 onClick={() => setActiveTab('disputes')}
-                title={isEn ? 'CS Damage Dispute Claims & Expedition Compensation' : 'Aju Banding & Klaim Kerusakan Ekspedisi CS'}
+                title={
+                  isEn
+                    ? `CS Claims: ${damageCount} active claims (decreases when claim is Approved, Rejected, or Forwarded to RMA)`
+                    : `Klaim CS: ${damageCount} klaim aktif (angka berkurang otomatis jika status klaim Disetujui, Ditolak, atau Dialihkan ke RMA)`
+                }
                 className={`flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'disputes'
                     ? 'bg-white text-teal-900 shadow-xs border border-teal-200/80 font-bold'
@@ -227,8 +234,39 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <ShieldAlert className={`w-3.5 h-3.5 ${activeTab === 'disputes' ? 'text-rose-600' : 'text-slate-500'}`} />
                 <span>{t('nav_disputes')}</span>
                 {damageCount > 0 && (
-                  <span className="ml-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 tabular-nums">
+                  <span
+                    className="ml-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 tabular-nums"
+                    title={`Aturan Angka: ${damageCount} barang rusak aktif. Angka berkurang bila status klaim Disetujui / Ditolak / Dialihkan ke RMA.`}
+                  >
                     {damageCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* 3B. RMA Claim (Eskalasi Klaim Logistik dari CS) */}
+            {canRma && (
+              <button
+                onClick={() => setActiveTab('rma')}
+                title={
+                  isEn
+                    ? `RMA Claims: ${rmaCount} active cases (decreases when RMA stage is Completed)`
+                    : `RMA Claim: ${rmaCount} kasus aktif (angka berkurang saat tahapan status RMA Selesai)`
+                }
+                className={`flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  activeTab === 'rma'
+                    ? 'bg-white text-teal-900 shadow-xs border border-teal-200/80 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <Truck className={`w-3.5 h-3.5 ${activeTab === 'rma' ? 'text-indigo-600' : 'text-slate-500'}`} />
+                <span>{t('nav_rma')}</span>
+                {rmaCount > 0 && (
+                  <span
+                    className="ml-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 tabular-nums"
+                    title={`Aturan Angka: ${rmaCount} kasus RMA aktif. Angka berkurang bila kasus RMA berstatus Selesai.`}
+                  >
+                    {rmaCount}
                   </span>
                 )}
               </button>

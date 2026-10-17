@@ -24,11 +24,14 @@ import {
   CheckCircle2,
   FileText,
   ShieldAlert,
-  Trash2
+  Trash2,
+  ShoppingBag,
+  Truck
 } from 'lucide-react';
 import { ProcessedReturnRow, StandardKondisi } from '../processor';
 import { ExportFilteredModal } from './ExportFilteredModal';
 import { useAccount, ROLE_DEFINITIONS } from '../context/AccountContext';
+import { detectMarketplaceAndLogistics } from '../utils/awbDetection';
 
 export const getDirectVideoUrl = (url: string, orderId?: string): string => {
   if (!url) return '';
@@ -44,6 +47,8 @@ export const getDirectVideoUrl = (url: string, orderId?: string): string => {
 export interface OrderReturnSummary {
   Order_ID: string;
   Operator_ID: string;
+  Marketplace?: string;
+  Ekspedisi?: string;
   Waktu_Proses: string;
   Video_Timestamp: string;
   Nama_File_Video: string;
@@ -195,9 +200,12 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
       let summary = map.get(orderId);
 
       if (!summary) {
+        const detected = detectMarketplaceAndLogistics(orderId);
         summary = {
           Order_ID: orderId,
           Operator_ID: r.Operator_ID || '-',
+          Marketplace: r.Marketplace || detected.marketplace || 'Lainnya',
+          Ekspedisi: r.Ekspedisi || detected.logistics || 'Lainnya',
           Waktu_Proses: r.Waktu_Proses || r.Video_Timestamp || '-',
           Video_Timestamp: r.Video_Timestamp || '-',
           Nama_File_Video: r.Nama_File_Video || '-',
@@ -331,6 +339,8 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
     const headers = [
       'Order_ID',
       'Operator_ID',
+      'Marketplace',
+      'Ekspedisi',
       'Waktu_Proses',
       'Total_Qty_Return',
       'Jumlah_Variasi_SKU',
@@ -350,6 +360,8 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
         const rowValues = [
           `"${s.Order_ID.replace(/"/g, '""')}"`,
           `"${s.Operator_ID.replace(/"/g, '""')}"`,
+          `"${(s.Marketplace || '').replace(/"/g, '""')}"`,
+          `"${(s.Ekspedisi || '').replace(/"/g, '""')}"`,
           `"${s.Waktu_Proses.replace(/"/g, '""')}"`,
           s.totalQty,
           s.skuVariationsCount,
@@ -379,17 +391,34 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
   // Unduh CSV Detail per Baris SKU
   const handleDownloadSkuDetailCsv = () => {
     if (displayRows.length === 0) return;
-    const headers = Object.keys(displayRows[0]) as (keyof ProcessedReturnRow)[];
+    const standardKeys: (keyof ProcessedReturnRow)[] = [
+      'Waktu_Proses',
+      'Operator_ID',
+      'Order_ID',
+      'Marketplace',
+      'Ekspedisi',
+      'SKU_ID',
+      'Nama_Barang',
+      'Kondisi',
+      'Catatan_Tambahan',
+      'Video_Timestamp',
+      'Nama_File_Video',
+      'Link_Video'
+    ];
     const csvContent = [
-      headers.join(','),
-      ...displayRows.map((row) =>
-        headers
+      standardKeys.join(','),
+      ...displayRows.map((row) => {
+        const detected = detectMarketplaceAndLogistics(row.Order_ID);
+        return standardKeys
           .map((header) => {
-            const val = String(row[header] || '').replace(/"/g, '""');
-            return `"${val}"`;
+            let val = row[header];
+            if (header === 'Marketplace' && !val) val = detected.marketplace || 'Lainnya';
+            if (header === 'Ekspedisi' && !val) val = detected.logistics || 'Lainnya';
+            const cleanVal = String(val || '').replace(/"/g, '""');
+            return `"${cleanVal}"`;
           })
-          .join(',')
-      )
+          .join(',');
+      })
     ].join('\r\n');
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -708,6 +737,20 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                             <span className="font-mono font-extrabold text-slate-900 text-xs sm:text-sm">
                               {order.Order_ID}
                             </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {order.Marketplace && (
+                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold">
+                                <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
+                                <span>{order.Marketplace}</span>
+                              </span>
+                            )}
+                            {order.Ekspedisi && (
+                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
+                                <Truck className="w-2.5 h-2.5 text-indigo-600" />
+                                <span>{order.Ekspedisi}</span>
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center space-x-1">
                             <span>Operator:</span>
@@ -1172,7 +1215,28 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-mono font-extrabold text-slate-900 text-xs">{row.Order_ID}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">Opr: {row.Operator_ID}</div>
+                        {(() => {
+                          const detected = detectMarketplaceAndLogistics(row.Order_ID);
+                          const mp = row.Marketplace || detected.marketplace;
+                          const lg = row.Ekspedisi || detected.logistics;
+                          return (
+                            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              {mp && mp !== 'Lainnya' && (
+                                <span className="inline-flex items-center space-x-0.5 px-1.5 py-0.2 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[9px] font-bold">
+                                  <ShoppingBag className="w-2 h-2 text-teal-600" />
+                                  <span>{mp}</span>
+                                </span>
+                              )}
+                              {lg && lg !== 'Lainnya' && (
+                                <span className="inline-flex items-center space-x-0.5 px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[9px] font-bold">
+                                  <Truck className="w-2 h-2 text-indigo-600" />
+                                  <span>{lg}</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">Opr: {row.Operator_ID}</div>
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-mono text-[#0F766E] font-bold text-xs">{row.SKU_ID}</div>
