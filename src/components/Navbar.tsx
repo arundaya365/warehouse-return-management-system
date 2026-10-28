@@ -1,10 +1,19 @@
-import React from 'react';
-import { Package, Video, FileSpreadsheet, User, Cloud, FileText, ShieldAlert, Globe, LayoutDashboard, Users, Building2, KeyRound, LogOut, Truck } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Package, Video, FileSpreadsheet, User, Cloud, FileText, ShieldAlert, Globe, LayoutDashboard, Users, Building2, KeyRound, LogOut, Truck, CheckCircle2, XCircle, Clock, Info, ArrowRight } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { useLanguage } from '../context/LanguageContext';
 import { useAccount, ROLE_DEFINITIONS } from '../context/AccountContext';
 
 export type AppNavTab = 'dashboard' | 'station' | 'reports' | 'disputes' | 'rma' | 'database' | 'accounts';
+
+export interface CsDisputeStats {
+  activeCount: number;
+  pendingCount: number;
+  submittedCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  forwardedRmaCount: number;
+}
 
 interface NavbarProps {
   activeTab: AppNavTab;
@@ -12,6 +21,7 @@ interface NavbarProps {
   reportCount: number;
   damageCount?: number;
   rmaCount?: number;
+  csDisputeStats?: CsDisputeStats;
   masterCount: number;
   operatorId: string;
   googleUser?: FirebaseUser | null;
@@ -23,10 +33,24 @@ export const Navbar: React.FC<NavbarProps> = ({
   reportCount = 0,
   damageCount = 0,
   rmaCount = 0,
+  csDisputeStats,
   masterCount,
   googleUser
 }) => {
   const { language, setLanguage, t, isEn } = useLanguage();
+  const [isCsPopoverOpen, setIsCsPopoverOpen] = useState(false);
+  const csPopoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleCsMouseEnter = () => {
+    if (csPopoverTimeoutRef.current) clearTimeout(csPopoverTimeoutRef.current);
+    setIsCsPopoverOpen(true);
+  };
+
+  const handleCsMouseLeave = () => {
+    csPopoverTimeoutRef.current = setTimeout(() => {
+      setIsCsPopoverOpen(false);
+    }, 250);
+  };
   const {
     currentUser,
     appName,
@@ -59,20 +83,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <div className="min-w-0">
               <div className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight flex items-center space-x-1.5">
-                <span className="text-slate-900 font-black tracking-tight">{appName}</span>
+                <span className="text-slate-900 font-black tracking-tight lowercase">unboxin.id</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 shrink-0">
                   V2.5
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-500 flex items-center space-x-1 font-medium">
-                <Building2 className="w-3 h-3 text-teal-700 shrink-0" />
-                <span className="truncate max-w-[150px] sm:max-w-none">{companyName}</span>
+                <span className="truncate max-w-[180px] sm:max-w-none">{t('nav_subtitle')}</span>
               </p>
             </div>
           </div>
 
-          {/* Top Actions: Shift PIN, Language Switcher, Google User, Profile & Logout */}
+          {/* Top Actions: Cloud Status, Shift PIN, Language Switcher, Google User, Profile & Logout */}
           <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+            {/* Real-time Cloud Mirroring Status Badge */}
+            <div
+              className="hidden md:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[11px] font-bold shadow-2xs shrink-0"
+              title="Real-Time Cloud Mirroring Aktif (Data otomatis sinkron antar HP, PC 1, dan PC 2 via Firestore)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="hidden lg:inline">Cloud Mirroring</span>
+              <span className="lg:hidden">Cloud</span>
+            </div>
+
             {/* Quick Shift Switcher (Operator PIN Login) */}
             <button
               type="button"
@@ -218,30 +251,165 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* 3. Aju Banding & Klaim Kerusakan CS */}
             {canDisputes && (
-              <button
-                onClick={() => setActiveTab('disputes')}
-                title={
-                  isEn
-                    ? `CS Claims: ${damageCount} active claims (decreases when claim is Approved, Rejected, or Forwarded to RMA)`
-                    : `Klaim CS: ${damageCount} klaim aktif (angka berkurang otomatis jika status klaim Disetujui, Ditolak, atau Dialihkan ke RMA)`
-                }
-                className={`flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  activeTab === 'disputes'
-                    ? 'bg-white text-teal-900 shadow-xs border border-teal-200/80 font-bold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                }`}
+              <div
+                className="relative inline-block"
+                onMouseEnter={handleCsMouseEnter}
+                onMouseLeave={handleCsMouseLeave}
               >
-                <ShieldAlert className={`w-3.5 h-3.5 ${activeTab === 'disputes' ? 'text-rose-600' : 'text-slate-500'}`} />
-                <span>{t('nav_disputes')}</span>
-                {damageCount > 0 && (
-                  <span
-                    className="ml-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 tabular-nums"
-                    title={`Aturan Angka: ${damageCount} barang rusak aktif. Angka berkurang bila status klaim Disetujui / Ditolak / Dialihkan ke RMA.`}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('disputes')}
+                  title={
+                    isEn
+                      ? `CS Claims: ${damageCount} active claims (decreases when claim is Approved, Rejected, or Forwarded to RMA)`
+                      : `Klaim CS: ${damageCount} klaim aktif (angka berkurang otomatis jika status klaim Disetujui, Ditolak, atau Dialihkan ke RMA)`
+                  }
+                  className={`flex items-center justify-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    activeTab === 'disputes'
+                      ? 'bg-white text-teal-900 shadow-xs border border-teal-200/80 font-bold'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  }`}
+                >
+                  <ShieldAlert className={`w-3.5 h-3.5 ${activeTab === 'disputes' ? 'text-rose-600' : 'text-slate-500'}`} />
+                  <span>{t('nav_disputes')}</span>
+                  {damageCount > 0 && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCsPopoverOpen((prev) => !prev);
+                      }}
+                      className="ml-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-rose-500 text-white shadow-2xs tabular-nums cursor-pointer hover:bg-rose-600 transition-colors"
+                      title={isEn ? "Click to view claim status breakdown" : "Klik untuk melihat rincian status klaim"}
+                    >
+                      {damageCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Popover Interaktif Status Klaim CS */}
+                {isCsPopoverOpen && csDisputeStats && (
+                  <div
+                    className="absolute top-full mt-2.5 left-1/2 -translate-x-1/2 w-80 sm:w-92 p-4 rounded-2xl bg-white border-2 border-slate-200 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+                    onMouseEnter={handleCsMouseEnter}
+                    onMouseLeave={handleCsMouseLeave}
                   >
-                    {damageCount}
-                  </span>
+                    {/* Arrow pointer */}
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-t-2 border-l-2 border-slate-200 rotate-45" />
+
+                    {/* Popover Header */}
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center border border-rose-200 text-rose-600 shrink-0">
+                          <ShieldAlert className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">
+                            {isEn ? 'CS Claim Status Breakdown' : 'Rincian Status Klaim CS'}
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {isEn ? 'Real-time damage & claim audit' : 'Audit klaim kerusakan real-time'}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                        {damageCount} {isEn ? 'Orders' : 'Order'}
+                      </span>
+                    </div>
+
+                    {/* Breakdown List */}
+                    <div className="space-y-1.5 text-xs">
+                      {/* 1. Siap Diajukan */}
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-amber-50/70 border border-amber-200/80">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          <span className="font-semibold text-amber-900 text-[11px]">
+                            {isEn ? 'Draft / Ready to Submit' : 'Siap Diajukan (Draft CS)'}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-amber-800 text-[11px] bg-amber-100/90 px-1.5 py-0.2 rounded">
+                          {csDisputeStats.pendingCount} order
+                        </span>
+                      </div>
+
+                      {/* 2. Sedang Diajukan */}
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-blue-50/70 border border-blue-200/80">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="w-3.5 h-3.5 text-blue-600" />
+                          <span className="font-semibold text-blue-900 text-[11px]">
+                            {isEn ? 'Under Investigation' : 'Sedang Diajukan (Investigasi)'}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-blue-800 text-[11px] bg-blue-100/90 px-1.5 py-0.2 rounded">
+                          {csDisputeStats.submittedCount} order
+                        </span>
+                      </div>
+
+                      {/* 3. Disetujui */}
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50/70 border border-emerald-200/80">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="font-semibold text-emerald-900 text-[11px]">
+                            {isEn ? 'Approved / Paid' : 'Disetujui (Cair / Payout)'}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-emerald-800 text-[11px] bg-emerald-100/90 px-1.5 py-0.2 rounded">
+                          {csDisputeStats.approvedCount} order
+                        </span>
+                      </div>
+
+                      {/* 4. Ditolak */}
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-rose-50/70 border border-rose-200/80">
+                        <div className="flex items-center space-x-2">
+                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                          <span className="font-semibold text-rose-900 text-[11px]">
+                            {isEn ? 'Rejected' : 'Ditolak (Banding Ditolak)'}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-rose-800 text-[11px] bg-rose-100/90 px-1.5 py-0.2 rounded">
+                          {csDisputeStats.rejectedCount} order
+                        </span>
+                      </div>
+
+                      {/* 5. Dialihkan ke RMA */}
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-indigo-50/70 border border-indigo-200/80">
+                        <div className="flex items-center space-x-2">
+                          <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                          <span className="font-semibold text-indigo-900 text-[11px]">
+                            {isEn ? 'Forwarded to RMA' : 'Dialihkan ke RMA Logistik'}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-indigo-800 text-[11px] bg-indigo-100/90 px-1.5 py-0.2 rounded">
+                          {csDisputeStats.forwardedRmaCount} order
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Catatan Aturan Baku Badge */}
+                    <div className="mt-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-600 flex items-start space-x-1.5">
+                      <Info className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong>{isEn ? 'Badge Formula:' : 'Aturan Angka Badge:'}</strong>{' '}
+                        {isEn
+                          ? 'Counts active CS Order IDs (Draft + Investigating). Automatically decreases by 1 per Order when forwarded to RMA, approved, or rejected.'
+                          : 'Menghitung Order ID aktif tim CS (Draft + Investigasi). Berkurang otomatis per Order saat dialihkan ke RMA, disetujui, atau ditolak.'}
+                      </div>
+                    </div>
+
+                    {/* Action Link to tab */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCsPopoverOpen(false);
+                        setActiveTab('disputes');
+                      }}
+                      className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+                    >
+                      <span>{isEn ? 'Open CS Claims Page' : 'Buka Halaman Klaim CS'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             )}
 
             {/* 3B. RMA Claim (Eskalasi Klaim Logistik dari CS) */}
@@ -297,7 +465,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {canManageUsers && (
               <button
                 onClick={() => setActiveTab('accounts')}
-                title={isEn ? 'Account Management & Access Rights (PT. Tirta Kumala Sari)' : 'Manajemen Akun & Hak Akses (PT. Tirta Kumala Sari)'}
+                title={isEn ? 'Account Management & Access Rights' : 'Manajemen Akun & Hak Akses'}
                 className={`flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'accounts'
                     ? 'bg-white text-teal-900 shadow-xs border border-teal-200/80 font-bold'

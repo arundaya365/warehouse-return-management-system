@@ -17,7 +17,7 @@ export const BackgroundFloating3D: React.FC = () => {
 
       {/* 3. Subtle Clean Geometric Waves */}
       <svg
-        className="absolute inset-0 w-full h-full opacity-25 animate-wave-flow"
+        className="absolute inset-0 w-full h-full opacity-20 motion-safe:animate-wave-flow"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 1440 900"
         preserveAspectRatio="none"

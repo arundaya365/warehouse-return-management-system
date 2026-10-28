@@ -36,7 +36,8 @@ import {
   RefreshCw,
   Laptop,
   ShoppingBag,
-  Truck
+  Truck,
+  ChevronDown
 } from 'lucide-react';
 import { CameraSettingsModal, isExternalDevice, getCleanCameraLabel } from './CameraSettingsModal';
 import {
@@ -45,6 +46,7 @@ import {
   STANDARD_MARKETPLACES,
   STANDARD_LOGISTICS
 } from '../utils/awbDetection';
+import { syncService } from '../services/dataSyncService';
 import {
   UnboxingSessionInput,
   ProcessedReturnRow,
@@ -221,6 +223,97 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
       setModalLogistics('');
     }
   }, [tempAwbModalInput]);
+
+  // State interaktif ubah marketplace & ekspedisi kustom di halaman perekaman
+  const [customSelectorModal, setCustomSelectorModal] = useState<{
+    isOpen: boolean;
+    type: 'marketplace' | 'logistics';
+    inputValue: string;
+  }>({
+    isOpen: false,
+    type: 'marketplace',
+    inputValue: ''
+  });
+  const [logisticsFeedbackToast, setLogisticsFeedbackToast] = useState<string | null>(null);
+
+  const getCandidatePrefix = (awb: string): string => {
+    const clean = (awb || '').trim().toUpperCase();
+    if (clean.length >= 3) return clean.slice(0, 3);
+    if (clean.length >= 2) return clean.slice(0, 2);
+    return clean;
+  };
+
+  const handleRecordingMarketplaceChange = (selectedMp: string) => {
+    if (selectedMp === '__custom__') {
+      setCustomSelectorModal({
+        isOpen: true,
+        type: 'marketplace',
+        inputValue: ''
+      });
+      return;
+    }
+
+    const cleanMp = (selectedMp || '').trim();
+    setCurrentMarketplace(cleanMp);
+
+    const prefix = getCandidatePrefix(awbInput);
+    if (prefix) {
+      saveLearnedAwbPrefix(prefix, cleanMp, currentLogistics || 'Lainnya');
+      syncService.saveLearnedPrefix(prefix, cleanMp, currentLogistics || 'Lainnya').catch(() => {});
+      setLogisticsFeedbackToast(`✓ Marketplace diubah: ${cleanMp} & prefix [${prefix}] disimpan ke database`);
+      setTimeout(() => setLogisticsFeedbackToast(null), 3500);
+    }
+  };
+
+  const handleRecordingLogisticsChange = (selectedLg: string) => {
+    if (selectedLg === '__custom__') {
+      setCustomSelectorModal({
+        isOpen: true,
+        type: 'logistics',
+        inputValue: ''
+      });
+      return;
+    }
+
+    const cleanLg = (selectedLg || '').trim();
+    setCurrentLogistics(cleanLg);
+
+    const prefix = getCandidatePrefix(awbInput);
+    if (prefix) {
+      saveLearnedAwbPrefix(prefix, currentMarketplace || 'Lainnya', cleanLg);
+      syncService.saveLearnedPrefix(prefix, currentMarketplace || 'Lainnya', cleanLg).catch(() => {});
+      setLogisticsFeedbackToast(`✓ Ekspedisi diubah: ${cleanLg} & prefix [${prefix}] disimpan ke database`);
+      setTimeout(() => setLogisticsFeedbackToast(null), 3500);
+    }
+  };
+
+  const handleSaveCustomSelector = () => {
+    const val = customSelectorModal.inputValue.trim();
+    if (!val) {
+      setCustomSelectorModal((prev) => ({ ...prev, isOpen: false }));
+      return;
+    }
+
+    const prefix = getCandidatePrefix(awbInput);
+    if (customSelectorModal.type === 'marketplace') {
+      setCurrentMarketplace(val);
+      if (prefix) {
+        saveLearnedAwbPrefix(prefix, val, currentLogistics || 'Lainnya');
+        syncService.saveLearnedPrefix(prefix, val, currentLogistics || 'Lainnya').catch(() => {});
+      }
+      setLogisticsFeedbackToast(`✓ Marketplace kustom "${val}" disimpan ke database untuk prefix [${prefix || '-'}]`);
+    } else {
+      setCurrentLogistics(val);
+      if (prefix) {
+        saveLearnedAwbPrefix(prefix, currentMarketplace || 'Lainnya', val);
+        syncService.saveLearnedPrefix(prefix, currentMarketplace || 'Lainnya', val).catch(() => {});
+      }
+      setLogisticsFeedbackToast(`✓ Ekspedisi kustom "${val}" disimpan ke database untuk prefix [${prefix || '-'}]`);
+    }
+
+    setTimeout(() => setLogisticsFeedbackToast(null), 3500);
+    setCustomSelectorModal({ isOpen: false, type: 'marketplace', inputValue: '' });
+  };
 
   // State Klasifikasi Kondisi Dinamis (Bisa Ditambah & Dihapus Simple)
   const [conditions, setConditions] = useState<string[]>(() => {
@@ -880,12 +973,13 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
     setCurrentMarketplace(effectiveMp);
     setCurrentLogistics(effectiveLog);
 
-    // Jika prefix baru atau dipilih manual oleh operator, otomatis simpan ke memori sistem agar scan berikutnya langsung terdeteksi
+    // Jika prefix baru atau dipilih manual oleh operator, otomatis simpan ke memori sistem & database Cloud SQL agar scan berikutnya langsung terdeteksi
     if (finalAwb.length >= 2) {
       const p3 = finalAwb.slice(0, 3);
       const p2 = finalAwb.slice(0, 2);
       const prefixToSave = detectionInfo?.matchedPrefix || (finalAwb.length >= 3 ? p3 : p2);
       saveLearnedAwbPrefix(prefixToSave, effectiveMp, effectiveLog);
+      syncService.saveLearnedPrefix(prefixToSave, effectiveMp, effectiveLog).catch(() => {});
     }
 
     setAwbInput(finalAwb);
@@ -1916,44 +2010,94 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
         {/* KOLOM KANAN: PROSES SCAN SEBELAH KANAN (TIDAK PERLU SCROLL)             */}
         {/* ======================================================================= */}
         <div className="glass-card rounded-3xl p-4 sm:p-5 shadow-[0_20px_50px_-15px_rgba(76,29,149,0.25)] space-y-3">
-          {/* Active AWB Status Pill */}
-          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/70 border border-teal-200 shadow-xs">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[#0F766E] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                1
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                  {isEn ? 'AWB / Order ID' : 'No. AWB / Order ID'}
+          {/* Active AWB Status & Marketplace/Logistics Selector */}
+          <div className="p-3 rounded-2xl bg-white/80 border border-teal-200/90 shadow-xs space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[#0F766E] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  1
                 </div>
-                <div className="text-sm font-mono font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
-                  <span>{awbInput}</span>
-                  {(currentMarketplace || currentLogistics) && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {currentMarketplace && (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-[10px] font-bold text-teal-800">
-                          <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
-                          <span>{currentMarketplace}</span>
-                        </span>
-                      )}
-                      {currentLogistics && (
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-800">
-                          <Truck className="w-2.5 h-2.5 text-indigo-600" />
-                          <span>{currentLogistics}</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                    {isEn ? 'AWB / Order ID' : 'No. AWB / Order ID'}
+                  </div>
+                  <div className="text-sm font-mono font-extrabold text-slate-900 tracking-tight">
+                    {awbInput || '-'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAwbModalOpen(true)}
+                className="text-xs font-semibold text-[#134E4A] hover:text-[#0F766E] bg-white hover:bg-[#F0FDFA] px-3 py-1.5 rounded-xl border border-slate-200 hover:border-teal-300 transition-colors cursor-pointer self-start sm:self-center shadow-2xs"
+              >
+                {isEn ? 'Scan Another AWB' : 'Scan AWB Lain'}
+              </button>
+            </div>
+
+            {/* BARIS PENGUBAH MARKETPLACE & EKSPEDISI INTERAKTIF */}
+            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center space-x-1.5 text-xs text-slate-600 font-semibold shrink-0">
+                <span>Platform & Logistik:</span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap flex-1 sm:justify-end">
+                {/* Dropdown 1: Marketplace */}
+                <div className="relative inline-flex items-center flex-1 sm:flex-initial min-w-[155px]">
+                  <ShoppingBag className="w-3.5 h-3.5 absolute left-2.5 text-teal-700 pointer-events-none" />
+                  <select
+                    value={currentMarketplace || 'Lainnya'}
+                    onChange={(e) => handleRecordingMarketplaceChange(e.target.value)}
+                    className="w-full pl-8 pr-7 py-1.5 bg-teal-50 hover:bg-teal-100/80 border border-teal-300 text-teal-950 font-bold text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer transition-colors shadow-2xs appearance-none"
+                    title="Ubah Marketplace (Otomatis dipelajari dan disimpan ke database Cloud SQL)"
+                  >
+                    <option value="">-- Marketplace --</option>
+                    {STANDARD_MARKETPLACES.map((mp) => (
+                      <option key={mp} value={mp}>
+                        {mp}
+                      </option>
+                    ))}
+                    {currentMarketplace && !STANDARD_MARKETPLACES.includes(currentMarketplace as any) && (
+                      <option value={currentMarketplace}>{currentMarketplace}</option>
+                    )}
+                    <option value="__custom__">+ Ketik Marketplace Baru...</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-2 text-teal-700 pointer-events-none opacity-70" />
+                </div>
+
+                {/* Dropdown 2: Ekspedisi Logistik */}
+                <div className="relative inline-flex items-center flex-1 sm:flex-initial min-w-[155px]">
+                  <Truck className="w-3.5 h-3.5 absolute left-2.5 text-indigo-700 pointer-events-none" />
+                  <select
+                    value={currentLogistics || 'Lainnya'}
+                    onChange={(e) => handleRecordingLogisticsChange(e.target.value)}
+                    className="w-full pl-8 pr-7 py-1.5 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-300 text-indigo-950 font-bold text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer transition-colors shadow-2xs appearance-none"
+                    title="Ubah Ekspedisi Logistik (Otomatis dipelajari dan disimpan ke database Cloud SQL)"
+                  >
+                    <option value="">-- Ekspedisi --</option>
+                    {STANDARD_LOGISTICS.map((lg) => (
+                      <option key={lg} value={lg}>
+                        {lg}
+                      </option>
+                    ))}
+                    {currentLogistics && !STANDARD_LOGISTICS.includes(currentLogistics as any) && (
+                      <option value={currentLogistics}>{currentLogistics}</option>
+                    )}
+                    <option value="__custom__">+ Ketik Ekspedisi Baru...</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-2 text-indigo-700 pointer-events-none opacity-70" />
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => setIsAwbModalOpen(true)}
-              className="text-xs font-medium text-[#134E4A] hover:text-[#0F766E] bg-white hover:bg-[#F0FDFA] px-3 py-1.5 rounded-xl border border-[#E2E8F0] transition-colors cursor-pointer"
-            >
-              {isEn ? 'Scan Another AWB' : 'Scan AWB Lain'}
-            </button>
+            {/* Feedback micro-toast jika operator mengubah marketplace / ekspedisi */}
+            {logisticsFeedbackToast && (
+              <div className="p-2 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 text-xs font-semibold flex items-center space-x-2 animate-fade-in shadow-xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                <span>{logisticsFeedbackToast}</span>
+              </div>
+            )}
           </div>
 
           {/* STEP 2: PILIH KONDISI & SCAN SKU */}

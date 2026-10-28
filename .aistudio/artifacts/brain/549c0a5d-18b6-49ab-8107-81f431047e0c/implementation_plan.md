@@ -1,114 +1,84 @@
-# Rencana Implementasi: Automasi Deteksi Marketplace & Logistik Berdasarkan Prefix Resi (AWB)
+# Penghapusan Tombol Aksi Cepat Setujui/Tolak Klaim CS & Penguatan Verifikasi Realisasi Logistik
 
-Mengotomatisasi identifikasi **Marketplace** dan **Ekspedisi Logistik** dari hasil pemindaian nomor resi / AWB menggunakan aturan sintaks Excel yang diberikan, menyediakan 2 dropdown untuk pemilihan/penyesuaian manual jika ada prefix baru, menyimpan prefix baru ke memori sistem, serta menampilkan informasinya di Stasiun Unboxing, Laporan Hasil Unboxing, dan Klaim CS.
+Menghapus tombol jalan pintas centang `[ ✓ ]` dan silang `[ ✕ ]` pada baris tabel barang rusak serta tombol `[ Setujui Semua ]` dan `[ Tolak Semua ]` pada header kartu order di halaman **Aju Banding & Klaim CS**. Hal ini mencegah CS menandai klaim sebagai berhasil secara instan tanpa memverifikasi nominal pencairan ganti rugi aktual dari ekspedisi/marketplace (misalnya kebijakan ganti rugi logistik yang mencapai 10x harga barang atau nominal khusus lainnya).
 
----
+## User Review & Critical Decisions
 
-## 1. Kamus Aturan Deteksi Prefix Resi (Formula Excel)
-
-Sistem akan mengevaluasi prefix 3 karakter terlebih dahulu (prioritas tinggi), kemudian prefix 2 karakter:
-
-### A. Kriteria Marketplace
-| Prefix (Awalan) | Hasil Marketplace |
-|---|---|
-| `GTL` | TikTok Shop |
-| `250` | Shopee Indonesia |
-| `TLJ` | Tokopedia Indonesia |
-| `00` | Shopee Indonesia |
-| `SPX` | Shopee Indonesia |
-| `LA` | Lazada Indonesia |
-| `JP` | Shopee Indonesia |
-| `JNA` | Lazada Indonesia |
-| `JX` | TikTok Shop |
-| `CM` | Shopee Indonesia |
-| `TKP` | Tokopedia Indonesia |
-| `JZ` | Lazada Indonesia |
-| `NJV` | TikTok Shop |
-| `NLI` | Lazada Indonesia |
-| `ID` | Shopee Indonesia |
-| `TG` | TikTok Shop |
-| `SP` | Shopee Indonesia |
-| `TK` | TikTok Shop |
-| `RT` | Lazada Indonesia |
-
-### B. Kriteria Logistik / Ekspedisi
-| Prefix (Awalan) | Hasil Ekspedisi Logistik |
-|---|---|
-| `LX` | Lazada Express |
-| `NJV` | Ninja Express |
-| `RTB` | JNE |
-| `TG` | JNE |
-| `SP` | Indomaret |
-| `JZ` | J&T |
-| `TK` | Indomaret |
-| `TLJ` | JNE |
-| `NLI` | Lazada Express |
-| `250` | Shopee Instan |
-| `00` | SiCepat |
-| `SPX` | Shopee Express |
-| `JX` | J&T |
-| `GTL` | Goto Logistik |
-| `JNA` | JNE |
-| `JP` | J&T |
-| `ID` | Shopee Express |
-| `CM` | JNE |
-| `TKP` | SiCepat |
+> [!IMPORTANT]
+> Ringkasan keputusan yang telah dikonfirmasi pengguna pada tahap klarifikasi:
+> - **Cakupan Tombol yang Dihapus**:
+>   1. Tombol centang `[ ✓ ]` dan silang `[ ✕ ]` cepat pada baris tabel produk rusak (kolom *Aksi CS*).
+>   2. Tombol `[ Setujui Semua ]` dan `[ Tolak Semua ]` cepat pada header kartu order.
+> - **Alur Penyelesaian Klaim CS**: CS wajib memproses klaim dan memasukkan nilai pencairan aktual secara presisi melalui **Modal Klaim** (`[ 🛡 Klaim ]`) atau inline editor pada kolom **Realisasi Ekspedisi (Manual)**.
 
 ---
 
-## 2. Modul & Penyimpanan Memori Prefix Baru (`awbDetection.ts`)
+## 1. Overview & Core Concept
 
-* **Engine Deteksi Deterministik**:
-  * Fungsi `detectMarketplaceAndLogistics(awb: string)` yang mengevaluasi prefix 3 digit dan 2 digit sesuai rumus di atas.
-  * Mendukung fallback ke kamus kustom lokal (`localStorage` key `rma_custom_awb_prefixes_v1`).
-* **Fitur Pembelajaran Prefix Baru (Dynamic Learning)**:
-  * Jika scanner membaca awalan resi baru yang belum ada di rumus, operator memilih nilai dari 2 dropdown.
-  * Sistem menyediakan fungsi `saveLearnedAwbPrefix(prefix, marketplace, logistics)` yang otomatis mencatat prefix baru ke memori sistem agar scan berikutnya langsung terisi otomatis.
+- **Masalah yang Diselesaikan**: Tombol aksi cepat sebelumnya secara otomatis menetapkan status klaim disetujui dengan nominal sama dengan harga pokok barang atau 0. Pada praktiknya, ekspedisi memiliki kebijakan penggantian berbeda (contoh: penggantian 10x ongkir/harga barang, limit klaim, atau potongan administrasi logistik). Akibatnya, selisih rugi dan laporan finansial menjadi tidak akurat jika CS menandai "berhasil" tanpa menginput nominal realisasi sebenarnya.
+- **Solusi**: Menghilangkan shortcut approval instan tersebut. Tim CS diarahkan untuk selalu menggunakan tombol `[ 🛡 Klaim ]` atau input `Realisasi Ekspedisi` sehingga nominal uang ganti rugi yang cair dari kurir tercatat dengan benar ke database.
 
 ---
 
-## 3. Integrasi pada Stasiun Unboxing (`UnboxingStation.tsx`)
+## 2. User Experience & Visual Design
 
-* **Deteksi Real-Time di Modal Scan AWB**:
-  * Saat nomor resi discan/diinput, sistem langsung mendeteksi Marketplace & Logistik secara instan.
-  * Menampilkan 2 Dropdown interaktif berdampingan:
-    1. **Dropdown Marketplace**: Pilihan terisi otomatis (Shopee Indonesia, TikTok Shop, Tokopedia Indonesia, Lazada Indonesia, Blibli, Lainnya) dan tetap dapat diganti operator.
-    2. **Dropdown Logistik**: Pilihan terisi otomatis (Shopee Express, J&T, JNE, SiCepat, Lazada Express, Ninja Express, Indomaret, Shopee Instan, Goto Logistik, Lainnya) dan tetap dapat diganti operator.
-* **Badge Indikator Status Prefix**:
-  * Menampilkan badge hijau `✓ Terdeteksi Otomatis` jika prefix cocok dengan rumus Excel.
-  * Menampilkan badge kuning `🔍 Prefix Baru Terdeteksi` jika prefix baru, memberi tahu operator bahwa pilihan dropdown akan otomatis disimpan ke memori sistem.
-* **Penyimpanan ke Sesi Unboxing**:
-  * Nilai `Marketplace` dan `Ekspedisi` disimpan ke dalam payload sesi unboxing dan diteruskan ke baris hasil laporan.
-
----
-
-## 4. Integrasi pada Laporan Unboxing (`ReportsView.tsx`) & Data Model (`processor.ts`)
-
-* **Ekspansi Data Model `ProcessedReturnRow`**:
-  * Menambahkan field opsional `Marketplace?: string; Ekspedisi?: string;` ke interface `ProcessedReturnRow`.
-* **Tampilan Tabel Laporan**:
-  * Menampilkan kolom / badge **Marketplace** dan **Ekspedisi** pada tabel laporan dan subpanel rincian order.
-  * Filter pencarian laporan dapat memfilter berdasarkan Marketplace atau Ekspedisi.
-  * Ekspor Excel/CSV laporan menyertakan kolom Marketplace dan Ekspedisi.
+- **Tampilan Header Kartu Order**:
+  - Tombol yang tersedia di header pesanan kini tersusun bersih:
+    - `[ Forward ke RMA Logistik ]` (untuk eskalasi kasus berat ke tim RMA).
+    - `[ Salin Surat Order ]` (menyalin draf banding untuk seluruh order).
+    - `[ Video Drive ]` (membuka bukti rekaman unboxing di Google Drive).
+  - Tidak ada lagi tombol `[ Setujui Semua ]` dan `[ Tolak Semua ]`.
+- **Tampilan Kolom Aksi CS di Tabel Barang**:
+  - Setiap baris barang rusak hanya memiliki:
+    - Tombol utama: `[ 🛡 Klaim ]` (membuka modal kelola klaim order, checklist barang, nomor tiket, dan input total nominal realisasi).
+    - Tombol utilitas: `[ ❐ Salin Template ]` (menyalin format teks klaim untuk SKU tersebut).
+  - Tombol lingkaran centang hijau `(✓)` dan silang merah `(✕)` dihilangkan sepenuhnya dari kolom *Aksi CS*.
+- **Input Realisasi yang Diperjelas**:
+  - Kolom **Realisasi Ekspedisi [MANUAL]** tetap dapat diklik untuk memasukkan angka ganti rugi aktual secara langsung dengan feedback instan.
 
 ---
 
-## 5. Integrasi pada Aju Banding & Klaim CS (`DisputeClaimsView.tsx`)
+## 3. Key Product Decisions & Trade-Offs
 
-* Menggunakan `Marketplace` dan `Ekspedisi` hasil deteksi untuk:
-  * Menentukan default channel klaim secara akurat (Shopee, TikTok Shop, Tokopedia, Lazada, dll.).
-  * Mengisi template surat komplain resmi dengan nama ekspedisi dan marketplace yang sesuai secara otomatis.
+- **Keputusan 1: Penghapusan Total Shortcut Approval Instan**
+  - *Pendekatan*: Menghapus elemen JSX tombol `handleQuickApproveItem`, `handleQuickRejectItem`, `handleQuickApproveAllOrder`, dan `handleQuickRejectAllOrder`.
+  - *Alasan*: Menghilangkan risiko human error di mana operator CS secara tidak sengaja mengklik centang dan mengunci nominal default padahal pihak logistik mencairkan nominal berbeda.
+- **Keputusan 2: Mempertahankan Fungsi Modal Klaim Terpusat**
+  - *Pendekatan*: Modal `handleOpenOrderClaimModal` tetap menjadi pintu utama bagi CS untuk menetapkan status (APPROVED, REJECTED, SUBMITTED), menginput no. tiket resmi, dan nominal realisasi ganti rugi aktual.
+  - *Alasan*: Modal menyediakan transparansi penuh, rincian perbandingan antara nilai tuntutan vs realisasi cair kurir, serta kalkulasi selisih rugi beban toko secara transparan.
 
 ---
 
-## 6. Verifikasi & Pengujian
+## 4. Technical Architecture & Data Strategy
 
-* Uji coba input contoh nomor resi dari setiap kriteria:
-  * `SPX...` -> Shopee Indonesia & Shopee Express
-  * `GTL...` -> TikTok Shop & Goto Logistik
-  * `TLJ...` -> Tokopedia Indonesia & JNE
-  * `JZ...` -> Lazada Indonesia & J&T
-  * `250...` -> Shopee Indonesia & Shopee Instan
-  * `00...` -> Shopee Indonesia & SiCepat
-* Uji coba input resi dengan awalan baru (misal `XYZ123`), ubah 2 dropdown, pastikan prefix tersimpan dan scan kedua otomatis mendeteksi.
-* Jalankan `compile_applet` dan `lint_applet` untuk memastikan tidak ada error kompilasi.
+```
+┌────────────────────────────────────────────────────────────────┐
+│               Halaman Aju Banding & Klaim CS                   │
+├────────────────────────────────────────────────────────────────┤
+│ Header Order:                                                  │
+│   [Forward ke RMA]  [Salin Surat Order]  [Video Drive]         │
+│   (❌ Tombol Setujui Semua & Tolak Semua Ditiadakan)           │
+├────────────────────────────────────────────────────────────────┤
+│ Tabel Barang Rusak:                                            │
+│   SKU | Bukti | Channel | Status | Realisasi (Manual) | Aksi CS│
+│                                                       │        │
+│                                           [ 🛡 Klaim ] [ ❐ ]   │
+│                   (❌ Tombol [✓] & [✕] Cepat Ditiadakan)       │
+└───────────────────────────────┬────────────────────────────────┘
+                                │ Klik [ 🛡 Klaim ]
+                                ▼
+┌────────────────────────────────────────────────────────────────┐
+│               Modal Detail Aju Banding Order                   │
+│  - Input Status Resmi (Diajukan / Disetujui / Ditolak)         │
+│  - Input Nomor Tiket Sengketa Ekspedisi                        │
+│  - Input Nominal Realisasi Ganti Rugi Aktual dari Kurir        │
+│    (Mendukung nominal fleksibel, misal 10x harga barang)       │
+│  - Simpan & Perbarui Realtime State di Database Cloud          │
+└────────────────────────────────────────────────────────────────┘
+```
+
+- **File yang Dimodifikasi**:
+  - `src/components/DisputeClaimsView.tsx`:
+    1. Menghapus rendering tombol `Setujui Semua` dan `Tolak Semua` di baris header order (sekitar baris 2411–2433).
+    2. Menghapus rendering tombol centang `[ ✓ ]` dan silang `[ ✕ ]` di kolom *Aksi CS* (sekitar baris 2700–2724).
+    3. Merapikan dan membersihkan fungsi handler aksi cepat yang tidak lagi digunakan.

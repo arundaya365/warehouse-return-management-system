@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   UserPlus,
@@ -30,7 +30,8 @@ import {
   LayoutDashboard,
   Download,
   AlertTriangle,
-  Truck
+  Truck,
+  Cloud
 } from 'lucide-react';
 import {
   useAccount,
@@ -41,6 +42,7 @@ import {
   getUserPermissions
 } from '../context/AccountContext';
 import { useLanguage } from '../context/LanguageContext';
+import { firestoreSync } from '../services/firestoreSyncService';
 
 export interface ModulePermissionConfig {
   key: keyof RolePermission;
@@ -136,6 +138,8 @@ export const AccountManagementView: React.FC = () => {
     toggleUserStatus,
     deleteUser,
     resetToDefaultUsers,
+    cleanDemoAccounts,
+    saveUsersToCloud,
     appName,
     companyName,
     copyrightText,
@@ -148,6 +152,14 @@ export const AccountManagementView: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<string>('connected');
+
+  useEffect(() => {
+    return firestoreSync.subscribeStatus((status) => {
+      setCloudStatus(status);
+    });
+  }, []);
 
   // Quick Permission modal
   const [permissionTargetUser, setPermissionTargetUser] = useState<UserAccount | null>(null);
@@ -155,6 +167,10 @@ export const AccountManagementView: React.FC = () => {
 
   // Delete Confirmation modal
   const [deletingUserTarget, setDeletingUserTarget] = useState<UserAccount | null>(null);
+
+  // Reset PIN modal
+  const [pinResetTarget, setPinResetTarget] = useState<UserAccount | null>(null);
+  const [resetPinValue, setResetPinValue] = useState<string>('1234');
 
   // Feedback Notification Toast
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
@@ -166,7 +182,7 @@ export const AccountManagementView: React.FC = () => {
     setFeedbackToast(msg);
     setTimeout(() => {
       setFeedbackToast(null);
-    }, 3500);
+    }, 4500);
   };
 
   const togglePinReveal = (userId: string) => {
@@ -174,6 +190,42 @@ export const AccountManagementView: React.FC = () => {
       ...prev,
       [userId]: !prev[userId]
     }));
+  };
+
+  const handleManualSyncCloud = async () => {
+    setIsSyncingCloud(true);
+    try {
+      const ok = await saveUsersToCloud();
+      if (ok) {
+        showToast('✓ Seluruh data akun berhasil disinkronkan ke Cloud Firestore & Server!');
+      } else {
+        showToast('✓ Data akun tersimpan di penyimpanan lokal browser & server.');
+      }
+    } catch {
+      showToast('Gagal sinkron akun ke cloud.');
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
+
+  const handleOpenResetPinModal = (target: UserAccount) => {
+    setPinResetTarget(target);
+    setResetPinValue(target.pin || '1234');
+  };
+
+  const handleSaveResetPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pinResetTarget) return;
+    const clean = resetPinValue.trim().replace(/[^0-9]/g, '') || '1234';
+    updateUser(pinResetTarget.id, { pin: clean });
+    showToast(`✓ PIN akun "${pinResetTarget.fullName}" (${pinResetTarget.operatorCode}) di-reset ke: ${clean} dan otomatis tersimpan ke Cloud Firestore!`);
+    setPinResetTarget(null);
+  };
+
+  const handleQuickResetPin = (target: UserAccount) => {
+    const defaultPin = '1234';
+    updateUser(target.id, { pin: defaultPin });
+    showToast(`✓ PIN akun "${target.fullName}" (${target.operatorCode}) di-reset ke: ${defaultPin} dan tersimpan ke Cloud Firestore!`);
   };
 
   // Form state
@@ -293,7 +345,7 @@ export const AccountManagementView: React.FC = () => {
         status: formData.status,
         customPermissions: { ...formData.permissions }
       });
-      showToast(`✓ Akun "${formData.fullName}" berhasil diperbarui dengan Hak Akses terkini!`);
+      showToast(`✓ Akun "${formData.fullName}" berhasil diperbarui dan tersimpan ke Cloud Firestore!`);
     } else {
       addUser({
         username: formData.username.trim().toLowerCase(),
@@ -307,7 +359,7 @@ export const AccountManagementView: React.FC = () => {
         company: companyName,
         customPermissions: { ...formData.permissions }
       });
-      showToast(`✓ Akun baru "${formData.fullName}" (${cleanCode}) berhasil dibuat!`);
+      showToast(`✓ Akun baru "${formData.fullName}" (${cleanCode}) berhasil dibuat dan tersimpan ke Cloud Firestore!`);
     }
     setIsAddModalOpen(false);
   };
@@ -360,6 +412,20 @@ export const AccountManagementView: React.FC = () => {
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0F766E] border border-teal-200">
                 {users.length} {isEn ? 'Registered Accounts' : 'Akun Terdaftar'}
               </span>
+              {cloudStatus === 'quota_exceeded' ? (
+                <span
+                  className="inline-flex items-center space-x-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs"
+                  title="Batas kuota harian Firebase Free Tier tercapai hari ini. Data tetap tersimpan aman di Database Server Cloud SQL & Local Storage. Kuota Firestore akan direset besok."
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span>Database Server SQL: Aktif (Kuota Cloud Reset Besok)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center space-x-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Cloud Firestore: Otomatis Tersimpan</span>
+                </span>
+              )}
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-semibold text-slate-700">{appName}</span>
@@ -377,9 +443,35 @@ export const AccountManagementView: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
           <button
             type="button"
+            disabled={isSyncingCloud}
+            onClick={handleManualSyncCloud}
+            className="px-3.5 py-2.5 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-[#0F766E] text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Simpan & sinkronkan data akun ke Cloud Firestore sekarang"
+          >
+            <Cloud className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+            <span>{isSyncingCloud ? 'Menyinkronkan...' : 'Sinkron ke Cloud'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              if (window.confirm('Bersihkan seluruh akun demo lama selain Yaya Sanjaya dari semua perangkat dan database?')) {
+                await cleanDemoAccounts();
+                showToast('✓ Seluruh akun demo berhasil dibersihkan! Tersisa akun resmi Yaya Sanjaya.');
+              }
+            }}
+            className="px-3.5 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+            title="Bersihkan seluruh akun demo selain Yaya Sanjaya dari Cloud SQL dan Firestore"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Bersihkan Akun Demo</span>
+          </button>
+
+          <button
+            type="button"
             onClick={resetToDefaultUsers}
             className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
-            title="Reset ke akun resmi bawaan PT. Tirta Kumala Sari"
+            title={isEn ? 'Reset to default accounts' : 'Reset ke akun resmi bawaan'}
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>{isEn ? 'Reset Default' : 'Reset Bawaan'}</span>
@@ -598,23 +690,32 @@ export const AccountManagementView: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* PIN with Reveal / Mask Toggle */}
+                      {/* PIN with Reveal / Mask Toggle & Quick Reset */}
                       <td className="py-3 px-3 text-center">
-                        <div className="inline-flex items-center space-x-1 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">
-                          <span className="font-mono text-xs font-bold text-slate-800">
+                        <div className="inline-flex items-center space-x-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-xl shadow-2xs">
+                          <span className="font-mono text-xs font-bold text-slate-800 tracking-wider">
                             {isPinRevealed ? (user.pin || '1234') : '••••'}
                           </span>
                           <button
                             type="button"
                             onClick={() => togglePinReveal(user.id)}
-                            className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 cursor-pointer"
-                            title={isPinRevealed ? 'Sembunyikan PIN' : 'Lihat PIN'}
+                            className="text-slate-400 hover:text-teal-700 transition-colors p-1 rounded-md hover:bg-slate-200 cursor-pointer"
+                            title={isPinRevealed ? 'Sembunyikan PIN staf' : 'Lihat PIN staf (Wewenang Super Admin)'}
                           >
                             {isPinRevealed ? (
-                              <EyeOff className="w-3 h-3" />
+                              <EyeOff className="w-3.5 h-3.5 text-teal-700" />
                             ) : (
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-3.5 h-3.5" />
                             )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResetPinModal(user)}
+                            className="text-[10px] text-teal-700 hover:text-teal-900 bg-white hover:bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200 font-bold cursor-pointer transition shadow-2xs flex items-center space-x-1"
+                            title="Reset atau ganti PIN staf ini & simpan ke cloud Firestore"
+                          >
+                            <KeyRound className="w-2.5 h-2.5 text-teal-600" />
+                            <span>Reset</span>
                           </button>
                         </div>
                       </td>
@@ -715,13 +816,20 @@ export const AccountManagementView: React.FC = () => {
                             )}
                           </button>
 
-                          {/* Tombol Hapus Akun oleh Super Admin */}
-                          {users.length > 1 && !isCurrent && (
+                          {/* Tombol Hapus Akun (Super Admin Yaya Sanjaya diproteksi) */}
+                          {user.id === 'USR-001' || user.operatorCode === 'OPR-HQ-01' ? (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold text-teal-800 bg-teal-50 border border-teal-200 select-none"
+                              title="Akun Utama Super Admin Permanen (Tidak dapat dihapus)"
+                            >
+                              Permanen
+                            </span>
+                          ) : (
                             <button
                               type="button"
                               onClick={() => setDeletingUserTarget(user)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                              title={`Hapus akun ${user.fullName}`}
+                              title={`Hapus akun ${user.fullName} secara permanen`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1214,8 +1322,8 @@ export const AccountManagementView: React.FC = () => {
               <p>
                 Apakah Anda yakin ingin menghapus akun pengguna <strong>{deletingUserTarget.fullName}</strong> (ID: <span className="font-mono">{deletingUserTarget.operatorCode}</span>)?
               </p>
-              <p className="text-[11px] text-rose-800">
-                Setelah dihapus, operator ini tidak akan bisa lagi login ke stasiun unboxing menggunakan ID Operator maupun PIN.
+              <p className="text-[11px] text-rose-800 leading-relaxed">
+                Akun ini akan langsung terhapus permanen dari Cloud SQL dan Firebase Firestore, serta otomatis tersinkronisasi (mirroring) ke semua terminal gudang dan HP operator.
               </p>
             </div>
 
@@ -1236,6 +1344,104 @@ export const AccountManagementView: React.FC = () => {
                 <span>Ya, Hapus Akun Ini</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: RESET PIN STAF OLEH SUPER ADMIN (AUTO-SAVE CLOUD FIRESTORE)      */}
+      {/* ========================================================================= */}
+      {pinResetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-[#0F766E] to-[#115E59] p-5 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
+                  <KeyRound className="w-5 h-5 text-teal-200" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Reset PIN Staf Gudang</h3>
+                  <p className="text-xs text-teal-100">Wewenang Super Admin • Otomatis Cloud Firestore</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPinResetTarget(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveResetPin} className="p-6 space-y-4 text-xs text-slate-700">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${pinResetTarget.avatarColor || 'from-[#0F766E] to-[#115E59]'} text-white flex items-center justify-center font-bold text-sm shrink-0`}>
+                  {pinResetTarget.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 text-sm">{pinResetTarget.fullName}</div>
+                  <div className="text-[11px] text-slate-500 font-mono">ID: {pinResetTarget.operatorCode} • @{pinResetTarget.username}</div>
+                  <div className="text-[11px] text-teal-700 font-semibold mt-0.5">
+                    PIN Saat Ini: <span className="font-mono bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">{pinResetTarget.pin || '1234'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900">
+                    PIN Baru (4-6 Digit Angka)
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setResetPinValue('1234')}
+                      className="text-[10px] text-teal-700 hover:text-teal-900 font-semibold underline cursor-pointer"
+                    >
+                      Bawaan: 1234
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      type="button"
+                      onClick={() => setResetPinValue(String(Math.floor(1000 + Math.random() * 9000)))}
+                      className="text-[10px] text-teal-700 hover:text-teal-900 font-semibold underline cursor-pointer"
+                    >
+                      Acak PIN
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={resetPinValue}
+                  onChange={(e) => setResetPinValue(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full text-center text-xl font-mono font-bold tracking-widest px-4 py-2.5 bg-white border border-teal-300 rounded-xl focus:border-[#0F766E] focus:ring-2 focus:ring-teal-100 outline-none text-slate-900"
+                  placeholder="1234"
+                  autoFocus
+                />
+                <p className="text-[11px] text-slate-500">
+                  PIN ini akan langsung disimpan ke Cloud Firestore dan berlaku seketika di seluruh perangkat (HP & PC staf).
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setPinResetTarget(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-bold shadow-md shadow-teal-900/10 cursor-pointer flex items-center space-x-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Simpan PIN Baru ke Cloud</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

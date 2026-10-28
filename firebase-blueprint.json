@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Akun staf dan operator gudang, manajemen peran, kode operator, PIN, dan izin modul",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "operatorCode": { "type": "string" },
+        "pin": { "type": "string" },
+        "status": { "type": "string" },
+        "company": { "type": "string" }
+      },
+      "required": ["id", "username", "fullName", "role", "operatorCode"]
+    },
+    "WarehouseRealtimeState": {
+      "title": "WarehouseRealtimeState",
+      "description": "Dokumen sinkronisasi real-time antardevice untuk retur, master database SKU, disputes, dan akun pengguna",
+      "type": "object",
+      "properties": {
+        "version": { "type": "number" },
+        "lastUpdated": { "type": "string" },
+        "updatedByDeviceId": { "type": "string" },
+        "returns": { "type": "array" },
+        "disputes": { "type": "object" },
+        "masterDatabase": { "type": "array" },
+        "users": { "type": "array" }
+      },
+      "required": ["version", "lastUpdated"]
+    }
+  },
+  "firestore": {
+    "/warehouse_sync/realtime_state": {
+      "schema": { "$ref": "#/entities/WarehouseRealtimeState" },
+      "description": "State real-time sinkronisasi gudang unboxing retur e-commerce"
+    }
+  }
+}

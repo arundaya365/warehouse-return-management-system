@@ -26,7 +26,8 @@ import {
   ShieldAlert,
   Trash2,
   ShoppingBag,
-  Truck
+  Truck,
+  Video
 } from 'lucide-react';
 import { ProcessedReturnRow, StandardKondisi } from '../processor';
 import { ExportFilteredModal } from './ExportFilteredModal';
@@ -65,6 +66,7 @@ export interface OrderReturnSummary {
     good: number;
     damageProduct: number;
     damagePackaging: number;
+    totallyDamage: number;
     missing: number;
     unexpected: number;
   };
@@ -105,6 +107,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
   // Mode tampilan: 'order_summary' (Agregasi 1 Order ID: Qty & Variasi SKU) | 'sku_detail' (Detail per baris SKU) | 'json'
   const [viewMode, setViewMode] = useState<'order_summary' | 'sku_detail' | 'json'>('order_summary');
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
   const [searchTableQuery, setSearchTableQuery] = useState<string>('');
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
@@ -217,6 +220,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             good: 0,
             damageProduct: 0,
             damagePackaging: 0,
+            totallyDamage: 0,
             missing: 0,
             unexpected: 0
           },
@@ -229,12 +233,22 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
       summary.totalQty += 1;
       summary.rows.push(r);
 
-      // Hitung rincian kondisi
-      if (r.Kondisi === 'Good') summary.conditionBreakdown.good += 1;
-      else if (r.Kondisi === 'Damage Product') summary.conditionBreakdown.damageProduct += 1;
-      else if (r.Kondisi === 'Damage Packaging') summary.conditionBreakdown.damagePackaging += 1;
-      else if (r.Kondisi === 'Missing') summary.conditionBreakdown.missing += 1;
-      else if (r.Kondisi === 'Unexpected') summary.conditionBreakdown.unexpected += 1;
+      // Hitung rincian kondisi (Mencakup 6 variasi kondisi lengkap)
+      const k = (r.Kondisi || '').trim();
+      if (k === 'Good' || k === 'Good Condition' || k === 'Baik') {
+        summary.conditionBreakdown.good += 1;
+      } else if (k === 'Damage Packaging' || k === 'Dus' || k === 'Kemasan Rusak') {
+        summary.conditionBreakdown.damagePackaging += 1;
+      } else if (k === 'Totally Damage' || k === 'Damage Total' || k === 'Total Rusak') {
+        summary.conditionBreakdown.totallyDamage += 1;
+      } else if (k === 'Wrong Item' || k === 'Unexpected' || k === 'Salah Barang') {
+        summary.conditionBreakdown.unexpected += 1;
+      } else if (k === 'Missing Item' || k === 'Missing' || k === 'Barang Hilang') {
+        summary.conditionBreakdown.missing += 1;
+      } else {
+        // Damage Product / Damage Products / Rusak
+        summary.conditionBreakdown.damageProduct += 1;
+      }
 
       // Hitung variasi SKU dalam order ini
       const skuId = r.SKU_ID || '-';
@@ -346,9 +360,11 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
       'Jumlah_Variasi_SKU',
       'Rincian_Variasi_SKU',
       'Kondisi_Baik_Good',
-      'Kondisi_Damage_Product',
-      'Kondisi_Damage_Packaging',
-      'Kondisi_Missing_Unexpected',
+      'Kondisi_Damage_Packaging_Dus',
+      'Kondisi_Damage_Product_Dmg',
+      'Kondisi_Totally_Damage',
+      'Kondisi_Wrong_Item',
+      'Kondisi_Missing_Item',
       'Nama_File_Video',
       'Link_Video_Drive'
     ];
@@ -367,9 +383,11 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
           s.skuVariationsCount,
           `"${skuDetailStr.replace(/"/g, '""')}"`,
           s.conditionBreakdown.good,
-          s.conditionBreakdown.damageProduct,
           s.conditionBreakdown.damagePackaging,
-          s.conditionBreakdown.missing + s.conditionBreakdown.unexpected,
+          s.conditionBreakdown.damageProduct,
+          s.conditionBreakdown.totallyDamage,
+          s.conditionBreakdown.unexpected,
+          s.conditionBreakdown.missing,
           `"${s.Nama_File_Video.replace(/"/g, '""')}"`,
           `"${s.Link_Video.replace(/"/g, '""')}"`
         ];
@@ -662,55 +680,62 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             </div>
           </div>
 
-          {/* Table Container Grouped by Order ID */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[11px]">
-                  {canDelete && (
-                    <th className="py-2.5 px-2.5 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={paginatedOrders.length > 0 && paginatedOrders.every((o) => selectedOrderIds.has(o.Order_ID))}
-                        onChange={(e) => {
-                          const next = new Set(selectedOrderIds);
-                          if (e.target.checked) {
-                            paginatedOrders.forEach((o) => next.add(o.Order_ID));
-                          } else {
-                            paginatedOrders.forEach((o) => next.delete(o.Order_ID));
-                          }
-                          setSelectedOrderIds(next);
-                        }}
-                        className="rounded border-slate-300 text-[#0F766E] focus:ring-[#0F766E] h-4 w-4 cursor-pointer"
-                        title="Pilih semua Order ID di halaman ini"
-                      />
-                    </th>
-                  )}
-                  <th className="py-2.5 px-2.5 w-10 text-center">No</th>
-                  <th className="py-2.5 px-3 w-40">Order ID & Operator</th>
-                  <th className="py-2.5 px-3 w-32">Waktu Proses</th>
-                  <th className="py-2.5 px-2 text-center w-24">Jumlah Qty</th>
-                  <th className="py-2.5 px-3 min-w-[160px]">Variasi SKU</th>
-                  <th className="py-2.5 px-3 w-44">Kondisi Barang</th>
-                  <th className="py-2.5 px-3 w-36">Video & Drive</th>
-                  <th className="py-2.5 px-2 text-center w-28">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {paginatedOrders.map((order, idx) => {
-                  const absoluteIndex = startIndex + idx + 1;
-                  const isExpanded = expandedOrderIds.has(order.Order_ID);
+          {/* Card-based Order List with Thick Borders, Visual Spacing & Sequence Badges */}
+          {canDelete && (
+            <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200 mb-3 text-xs">
+              <label className="flex items-center space-x-2 font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={paginatedOrders.length > 0 && paginatedOrders.every((o) => selectedOrderIds.has(o.Order_ID))}
+                  onChange={(e) => {
+                    const next = new Set(selectedOrderIds);
+                    if (e.target.checked) {
+                      paginatedOrders.forEach((o) => next.add(o.Order_ID));
+                    } else {
+                      paginatedOrders.forEach((o) => next.delete(o.Order_ID));
+                    }
+                    setSelectedOrderIds(next);
+                  }}
+                  className="rounded border-slate-300 text-[#0F766E] focus:ring-[#0F766E] h-4 w-4 cursor-pointer"
+                />
+                <span>Pilih Semua ({paginatedOrders.length} Order ID) di Halaman Ini</span>
+              </label>
+              {selectedOrderIds.size > 0 && (
+                <span className="text-teal-800 font-bold bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200 text-[11px]">
+                  {selectedOrderIds.size} Order ID Dipilih
+                </span>
+              )}
+            </div>
+          )}
 
-                  return (
-                    <React.Fragment key={order.Order_ID}>
-                      <tr
-                        className={`hover:bg-[#F0FDFA]/50 transition-colors ${
-                          isExpanded ? 'bg-[#F0FDFA]/40' : ''
-                        }`}
-                      >
-                        {/* Checkbox Seleksi Super Admin */}
+          <div className="space-y-4">
+            {paginatedOrders.map((order, idx) => {
+              const absoluteIndex = startIndex + idx + 1;
+              const isExpanded = expandedOrderIds.has(order.Order_ID);
+
+              return (
+                <div
+                  key={order.Order_ID}
+                  className={`rounded-2xl border-2 transition-all duration-200 bg-white shadow-xs hover:shadow-md overflow-hidden ${
+                    isExpanded
+                      ? 'border-teal-500 ring-2 ring-teal-500/15 shadow-md'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {/* Card Header: Clickable to expand/collapse */}
+                  <div
+                    className={`p-4 sm:p-4.5 cursor-pointer transition-colors ${
+                      isExpanded
+                        ? 'bg-gradient-to-r from-teal-50/60 via-slate-50/50 to-white'
+                        : 'hover:bg-slate-50/60'
+                    }`}
+                    onClick={() => toggleOrderExpand(order.Order_ID)}
+                  >
+                    {/* ROW 1: PRIMARY IDENTITY */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                      <div className="flex items-center flex-wrap gap-2 sm:gap-2.5">
                         {canDelete && (
-                          <td className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
                               checked={selectedOrderIds.has(order.Order_ID)}
@@ -723,182 +748,213 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                               className="rounded border-slate-300 text-[#0F766E] focus:ring-[#0F766E] h-4 w-4 cursor-pointer"
                               title={`Pilih Order ID ${order.Order_ID}`}
                             />
-                          </td>
+                          </div>
                         )}
 
-                        {/* No */}
-                        <td className="py-3 px-2 text-center text-slate-500 font-mono font-bold">
-                          {absoluteIndex}
-                        </td>
+                        {/* Nomor Urut Kontras */}
+                        <div className="inline-flex items-center space-x-1 px-3 py-1 rounded-xl bg-slate-900 text-white font-mono font-black text-xs tracking-wider shadow-xs border border-slate-800 shrink-0">
+                          <span>ORDER</span>
+                          <span className="text-teal-400">#{String(absoluteIndex).padStart(2, '0')}</span>
+                        </div>
 
-                        {/* Order ID & Operator */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center space-x-1.5">
-                            <span className="font-mono font-extrabold text-slate-900 text-xs sm:text-sm">
-                              {order.Order_ID}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {order.Marketplace && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold">
-                                <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
-                                <span>{order.Marketplace}</span>
-                              </span>
+                        {/* Order ID */}
+                        <div className="flex items-center space-x-1.5 bg-slate-100/90 px-2.5 py-1 rounded-xl border border-slate-200 shrink-0">
+                          <span className="font-mono font-black text-slate-900 text-xs sm:text-sm select-all">
+                            {order.Order_ID}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(order.Order_ID);
+                              setCopiedOrderId(order.Order_ID);
+                              setTimeout(() => setCopiedOrderId(null), 1500);
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-800 rounded hover:bg-white transition-colors cursor-pointer"
+                            title="Salin No Resi / Order ID"
+                          >
+                            {copiedOrderId === order.Order_ID ? (
+                              <Check className="w-3 h-3 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
                             )}
-                            {order.Ekspedisi && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
-                                <Truck className="w-2.5 h-2.5 text-indigo-600" />
-                                <span>{order.Ekspedisi}</span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center space-x-1">
-                            <span>Operator:</span>
-                            <span className="font-mono text-slate-700 font-semibold">{order.Operator_ID}</span>
-                          </div>
-                        </td>
+                          </button>
+                        </div>
 
-                        {/* Waktu Proses */}
-                        <td className="py-3 px-3 font-mono text-slate-600 tabular-nums">
-                          <div className="text-slate-800 font-semibold text-[11px]">{order.Waktu_Proses}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">Rec: {order.Video_Timestamp}</div>
-                        </td>
+                        {/* Marketplace Chip */}
+                        {order.Marketplace && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold shrink-0">
+                            <ShoppingBag className="w-3 h-3 text-teal-600" />
+                            <span>{order.Marketplace}</span>
+                          </span>
+                        )}
 
-                        {/* Jumlah Qty Return */}
-                        <td className="py-3 px-2 text-center">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[#F0FDFA] text-[#0F766E] font-mono font-bold text-xs shadow-2xs border border-teal-200">
+                        {/* Ekspedisi Chip */}
+                        {order.Ekspedisi && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-bold shrink-0">
+                            <Truck className="w-3 h-3 text-indigo-600" />
+                            <span>{order.Ekspedisi}</span>
+                          </span>
+                        )}
+
+                        {/* Operator */}
+                        <span className="text-[11px] text-slate-500 font-medium flex items-center space-x-1">
+                          <span>Opr:</span>
+                          <strong className="font-mono text-slate-700">{order.Operator_ID}</strong>
+                        </span>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center space-x-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderExpand(order.Order_ID)}
+                          className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                            isExpanded
+                              ? 'bg-[#0F766E] text-white'
+                              : 'bg-white hover:bg-teal-50 text-slate-700 hover:text-[#0F766E] border border-slate-300'
+                          }`}
+                          title="Buka / tutup rincian barang order ini"
+                        >
+                          <span>{isExpanded ? 'Tutup Rincian' : 'Buka Rincian'}</span>
+                          {isExpanded ? (
+                            <ChevronUp className="w-3.5 h-3.5 ml-0.5" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
+                          )}
+                        </button>
+
+                        {canDelete && onDeleteOrder && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget({
+                                type: 'single_order',
+                                title: 'Hapus Seluruh Data Order ID',
+                                orderId: order.Order_ID,
+                                count: order.totalQty
+                              });
+                            }}
+                            className="p-1.5 rounded-xl text-rose-500 hover:text-white hover:bg-rose-600 border border-rose-200 transition-colors cursor-pointer"
+                            title="Hapus Data Return Order ID (Khusus Super Admin)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ROW 2: DETAILED METRICS STRIP */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 text-xs">
+                      {/* Metric 1: Total Qty */}
+                      <div className="flex items-center space-x-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
+                          <Package className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Total Qty Unit</div>
+                          <span className="font-mono font-black text-slate-900 text-xs sm:text-sm">
                             {order.totalQty} Unit
                           </span>
-                        </td>
+                        </div>
+                      </div>
 
-                        {/* Variasi SKU */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center space-x-1.5 mb-1">
-                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-800 font-bold text-[10px] border border-slate-200">
-                              <Boxes className="w-3 h-3 text-[#0F766E]" />
-                              <span>{order.skuVariationsCount} Variasi SKU</span>
-                            </span>
-                          </div>
-
-                          {/* Chips daftar SKU & jumlah masing-masing */}
-                          <div className="flex flex-wrap gap-1">
-                            {order.skuList.map((sku) => (
-                              <span
-                                key={sku.skuId}
-                                className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono border border-slate-200"
-                                title={`${sku.namaBarang} (Total: ${sku.qty})`}
-                              >
-                                <span className="font-bold text-[#0F766E]">{sku.skuId}</span>
-                                <span className="text-slate-400 font-sans">×</span>
-                                <span className="font-extrabold text-slate-900">{sku.qty}</span>
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        {/* Kondisi Barang */}
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {order.conditionBreakdown.good > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                                <span>Good:</span>
-                                <span>{order.conditionBreakdown.good}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.damageProduct > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-bold border border-rose-200">
-                                <span>Dmg:</span>
-                                <span>{order.conditionBreakdown.damageProduct}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.damagePackaging > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                                <span>Dus:</span>
-                                <span>{order.conditionBreakdown.damagePackaging}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.missing > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-bold border border-rose-200">
-                                <span>Hilang:</span>
-                                <span>{order.conditionBreakdown.missing}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.unexpected > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-200">
-                                <span>Wrong:</span>
-                                <span>{order.conditionBreakdown.unexpected}</span>
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Video & Drive */}
-                        <td className="py-3 px-3 font-mono text-[11px]">
-                          <div className="text-[#0F766E] bg-[#F0FDFA] px-1.5 py-0.5 rounded border border-teal-200 inline-block font-semibold truncate max-w-[130px]" title={order.Nama_File_Video}>
-                            {order.Nama_File_Video}
-                          </div>
-                          {order.Link_Video && (
-                            <div className="mt-0.5">
-                              <a
-                                href={getDirectVideoUrl(order.Link_Video, order.Order_ID)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#0F766E] hover:underline font-semibold inline-flex items-center space-x-0.5 text-[10px]"
-                              >
-                                <span>Drive Video</span>
-                                <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                              </a>
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Aksi Expand Rincian & Delete Super Admin */}
-                        <td className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center space-x-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleOrderExpand(order.Order_ID)}
-                              className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                isExpanded
-                                  ? 'bg-[#0F766E] text-white shadow-xs'
-                                  : 'bg-slate-100 hover:bg-[#F0FDFA] text-slate-700 hover:text-[#0F766E]'
-                              }`}
-                              title="Buka / tutup rincian baris SKU di dalam Order ID ini"
+                      {/* Metric 2: Variasi SKU */}
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1 flex items-center space-x-1">
+                          <Boxes className="w-3 h-3 text-[#0F766E]" />
+                          <span>Variasi SKU ({order.skuVariationsCount})</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 max-h-12 overflow-y-auto no-scrollbar">
+                          {order.skuList.map((sku) => (
+                            <span
+                              key={sku.skuId}
+                              className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-white text-slate-700 text-[10px] font-mono border border-slate-200"
+                              title={`${sku.namaBarang} (Total: ${sku.qty})`}
                             >
-                              <span>{isExpanded ? 'Tutup' : 'Rincian'}</span>
-                              {isExpanded ? (
-                                <ChevronUp className="w-3 h-3 ml-0.5" />
-                              ) : (
-                                <ChevronDown className="w-3 h-3 ml-0.5" />
-                              )}
-                            </button>
-                            {canDelete && onDeleteOrder && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeleteTarget({
-                                    type: 'single_order',
-                                    title: 'Hapus Seluruh Data Order ID',
-                                    orderId: order.Order_ID,
-                                    count: order.totalQty
-                                  });
-                                }}
-                                className="p-1.5 rounded-lg text-rose-500 hover:text-white hover:bg-rose-600 border border-rose-200 transition-colors cursor-pointer"
-                                title="Hapus Data Return Order ID (Khusus Super Admin)"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                              <span className="font-bold text-[#0F766E]">{sku.skuId}</span>
+                              <span className="text-slate-400 font-sans">×</span>
+                              <span className="font-extrabold text-slate-900">{sku.qty}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
 
-                      {/* SUB-TABLE: RINCIAN SEMUA SKU DI DALAM 1 ORDER ID */}
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={canDelete ? 9 : 8} className="p-0 bg-[#F0FDFA]/40 border-b border-slate-200">
-                            <div className="p-4 sm:p-5 space-y-3">
+                      {/* Metric 3: Kondisi Fisik */}
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Kondisi Fisik</div>
+                        <div className="flex flex-wrap gap-1">
+                          {order.conditionBreakdown.good > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200" title="Good Condition (Kondisi Baik)">
+                              <span>Good:</span>
+                              <span>{order.conditionBreakdown.good}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.damagePackaging > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200" title="Damage Packaging (Kemasan / Dus Rusak)">
+                              <span>Dus:</span>
+                              <span>{order.conditionBreakdown.damagePackaging}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.damageProduct > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-bold border border-rose-200" title="Damage Product (Produk Rusak / Cacat)">
+                              <span>Dmg:</span>
+                              <span>{order.conditionBreakdown.damageProduct}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.totallyDamage > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 text-[10px] font-bold border border-purple-200" title="Totally Damage (Kerusakan Total / Hancur)">
+                              <span>Tot Dmg:</span>
+                              <span>{order.conditionBreakdown.totallyDamage}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.unexpected > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 text-[10px] font-bold border border-blue-200" title="Wrong Item / Salah Barang">
+                              <span>Wrong:</span>
+                              <span>{order.conditionBreakdown.unexpected}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.missing > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-300" title="Missing Item (Barang Hilang / Kurang)">
+                              <span>Hilang:</span>
+                              <span>{order.conditionBreakdown.missing}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Metric 4: Video Bukti & Waktu */}
+                      <div className="flex items-center justify-between bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80" onClick={(e) => e.stopPropagation()}>
+                        <div className="min-w-0">
+                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Video & Waktu</div>
+                          <div className="text-[11px] font-mono text-slate-800 font-semibold truncate max-w-[140px]" title={order.Nama_File_Video}>
+                            {order.Nama_File_Video || '-'}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {order.Waktu_Proses}
+                          </div>
+                        </div>
+                        {order.Link_Video && (
+                          <a
+                            href={getDirectVideoUrl(order.Link_Video, order.Order_ID)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 rounded-lg bg-[#F0FDFA] hover:bg-teal-100 text-[#0F766E] border border-teal-200 text-xs font-semibold flex items-center space-x-1 shrink-0 transition-colors"
+                            title="Buka bukti video unboxing di Google Drive"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span className="text-[10px]">Drive</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SUB-TABLE: RINCIAN SEMUA SKU DI DALAM 1 ORDER ID (Panel berlatar kontras) */}
+                  {isExpanded && (
+                    <div className="bg-slate-50/95 border-t-2 border-teal-500 p-4 sm:p-5 space-y-3 shadow-inner">
                               <div className="flex items-center justify-between text-xs">
                                 <div className="flex items-center space-x-2 font-bold text-slate-800">
                                   <Package className="w-4 h-4 text-[#0F766E]" />
@@ -975,16 +1031,12 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                                     ))}
                                   </tbody>
                                 </table>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* BILAH AKSI MASSAL (BULK ACTION BAR) KHUSUS SUPER ADMIN - ORDER SUMMARY */}

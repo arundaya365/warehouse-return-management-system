@@ -128,6 +128,94 @@ export function saveMasterDatabase(data: MasterSKUItem[]): void {
   }
 }
 
+export interface MergeSkuResult {
+  merged: MasterSKUItem[];
+  addedCount: number;
+  updatedCount: number;
+  totalCount: number;
+}
+
+/**
+ * Gabung dan perbarui SKU yang sama (Merge & Update):
+ * - Jika SKU_ID atau BARCODE sudah ada, perbarui nama, barcode, dan harga barang
+ * - Jika SKU baru, tambahkan ke dalam database
+ */
+export function mergeMasterSkus(existing: MasterSKUItem[], incoming: MasterSKUItem[]): MergeSkuResult {
+  const result: MasterSKUItem[] = [];
+  const indexByKey = new Map<string, number>();
+
+  let updatedCount = 0;
+  let addedCount = 0;
+
+  // Petakan data yang sudah ada
+  (existing || []).forEach((item) => {
+    const itemCopy = { ...item };
+    result.push(itemCopy);
+    const pos = result.length - 1;
+    if (itemCopy.SKU_ID) {
+      indexByKey.set(`sku:${itemCopy.SKU_ID.trim().toUpperCase()}`, pos);
+    }
+    if (itemCopy.BARCODE) {
+      indexByKey.set(`bc:${itemCopy.BARCODE.trim().toUpperCase()}`, pos);
+    }
+  });
+
+  // Gabungkan dan perbarui data baru
+  (incoming || []).forEach((newItem) => {
+    if (!newItem.SKU_ID && !newItem.BARCODE) return;
+
+    const skuKey = newItem.SKU_ID ? `sku:${newItem.SKU_ID.trim().toUpperCase()}` : null;
+    const barcodeKey = newItem.BARCODE ? `bc:${newItem.BARCODE.trim().toUpperCase()}` : null;
+
+    let targetIndex: number | undefined;
+    if (skuKey && indexByKey.has(skuKey)) {
+      targetIndex = indexByKey.get(skuKey);
+    } else if (barcodeKey && indexByKey.has(barcodeKey)) {
+      targetIndex = indexByKey.get(barcodeKey);
+    }
+
+    if (targetIndex !== undefined) {
+      // Perbarui SKU yang sudah ada
+      const current = result[targetIndex];
+      const updated: MasterSKUItem = {
+        BARCODE: (newItem.BARCODE || current.BARCODE || '').trim(),
+        SKU_ID: (newItem.SKU_ID || current.SKU_ID || '').trim(),
+        SKU_NAME: (newItem.SKU_NAME || current.SKU_NAME || '').trim(),
+        HARGA: newItem.HARGA !== undefined && newItem.HARGA !== null && Number(newItem.HARGA) > 0 ? Number(newItem.HARGA) : (current.HARGA || 0)
+      };
+      result[targetIndex] = updated;
+      updatedCount++;
+
+      if (updated.SKU_ID) indexByKey.set(`sku:${updated.SKU_ID.trim().toUpperCase()}`, targetIndex);
+      if (updated.BARCODE) indexByKey.set(`bc:${updated.BARCODE.trim().toUpperCase()}`, targetIndex);
+    } else {
+      // Tambah SKU baru ke daftar teratas
+      const cleanItem: MasterSKUItem = {
+        BARCODE: (newItem.BARCODE || newItem.SKU_ID || '').trim(),
+        SKU_ID: (newItem.SKU_ID || newItem.BARCODE || '').trim(),
+        SKU_NAME: (newItem.SKU_NAME || '').trim(),
+        HARGA: Number(newItem.HARGA) || 0
+      };
+      result.unshift(cleanItem);
+      addedCount++;
+
+      // Re-index ulang
+      indexByKey.clear();
+      result.forEach((it, idx) => {
+        if (it.SKU_ID) indexByKey.set(`sku:${it.SKU_ID.trim().toUpperCase()}`, idx);
+        if (it.BARCODE) indexByKey.set(`bc:${it.BARCODE.trim().toUpperCase()}`, idx);
+      });
+    }
+  });
+
+  return {
+    merged: result,
+    addedCount,
+    updatedCount,
+    totalCount: result.length
+  };
+}
+
 /**
  * Unduh Template Excel (.xlsx) 4 Kolom:
  * Kolom A: BARCODE

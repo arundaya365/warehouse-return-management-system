@@ -1,6 +1,6 @@
 {
-  "summary": "Rencana implementasi automasi deteksi Marketplace & Logistik berbasis prefix nomor resi (AWB) sesuai rumus Excel, integrasi 2 dropdown dinamis dengan memori prefix baru, dan visualisasi di Stasiun Unboxing, Laporan, dan Klaim CS.",
-  "updatedAt": "2026-10-16T11:19:29.778211007Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Rencana penghapusan tombol aksi cepat Setujui/Tolak (baik di baris tabel maupun di header order) pada modul Klaim Kerusakan & Aju Banding CS, agar Customer Service wajib menginput realisasi ganti rugi aktual sesuai kebijakan logistik melalui modal Klaim atau kolom Realisasi Ekspedisi.",
+  "updatedAt":  "2026-10-21T11:19:53.178711365Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

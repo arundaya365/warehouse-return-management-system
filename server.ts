@@ -13,7 +13,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isProd = process.env.NODE_ENV === 'production';
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = 3000;
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -176,6 +176,10 @@ import {
   dbSaveDisputes,
   dbSaveMasterDatabase,
   dbSaveUsers,
+  dbDeleteUser,
+  dbCleanDemoAccounts,
+  dbSaveLearnedPrefix,
+  dbGetLearnedPrefixes,
   ensureDatabaseSeeded
 } from './src/db/warehouseDb.ts';
 
@@ -329,9 +333,14 @@ app.post('/api/sync/disputes', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'disputes harus berupa object' });
       return;
     }
-    const lastUpdated = await dbSaveDisputes(disputes);
-    WarehouseStore.saveDisputes(disputes);
-    res.json({ success: true, lastUpdated });
+    let lastUpdated: string | null = null;
+    try {
+      lastUpdated = await dbSaveDisputes(disputes);
+    } catch (dbErr) {
+      console.warn('Database save warning (disputes), falling back to WarehouseStore:', dbErr);
+    }
+    const updated = WarehouseStore.saveDisputes(disputes);
+    res.json({ success: true, lastUpdated: lastUpdated || updated.lastUpdated });
   } catch (error) {
     console.error('Error saving disputes:', error);
     res.status(500).json({ error: 'Gagal sinkron disputes' });
@@ -346,9 +355,18 @@ app.post('/api/sync/master-db', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'masterDatabase harus berupa array' });
       return;
     }
-    const count = await dbSaveMasterDatabase(masterDatabase);
-    WarehouseStore.saveMasterDatabase(masterDatabase);
-    res.json({ success: true, count });
+    let count = 0;
+    try {
+      count = await dbSaveMasterDatabase(masterDatabase);
+    } catch (dbErr) {
+      console.warn('Database save warning (master-db), falling back to WarehouseStore:', dbErr);
+    }
+    const updated = WarehouseStore.saveMasterDatabase(masterDatabase);
+    res.json({
+      success: true,
+      count: count || updated.masterDatabase.length,
+      lastUpdated: updated.lastUpdated
+    });
   } catch (error) {
     console.error('Error saving master database:', error);
     res.status(500).json({ error: 'Gagal sinkron master database' });
@@ -363,14 +381,124 @@ app.post('/api/sync/users', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'users harus berupa array' });
       return;
     }
-    const count = await dbSaveUsers(users);
-    WarehouseStore.saveUsers(users);
-    res.json({ success: true, count });
+    let count = 0;
+    try {
+      count = await dbSaveUsers(users);
+    } catch (dbErr) {
+      console.warn('Database save warning (users), falling back to WarehouseStore:', dbErr);
+    }
+    const updated = WarehouseStore.saveUsers(users);
+    res.json({
+      success: true,
+      count: count || updated.users.length,
+      lastUpdated: updated.lastUpdated
+    });
   } catch (error) {
     console.error('Error saving users:', error);
     res.status(500).json({ error: 'Gagal sinkron users' });
   }
 });
+
+// 10. Hapus akun pengguna secara permanen lintas perangkat
+app.post('/api/sync/delete-user', async (req: Request, res: Response) => {
+  try {
+    const { userId, operatorCode } = req.body;
+    const target = userId || operatorCode;
+    if (!target) {
+      res.status(400).json({ error: 'userId atau operatorCode wajib disertakan' });
+      return;
+    }
+
+    const clean = String(target).trim();
+    if (clean === 'USR-001' || clean.toUpperCase() === 'OPR-HQ-01') {
+      res.status(403).json({ error: 'Akun Super Admin Yaya Sanjaya dilindungi dan tidak dapat dihapus' });
+      return;
+    }
+
+    try {
+      await dbDeleteUser(clean);
+    } catch (dbErr) {
+      console.warn('Database delete warning (user), falling back to in-memory:', dbErr);
+    }
+
+    const updated = WarehouseStore.deleteUser(clean);
+    res.json({
+      success: true,
+      remainingCount: updated.users.length,
+      lastUpdated: updated.lastUpdated
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Gagal menghapus akun pengguna' });
+  }
+});
+
+// 11. Bersihkan seluruh akun demo lama (hanya menyisakan Yaya Sanjaya)
+app.post('/api/sync/clean-demo-users', async (_req: Request, res: Response) => {
+  try {
+    let count = 1;
+    try {
+      count = await dbCleanDemoAccounts();
+    } catch (dbErr) {
+      console.warn('dbCleanDemoAccounts warning, falling back to in-memory:', dbErr);
+    }
+    const updated = WarehouseStore.saveUsers([
+      {
+        id: 'USR-001',
+        username: 'yaya.sanjaya',
+        fullName: 'Yaya Sanjaya',
+        email: 'yaya.sanjaya@tirtakumalasari.co.id',
+        role: 'SUPER_ADMIN',
+        department: 'Direksi / IT & Supply Chain',
+        company: 'PT. Tirta Kumala Sari',
+        operatorCode: 'OPR-HQ-01',
+        pin: '1234',
+        status: 'ACTIVE',
+        lastLogin: '2026-10-09 14:35',
+        avatarColor: 'from-[#0F766E] to-[#115E59]'
+      }
+    ]);
+    res.json({
+      success: true,
+      remainingCount: count || updated.users.length,
+      lastUpdated: updated.lastUpdated
+    });
+  } catch (error) {
+    console.error('Error cleaning demo users:', error);
+    res.status(500).json({ error: 'Gagal membersihkan akun demo' });
+  }
+});
+
+// 12. Simpan prefix AWB yang dipelajari ke database Cloud SQL dan in-memory store
+app.post('/api/sync/awb-prefix', async (req: Request, res: Response) => {
+  try {
+    const { prefix, marketplace, logistics } = req.body;
+    const cleanPrefix = String(prefix || '').trim().toUpperCase();
+    if (!cleanPrefix) {
+      res.status(400).json({ error: 'Prefix resi wajib disertakan' });
+      return;
+    }
+
+    let learned: Record<string, any> = {};
+    try {
+      learned = await dbSaveLearnedPrefix(cleanPrefix, String(marketplace || 'Lainnya'), String(logistics || 'Lainnya'));
+    } catch (dbErr) {
+      console.warn('Database save warning (awb-prefix), falling back to in-memory:', dbErr);
+    }
+
+    const updated = WarehouseStore.saveLearnedPrefix(cleanPrefix, String(marketplace || 'Lainnya'), String(logistics || 'Lainnya'));
+    res.json({
+      success: true,
+      learnedPrefixes: (Object.keys(learned).length > 0 ? learned : updated.learnedPrefixes) || {},
+      lastUpdated: updated.lastUpdated
+    });
+  } catch (error) {
+    console.error('Error saving learned awb prefix:', error);
+    res.status(500).json({ error: 'Gagal menyimpan prefix resi' });
+  }
+});
+
+
 
 
 // Setup Vite atau Static File serving

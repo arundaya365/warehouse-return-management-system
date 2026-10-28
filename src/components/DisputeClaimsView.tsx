@@ -36,7 +36,8 @@ import {
   Share2,
   ArrowRight,
   Send,
-  Lock
+  Lock,
+  CheckSquare
 } from 'lucide-react';
 import { ProcessedReturnRow, StandardKondisi } from '../processor';
 import { MasterSKUItem } from '../utils/excelTemplate';
@@ -72,6 +73,7 @@ export interface DisputeRecord {
   claimAmount: number; // in IDR (nilai tuntutan diajukan ke ekspedisi/marketplace)
   settlementAmount?: number; // in IDR (nilai penggantian aktual yang disetujui/dicairkan ekspedisi)
   settlementNote?: string; // alasan selisih ganti rugi ekspedisi
+  isForwardedToRma?: boolean;
   csNotes: string;
   updatedAt: string;
 }
@@ -91,6 +93,7 @@ export interface DamagedDisputeItem {
   actualCompensation: number;
   netLoss: number;
   recoveryPct: number;
+  isForwardedToRma?: boolean;
   csNotes: string;
 }
 
@@ -119,6 +122,7 @@ export interface OrderDisputeGroup {
     good: number;
     damageProduct: number;
     damagePackaging: number;
+    totallyDamage: number;
     missing: number;
     unexpected: number;
   };
@@ -198,16 +202,33 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     return () => unsubscribe();
   }, [onDisputeRecordsChange]);
 
-  // Simpan perubahan ke localStorage & server database Cloud SQL
-  const saveDisputeRecords = (updated: Record<string, Partial<DisputeRecord>>) => {
+  // Simpan perubahan ke localStorage & server database Cloud SQL dengan menjaga _rma_claims_list_
+  const saveDisputeRecords = (
+    updated: Record<string, Partial<DisputeRecord>>,
+    explicitRmaClaims?: RmaClaimRecord[]
+  ) => {
     setDisputeRecords(updated);
     if (onDisputeRecordsChange) {
       onDisputeRecordsChange(updated);
     }
     try {
-      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(updated));
+      const currentRmaList = explicitRmaClaims || (rmaClaims && rmaClaims.length > 0 ? rmaClaims : (() => {
+        try {
+          const raw = localStorage.getItem('rma_claims_records_v1') || localStorage.getItem('rma_claims_storage_v1');
+          return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+      })());
+      const payloadToSave: Record<string, any> = { ...updated };
+      if (Array.isArray(currentRmaList) && currentRmaList.length > 0) {
+        payloadToSave['_rma_claims_list_'] = currentRmaList;
+      }
+      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payloadToSave));
+      if (Array.isArray(currentRmaList)) {
+        localStorage.setItem('rma_claims_records_v1', JSON.stringify(currentRmaList));
+        localStorage.setItem('rma_claims_storage_v1', JSON.stringify(currentRmaList));
+      }
+      syncService.pushDisputes(payloadToSave);
     } catch {}
-    syncService.pushDisputes(updated);
   };
 
 
@@ -229,7 +250,28 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const [inlineEditingKey, setInlineEditingKey] = useState<string | null>(null);
   const [inlineSettlementInput, setInlineSettlementInput] = useState<string>('');
 
-  // Modal Detail / Form Aju Banding
+  // Checkbox seleksi batch order
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const toggleSelectOrder = (orderId: string) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
+  // Modal Hasil Aju Banding Klaim Order (Per 1 Order dengan checklist produk)
+  const [claimModalOrder, setClaimModalOrder] = useState<OrderDisputeGroup | null>(null);
+  const [claimModalChannel, setClaimModalChannel] = useState<ClaimChannel>('Shopee');
+  const [claimModalStatus, setClaimModalStatus] = useState<ClaimStatus>('SUBMITTED');
+  const [claimModalTicketNumber, setClaimModalTicketNumber] = useState<string>('');
+  const [claimModalTotalSettlement, setClaimModalTotalSettlement] = useState<string>('');
+  const [claimModalCsNotes, setClaimModalCsNotes] = useState<string>('');
+  const [selectedSuccessSkuKeys, setSelectedSuccessSkuKeys] = useState<Set<string>>(new Set());
+  const [claimModalActiveTab, setClaimModalActiveTab] = useState<'form' | 'template' | 'evidence'>('form');
+
+  // Modal Detail / Form Aju Banding (Legacy / per item fallback)
   const [selectedDispute, setSelectedDispute] = useState<{
     key: string;
     row: ProcessedReturnRow;
@@ -266,16 +308,22 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const forwardedRmaMap = useMemo(() => {
     const map = new Map<string, RmaClaimRecord>();
     (rmaClaims || []).forEach((c) => {
-      map.set(c.orderId, c);
+      const oid = String(c.orderId || '').trim();
+      if (oid) {
+        map.set(oid, c);
+        map.set(oid.toUpperCase(), c);
+        map.set(oid.toLowerCase(), c);
+      }
     });
     return map;
   }, [rmaClaims]);
 
   const handleOpenForwardModal = (order: OrderDisputeGroup) => {
     setForwardingOrder(order);
-    const calculatedEst = order.totalClaimAmount > 0
-      ? order.totalClaimAmount
-      : order.damageItems.reduce((acc, curr) => acc + (curr.masterPrice || curr.basePrice || 150000), 0);
+    const calculatedEst = order.damageItems.reduce(
+      (acc, curr) => acc + (curr.claimAmount || curr.masterPrice || curr.basePrice || 150000),
+      0
+    );
     setForwardEstCompensation(String(calculatedEst || 150000));
     setForwardCsNotes(
       order.damageItems.map((d) => d.csNotes).filter(Boolean).join('; ') ||
@@ -287,25 +335,47 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     if (!forwardingOrder) return;
     const estCompNum = parseInt(forwardEstCompensation.replace(/[^0-9]/g, ''), 10) || 0;
     const nowIso = new Date().toISOString();
+    const cleanOrderId = String(forwardingOrder.orderId || '').trim();
 
-    const items: RmaClaimItem[] = forwardingOrder.damageItems.map((d) => ({
-      skuId: d.row.SKU_ID,
-      namaBarang: d.row.Nama_Barang,
-      qty: 1,
-      kondisi: d.row.Kondisi,
-      hargaSatuan: d.masterPrice || d.basePrice || 150000,
-      subtotalEstimasi: d.claimAmount || d.masterPrice || d.basePrice || 150000
-    }));
+    // Himpun SELURUH barang dalam paket order (Damage + Goods):
+    // 1. Barang rusak/hilang (dituntut ganti rugi ke logistik)
+    // 2. Barang berkondisi baik (ganti rugi Rp 0, status restock gudang)
+    const allRmaItems: RmaClaimItem[] = [];
 
-    const primaryChannel = forwardingOrder.damageItems[0]?.channel || detectChannelFromOrderId(forwardingOrder.orderId);
+    // Tambahkan seluruh barang rusak
+    forwardingOrder.damageItems.forEach((d) => {
+      allRmaItems.push({
+        skuId: d.row.SKU_ID,
+        namaBarang: d.row.Nama_Barang,
+        qty: 1,
+        kondisi: d.row.Kondisi,
+        hargaSatuan: d.masterPrice || d.basePrice || 150000,
+        subtotalEstimasi: d.claimAmount || d.masterPrice || d.basePrice || 150000
+      });
+    });
+
+    // Tambahkan seluruh barang berkondisi baik
+    forwardingOrder.goodItems.forEach((g) => {
+      const price = lookupItemPrice(g.SKU_ID) || 150000;
+      allRmaItems.push({
+        skuId: g.SKU_ID,
+        namaBarang: g.Nama_Barang,
+        qty: 1,
+        kondisi: 'Good',
+        hargaSatuan: price,
+        subtotalEstimasi: 0 // Barang kondisi baik bernilai klaim Rp 0 sesuai konfirmasi pengguna
+      });
+    });
+
+    const primaryChannel = forwardingOrder.damageItems[0]?.channel || detectChannelFromOrderId(cleanOrderId);
 
     const rmaRecord: RmaClaimRecord = {
-      id: `rma_${forwardingOrder.orderId}_${Date.now()}`,
-      orderId: forwardingOrder.orderId,
-      awb: (forwardingOrder.allItems[0] as Record<string, any>)?.No_Resi || forwardingOrder.orderId,
+      id: `rma_${cleanOrderId}_${Date.now()}`,
+      orderId: cleanOrderId,
+      awb: (forwardingOrder.allItems[0] as Record<string, any>)?.No_Resi || cleanOrderId,
       channel: primaryChannel,
       stageStatus: 'DIALIHKAN_KE_RMA',
-      items,
+      items: allRmaItems,
       estimatedCompensation: estCompNum,
       csNotes: forwardCsNotes.trim(),
       forwardedBy: currentUser?.fullName || 'CS Specialist',
@@ -318,15 +388,17 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
       updatedAt: nowIso
     };
 
-    if (onForwardToRma) {
-      onForwardToRma(rmaRecord);
-    }
+    // Buat daftar RMA claims terbaru secara atomik agar tidak tertimpa payload lama
+    const existingClaims = (rmaClaims || []).filter(
+      (c) => String(c.orderId || '').trim().toUpperCase() !== cleanOrderId.toUpperCase()
+    );
+    const newRmaList = [rmaRecord, ...existingClaims];
 
     // Update dispute record to mark as forwarded
     const updatedDisputes = { ...disputeRecords };
     forwardingOrder.damageItems.forEach((d) => {
       const existing = updatedDisputes[d.key] || {};
-      updatedDisputes[d.key] = {
+      const updatedItem = {
         ...existing,
         id: d.key,
         row: d.row,
@@ -334,14 +406,26 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         claimStatus: existing.claimStatus || d.claimStatus,
         ticketNumber: existing.ticketNumber || d.ticketNumber,
         claimAmount: existing.claimAmount !== undefined ? existing.claimAmount : d.claimAmount,
+        isForwardedToRma: true,
         csNotes: `[DIALIHKAN KE RMA] ${forwardCsNotes.trim()}`,
         updatedAt: nowIso
       };
+      updatedDisputes[d.key] = updatedItem;
+      const legacyKey = `${d.row.Order_ID}_${d.row.SKU_ID}_${d.itemIndex}`;
+      if (legacyKey !== d.key) {
+        updatedDisputes[legacyKey] = { ...(updatedDisputes[legacyKey] || {}), ...updatedItem, id: legacyKey };
+      }
     });
-    saveDisputeRecords(updatedDisputes);
+
+    // Simpan atomic: updatedDisputes + newRmaList dikirim langsung ke server & localStorage
+    saveDisputeRecords(updatedDisputes, newRmaList);
+
+    if (onForwardToRma) {
+      onForwardToRma(rmaRecord);
+    }
 
     setForwardingOrder(null);
-    showToast(`✓ Kasus Order ${forwardingOrder.orderId} berhasil dialihkan ke Tim RMA!`);
+    showToast(`✓ Kasus Order ${cleanOrderId} (${allRmaItems.length} produk: ${forwardingOrder.damageItems.length} rusak, ${forwardingOrder.goodItems.length} baik) berhasil dialihkan ke Tim RMA!`);
   };
 
   // Generate Key unik untuk setiap item retur kerusakan (deterministik per Order ID)
@@ -381,7 +465,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const orderGroups = useMemo(() => {
     const map = new Map<string, ProcessedReturnRow[]>();
     for (const r of rows) {
-      const orderId = r.Order_ID || 'UNASSIGNED';
+      const orderId = String(r.Order_ID || 'UNASSIGNED').trim();
       if (!map.has(orderId)) {
         map.set(orderId, []);
       }
@@ -392,8 +476,8 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
 
     for (const [orderId, orderRows] of map.entries()) {
       const firstRow = orderRows[0];
-      const goodRows = orderRows.filter((r) => r.Kondisi === 'Good');
-      const damageRows = orderRows.filter((r) => r.Kondisi !== 'Good');
+      const goodRows = orderRows.filter((r) => r.Kondisi === 'Good' || r.Kondisi?.trim().toLowerCase() === 'good');
+      const damageRows = orderRows.filter((r) => r.Kondisi !== 'Good' && r.Kondisi?.trim().toLowerCase() !== 'good');
 
       const damagedItems: DamagedDisputeItem[] = damageRows.map((row, idxInOrder) => {
         const key = getItemKey(row, idxInOrder);
@@ -477,16 +561,26 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         good: 0,
         damageProduct: 0,
         damagePackaging: 0,
+        totallyDamage: 0,
         missing: 0,
         unexpected: 0
       };
 
       for (const r of orderRows) {
-        if (r.Kondisi === 'Good') conditionBreakdown.good += 1;
-        else if (r.Kondisi === 'Damage Packaging') conditionBreakdown.damagePackaging += 1;
-        else if (r.Kondisi === 'Missing Item' || r.Kondisi === 'Missing') conditionBreakdown.missing += 1;
-        else if (r.Kondisi === 'Wrong Item' || r.Kondisi === 'Unexpected') conditionBreakdown.unexpected += 1;
-        else conditionBreakdown.damageProduct += 1;
+        const k = (r.Kondisi || '').trim();
+        if (k === 'Good' || k === 'Good Condition' || k === 'Baik') {
+          conditionBreakdown.good += 1;
+        } else if (k === 'Damage Packaging' || k === 'Dus' || k === 'Kemasan Rusak') {
+          conditionBreakdown.damagePackaging += 1;
+        } else if (k === 'Totally Damage' || k === 'Damage Total' || k === 'Total Rusak') {
+          conditionBreakdown.totallyDamage += 1;
+        } else if (k === 'Wrong Item' || k === 'Unexpected' || k === 'Salah Barang') {
+          conditionBreakdown.unexpected += 1;
+        } else if (k === 'Missing Item' || k === 'Missing' || k === 'Barang Hilang') {
+          conditionBreakdown.missing += 1;
+        } else {
+          conditionBreakdown.damageProduct += 1;
+        }
 
         const sId = r.SKU_ID || '-';
         let sEntry = skuList.find((s) => s.skuId === sId);
@@ -551,10 +645,29 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         }
       }
 
-      // 3. Filter Status Klaim
-      if (filterStatus !== 'ALL') {
-        if (!group.damageItems.some((d) => d.claimStatus === filterStatus)) {
-          return false;
+      // 3. Filter Status Klaim & Pemisahan Antrean RMA
+      const cleanId = group.orderId.trim();
+      const isForwardedToRma =
+        forwardedRmaMap.has(cleanId) ||
+        forwardedRmaMap.has(cleanId.toUpperCase()) ||
+        forwardedRmaMap.has(cleanId.toLowerCase()) ||
+        group.damageItems.some((d) => {
+          const rec = disputeRecords[d.key];
+          return rec?.isForwardedToRma === true || (rec?.csNotes && rec.csNotes.includes('[DIALIHKAN KE RMA]'));
+        });
+
+      if (filterStatus === 'FORWARDED_RMA') {
+        // Tampilkan hanya order yang telah dialihkan ke Tim RMA
+        if (!isForwardedToRma) return false;
+      } else {
+        // Pada antrean aktif CS (Semua Aktif, Draft, Diajukan, Disetujui, Ditolak):
+        // Sembunyikan order yang sudah dialihkan ke RMA agar antrean CS bersih!
+        if (isForwardedToRma) return false;
+
+        if (filterStatus !== 'ALL') {
+          if (!group.damageItems.some((d) => d.claimStatus === filterStatus)) {
+            return false;
+          }
         }
       }
 
@@ -587,7 +700,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
 
       return true;
     });
-  }, [orderGroups, viewMode, searchQuery, filterStatus, filterDamageType, filterChannel]);
+  }, [orderGroups, viewMode, searchQuery, filterStatus, filterDamageType, filterChannel, forwardedRmaMap]);
 
   // Reset pagination saat filter / query berubah
   useEffect(() => {
@@ -648,36 +761,187 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     return filteredOrders.flatMap((o) => o.damageItems);
   }, [filteredOrders]);
 
-  // Statistik Ringkasan Klaim CS
+  // Statistik Ringkasan Klaim CS (Memisahkan antrean CS aktif vs kasus yang dialihkan ke RMA)
   const stats = useMemo(() => {
-    const totalOrdersWithDamage = orderGroups.filter((o) => o.damageCount > 0).length;
-    const allDamageItems = orderGroups.flatMap((o) => o.damageItems);
-    const totalCount = allDamageItems.length;
-    const pendingCount = allDamageItems.filter((d) => d.claimStatus === 'PENDING').length;
-    const submittedCount = allDamageItems.filter((d) => d.claimStatus === 'SUBMITTED').length;
-    const approvedCount = allDamageItems.filter((d) => d.claimStatus === 'APPROVED').length;
-    const partialCount = allDamageItems.filter((d) => d.claimStatus === 'PARTIAL').length;
-    const rejectedCount = allDamageItems.filter((d) => d.claimStatus === 'REJECTED').length;
+    const forwardedOrdersCount = orderGroups.filter((o) => forwardedRmaMap.has(o.orderId)).length;
+    const nonForwardedDamageOrders = orderGroups.filter(
+      (o) => o.damageCount > 0 && !forwardedRmaMap.has(o.orderId)
+    );
+    const activeOrdersCount = nonForwardedDamageOrders.filter(
+      (o) => o.overallStatus === 'PENDING' || o.overallStatus === 'SUBMITTED'
+    ).length;
 
-    const totalDamageGoodsValue = allDamageItems.reduce((acc, curr) => acc + curr.basePrice, 0);
-    const totalClaimed = allDamageItems.reduce((acc, curr) => acc + curr.claimAmount, 0);
-    const totalSettlementReceived = allDamageItems.reduce((acc, curr) => acc + curr.actualCompensation, 0);
+    const nonForwardedDamageItems = nonForwardedDamageOrders.flatMap((o) => o.damageItems);
+
+    const totalCount = nonForwardedDamageItems.length;
+    const pendingCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'PENDING').length;
+    const submittedCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'SUBMITTED').length;
+    const approvedCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'APPROVED').length;
+    const partialCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'PARTIAL').length;
+    const rejectedCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'REJECTED').length;
+
+    const totalDamageGoodsValue = nonForwardedDamageItems.reduce((acc, curr) => acc + curr.basePrice, 0);
+    const totalClaimed = nonForwardedDamageItems.reduce((acc, curr) => acc + curr.claimAmount, 0);
+    const totalSettlementReceived = nonForwardedDamageItems.reduce((acc, curr) => acc + curr.actualCompensation, 0);
     const totalUncoveredLoss = Math.max(0, totalDamageGoodsValue - totalSettlementReceived);
 
     return {
-      totalOrdersWithDamage,
+      totalOrdersWithDamage: nonForwardedDamageOrders.length,
+      activeOrdersCount,
       totalCount,
       pendingCount,
       submittedCount,
       approvedCount,
       partialCount,
       rejectedCount,
+      forwardedRmaCount: forwardedOrdersCount,
       totalDamageGoodsValue,
       totalClaimed,
       totalSettlementReceived,
       totalUncoveredLoss
     };
-  }, [orderGroups]);
+  }, [orderGroups, forwardedRmaMap]);
+  // Daftar item target untuk modal klaim order (menggunakan damageItems atau fallback allItems)
+  const targetItemsForModal = useMemo(() => {
+    if (!claimModalOrder) return [];
+    if (claimModalOrder.damageItems.length > 0) return claimModalOrder.damageItems;
+    return claimModalOrder.allItems.map((r, i) => {
+      const key = `${r.Order_ID}_${r.SKU_ID}_${i}`;
+      const rec = disputeRecords[key] || {};
+      const basePrice = lookupItemPrice(r.SKU_ID) || 150000;
+      return {
+        key,
+        itemIndex: i,
+        row: r,
+        channel: (rec.channel || detectChannelFromOrderId(r.Order_ID)) as ClaimChannel,
+        claimStatus: (rec.claimStatus || 'PENDING') as ClaimStatus,
+        ticketNumber: rec.ticketNumber || '',
+        claimAmount: rec.claimAmount || basePrice,
+        settlementAmount: rec.settlementAmount,
+        settlementNote: rec.settlementNote || '',
+        masterPrice: basePrice,
+        basePrice,
+        actualCompensation: rec.settlementAmount ?? 0,
+        netLoss: basePrice - (rec.settlementAmount ?? 0),
+        recoveryPct: 0,
+        csNotes: rec.csNotes || ''
+      } as DamagedDisputeItem;
+    });
+  }, [claimModalOrder, disputeRecords, masterDatabase]);
+
+  // Handler membuka Modal Hasil Aju Banding per 1 Order ID (Checklist SKU + Total Nominal Order)
+  const handleOpenOrderClaimModal = (order: OrderDisputeGroup) => {
+    setClaimModalOrder(order);
+    const primaryChannel = order.damageItems[0]?.channel || detectChannelFromOrderId(order.orderId);
+    setClaimModalChannel(primaryChannel);
+    
+    // Status klaim keseluruhan: default ke SUBMITTED jika baru diajukan
+    setClaimModalStatus(order.overallStatus || 'SUBMITTED');
+
+    // Pre-fill No. Tiket
+    const existingTicket = order.damageItems.find((d) => d.ticketNumber && d.ticketNumber !== '-')?.ticketNumber || '';
+    setClaimModalTicketNumber(existingTicket);
+
+    // Pre-fill total nominal: total per 1 order
+    const initialAmount = order.totalSettlementReceived > 0
+      ? order.totalSettlementReceived
+      : order.totalClaimAmount > 0
+      ? order.totalClaimAmount
+      : order.damageItems.reduce((acc, curr) => acc + (curr.masterPrice || curr.basePrice || 150000), 0) ||
+        order.allItems.reduce((acc, curr) => acc + (lookupItemPrice(curr.SKU_ID) || 150000), 0);
+    setClaimModalTotalSettlement(String(initialAmount || 150000));
+
+    // Pre-fill checklist produk yang berhasil diklaim
+    const items = order.damageItems.length > 0 ? order.damageItems : order.allItems.map((r, i) => ({
+      key: `${r.Order_ID}_${r.SKU_ID}_${i}`
+    }));
+    const initialChecked = new Set<string>();
+    items.forEach((d) => {
+      const rec = disputeRecords[d.key];
+      if (rec?.claimStatus !== 'REJECTED') {
+        initialChecked.add(d.key);
+      }
+    });
+    if (initialChecked.size === 0) {
+      items.forEach((d) => initialChecked.add(d.key));
+    }
+    setSelectedSuccessSkuKeys(initialChecked);
+
+    // Pre-fill catatan CS
+    const existingNotes = order.damageItems.map((d) => d.csNotes).filter(Boolean).join('; ') || '';
+    setClaimModalCsNotes(existingNotes);
+
+    setClaimModalActiveTab('form');
+  };
+
+  // Simpan hasil aju banding order (Total nominal 1 order & checklist produk lolos banding)
+  const handleSaveOrderClaim = () => {
+    if (!claimModalOrder) return;
+    const nowIso = new Date().toISOString();
+    const totalSettlementNum = parseInt(claimModalTotalSettlement.replace(/[^0-9]/g, ''), 10) || 0;
+    
+    const items = targetItemsForModal;
+    const checkedItems = items.filter((d) => selectedSuccessSkuKeys.has(d.key));
+    const checkedCount = checkedItems.length;
+
+    const updatedDisputes = { ...disputeRecords };
+
+    items.forEach((d) => {
+      const existing = updatedDisputes[d.key] || {};
+      const isChecked = selectedSuccessSkuKeys.has(d.key);
+
+      let itemStatus: ClaimStatus = claimModalStatus;
+      let itemSettlement: number | undefined = undefined;
+
+      if (claimModalStatus === 'APPROVED') {
+        if (isChecked && checkedCount > 0) {
+          itemStatus = 'APPROVED';
+          // Distribusi proporsional nominal total 1 order ke SKU yang lolos banding
+          const basePerItem = Math.floor(totalSettlementNum / checkedCount);
+          const remainder = totalSettlementNum % checkedCount;
+          const checkedIndex = checkedItems.findIndex((ci) => ci.key === d.key);
+          itemSettlement = checkedIndex === checkedCount - 1 ? basePerItem + remainder : basePerItem;
+        } else {
+          itemStatus = 'REJECTED';
+          itemSettlement = 0;
+        }
+      } else if (claimModalStatus === 'REJECTED') {
+        itemStatus = 'REJECTED';
+        itemSettlement = 0;
+      } else if (claimModalStatus === 'SUBMITTED') {
+        itemStatus = 'SUBMITTED';
+        itemSettlement = undefined;
+      } else {
+        itemStatus = 'PENDING';
+        itemSettlement = undefined;
+      }
+
+      const updatedItem = {
+        ...existing,
+        id: d.key,
+        row: d.row,
+        channel: claimModalChannel,
+        claimStatus: itemStatus,
+        ticketNumber: claimModalTicketNumber.trim(),
+        claimAmount: d.claimAmount || d.masterPrice || d.basePrice || 150000,
+        settlementAmount: itemSettlement,
+        csNotes: claimModalCsNotes.trim(),
+        updatedAt: nowIso
+      };
+
+      updatedDisputes[d.key] = updatedItem;
+      const legacyKey = `${d.row.Order_ID}_${d.row.SKU_ID}_${d.itemIndex}`;
+      if (legacyKey !== d.key) {
+        updatedDisputes[legacyKey] = { ...(updatedDisputes[legacyKey] || {}), ...updatedItem, id: legacyKey };
+      }
+    });
+
+    saveDisputeRecords(updatedDisputes);
+    const savedOrderId = claimModalOrder.orderId;
+    setClaimModalOrder(null);
+    showToast(`✓ Hasil klaim Order [${savedOrderId}] berhasil disimpan! Status: ${claimModalStatus}`);
+  };
+
   // Open modal handler untuk mengelola status & detail klaim
   const handleOpenEditModal = (item: DamagedDisputeItem) => {
     const { key, row } = item;
@@ -773,100 +1037,6 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const handleCancelInlineEdit = () => {
     setInlineEditingKey(null);
     setInlineSettlementInput('');
-  };
-
-  // Aksi Cepat: Setujui Klaim Item (Approved 100%) -> Mengurangi angka badge Klaim CS
-  const handleQuickApproveItem = (item: DamagedDisputeItem) => {
-    const { key, row, claimAmount, basePrice } = item;
-    const finalAmount = claimAmount || basePrice || 150000;
-    const existing = disputeRecords[key] || {};
-    const updated = {
-      ...disputeRecords,
-      [key]: {
-        ...existing,
-        id: key,
-        row,
-        channel: existing.channel || item.channel,
-        claimStatus: 'APPROVED' as ClaimStatus,
-        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
-        claimAmount: finalAmount,
-        settlementAmount: finalAmount,
-        csNotes: existing.csNotes || 'Disetujui penuh oleh ekspedisi/marketplace',
-        updatedAt: new Date().toISOString()
-      }
-    };
-    saveDisputeRecords(updated);
-    showToast(`✓ Klaim [${row.SKU_ID}] disetujui penuh (${formatRupiah(finalAmount)}). Angka badge Klaim CS berkurang!`);
-  };
-
-  // Aksi Cepat: Tolak Klaim Item (Rejected Rp 0) -> Mengurangi angka badge Klaim CS
-  const handleQuickRejectItem = (item: DamagedDisputeItem) => {
-    const { key, row, claimAmount } = item;
-    const existing = disputeRecords[key] || {};
-    const updated = {
-      ...disputeRecords,
-      [key]: {
-        ...existing,
-        id: key,
-        row,
-        channel: existing.channel || item.channel,
-        claimStatus: 'REJECTED' as ClaimStatus,
-        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
-        claimAmount: existing.claimAmount || claimAmount,
-        settlementAmount: 0,
-        csNotes: existing.csNotes || 'Klaim ditolak oleh ekspedisi/marketplace',
-        updatedAt: new Date().toISOString()
-      }
-    };
-    saveDisputeRecords(updated);
-    showToast(`✓ Klaim [${row.SKU_ID}] ditolak (Rp 0). Kasus selesai & angka badge Klaim CS berkurang.`);
-  };
-
-  // Aksi Cepat: Setujui Seluruh SKU dalam 1 Order
-  const handleQuickApproveAllOrder = (order: OrderDisputeGroup) => {
-    const updated = { ...disputeRecords };
-    const nowIso = new Date().toISOString();
-    order.damageItems.forEach((item) => {
-      const finalAmount = item.claimAmount || item.basePrice || 150000;
-      const existing = updated[item.key] || {};
-      updated[item.key] = {
-        ...existing,
-        id: item.key,
-        row: item.row,
-        channel: existing.channel || item.channel,
-        claimStatus: 'APPROVED' as ClaimStatus,
-        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
-        claimAmount: finalAmount,
-        settlementAmount: finalAmount,
-        csNotes: existing.csNotes || 'Disetujui penuh (Batch Order)',
-        updatedAt: nowIso
-      };
-    });
-    saveDisputeRecords(updated);
-    showToast(`✓ Seluruh klaim Order [${order.orderId}] (${order.damageCount} SKU) Disetujui. Angka badge Klaim CS berkurang!`);
-  };
-
-  // Aksi Cepat: Tolak Seluruh SKU dalam 1 Order
-  const handleQuickRejectAllOrder = (order: OrderDisputeGroup) => {
-    const updated = { ...disputeRecords };
-    const nowIso = new Date().toISOString();
-    order.damageItems.forEach((item) => {
-      const existing = updated[item.key] || {};
-      updated[item.key] = {
-        ...existing,
-        id: item.key,
-        row: item.row,
-        channel: existing.channel || item.channel,
-        claimStatus: 'REJECTED' as ClaimStatus,
-        ticketNumber: existing.ticketNumber || (item.ticketNumber !== '-' ? item.ticketNumber : ''),
-        claimAmount: existing.claimAmount || item.claimAmount,
-        settlementAmount: 0,
-        csNotes: existing.csNotes || 'Ditolak ekspedisi (Batch Order)',
-        updatedAt: nowIso
-      };
-    });
-    saveDisputeRecords(updated);
-    showToast(`✓ Seluruh klaim Order [${order.orderId}] (${order.damageCount} SKU) Ditolak. Kasus selesai & angka badge Klaim CS berkurang.`);
   };
 
   // Generator teks template surat / draf aju banding CS per item
@@ -1125,6 +1295,57 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
           <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
             <XCircle className="w-3 h-3 text-rose-600" />
             <span>Ditolak (Rp 0)</span>
+          </span>
+        );
+    }
+  };
+
+  // Helper badge kondisi unboxing (Good, Packaging, Damage, dll - Sesuai Gambar Referensi)
+  const getConditionBadge = (kondisi: StandardKondisi | string) => {
+    switch (kondisi) {
+      case 'Good':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            Good
+          </span>
+        );
+      case 'Damage Packaging':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            Damage Packaging
+          </span>
+        );
+      case 'Damage Product':
+      case 'Damage Products':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+            Damage Products
+          </span>
+        );
+      case 'Totally Damage':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+            Totally Damage
+          </span>
+        );
+      case 'Missing Item':
+      case 'Missing':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-300">
+            Missing Item
+          </span>
+        );
+      case 'Wrong Item':
+      case 'Unexpected':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-200 text-slate-800 border border-slate-300">
+            Wrong Item
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+            {kondisi}
           </span>
         );
     }
@@ -1460,18 +1681,19 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 onClick={() => setFilterStatus('ALL')}
                 className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
                   filterStatus === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-xs'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
+                title="Tampilkan seluruh order aktif yang membutuhkan penanganan CS"
               >
-                Semua
+                Semua Aktif ({stats.activeOrdersCount})
               </button>
               <button
                 type="button"
                 onClick={() => setFilterStatus('PENDING')}
                 className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
                   filterStatus === 'PENDING'
-                    ? 'bg-amber-500 text-white shadow-xs'
+                    ? 'bg-amber-500 text-white shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -1482,7 +1704,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 onClick={() => setFilterStatus('SUBMITTED')}
                 className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
                   filterStatus === 'SUBMITTED'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-blue-600 text-white shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -1493,33 +1715,35 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 onClick={() => setFilterStatus('APPROVED')}
                 className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
                   filterStatus === 'APPROVED'
-                    ? 'bg-emerald-600 text-white shadow-xs'
+                    ? 'bg-emerald-600 text-white shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                100% Penuh ({stats.approvedCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterStatus('PARTIAL')}
-                className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
-                  filterStatus === 'PARTIAL'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Sebagian ({stats.partialCount})
+                Disetujui ({stats.approvedCount})
               </button>
               <button
                 type="button"
                 onClick={() => setFilterStatus('REJECTED')}
                 className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
                   filterStatus === 'REJECTED'
-                    ? 'bg-rose-600 text-white shadow-xs'
+                    ? 'bg-rose-600 text-white shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Ditolak ({stats.rejectedCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterStatus('FORWARDED_RMA')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center space-x-1 ${
+                  filterStatus === 'FORWARDED_RMA'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 border border-indigo-200/90'
+                }`}
+                title="Lihat seluruh kasus yang telah dialihkan penanganannya ke Tim RMA Logistik"
+              >
+                <Truck className="w-3 h-3" />
+                <span>Dialihkan ke RMA ({stats.forwardedRmaCount})</span>
               </button>
             </div>
           </div>
@@ -1717,277 +1941,305 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
             </div>
           </div>
 
-          {/* Table Container Grouped by Order ID (Model List Laporan Ringkas & Informatif) */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[11px]">
-                  <th className="py-2.5 px-2.5 w-10 text-center">No</th>
-                  <th className="py-2.5 px-3 w-40">Order ID & Operator</th>
-                  <th className="py-2.5 px-3 w-32">Waktu Proses</th>
-                  <th className="py-2.5 px-2 text-center w-24">Jumlah Qty</th>
-                  <th className="py-2.5 px-3 min-w-[160px]">Variasi SKU</th>
-                  <th className="py-2.5 px-3 w-44">Kondisi Barang</th>
-                  <th className="py-2.5 px-3 w-36">Video & Drive</th>
-                  <th className="py-2.5 px-3 text-center w-36">Status & Rincian</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {paginatedOrders.map((order, orderIdx) => {
-                  const globalOrderNumber = startIndex + orderIdx + 1;
-                  const isExpanded = expandedOrderIds.has(order.orderId);
+          {/* List of Separated Order Cards with Thick Borders, Visual Spacing & Sequence Badges */}
+          <div className="space-y-4">
+            {paginatedOrders.map((order, orderIdx) => {
+              const globalOrderNumber = startIndex + orderIdx + 1;
+              const isExpanded = expandedOrderIds.has(order.orderId);
+              const cleanOrderId = order.orderId.trim();
+              const isOrderForwarded =
+                forwardedRmaMap.has(cleanOrderId) ||
+                forwardedRmaMap.has(cleanOrderId.toUpperCase()) ||
+                forwardedRmaMap.has(cleanOrderId.toLowerCase()) ||
+                order.damageItems.some((d) => disputeRecords[d.key]?.isForwardedToRma);
 
-                  return (
-                    <React.Fragment key={order.orderId}>
-                      <tr
-                        className={`hover:bg-[#F0FDFA]/50 transition-colors cursor-pointer ${
-                          isExpanded
-                            ? 'bg-[#F0FDFA]/40'
-                            : order.damageCount > 0
-                            ? 'hover:bg-rose-50/30'
-                            : ''
-                        }`}
-                        onClick={() => toggleOrderExpand(order.orderId)}
-                      >
-                        {/* No */}
-                        <td className="py-3 px-2 text-center text-slate-500 font-mono font-bold">
-                          {globalOrderNumber}
-                        </td>
+              return (
+                <div
+                  key={order.orderId}
+                  className={`rounded-2xl border-2 transition-all duration-200 bg-white shadow-xs hover:shadow-md overflow-hidden ${
+                    isExpanded
+                      ? 'border-teal-500 ring-2 ring-teal-500/15 shadow-md'
+                      : order.damageCount > 0
+                      ? 'border-slate-300 hover:border-teal-400'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {/* Order Card Header: Clickable to expand/collapse */}
+                  <div
+                    className={`p-4 sm:p-4.5 cursor-pointer transition-colors ${
+                      isExpanded
+                        ? 'bg-gradient-to-r from-teal-50/60 via-slate-50/50 to-white'
+                        : order.damageCount > 0
+                        ? 'hover:bg-rose-50/20'
+                        : 'hover:bg-slate-50/60'
+                    }`}
+                    onClick={() => toggleOrderExpand(order.orderId)}
+                  >
+                    {/* ROW 1: PRIMARY IDENTITY & STATUS ACTIONS (Sesuai Referensi Gambar) */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                      {/* Left: Checkbox, Sequence Badge, Resi, Marketplace, Ekspedisi, Operator */}
+                      <div className="flex items-center flex-wrap gap-2 sm:gap-2.5">
+                        {/* Checkbox Batch Seleksi */}
+                        <input
+                          type="checkbox"
+                          checked={selectedOrderIds.has(order.orderId)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleSelectOrder(order.orderId);
+                          }}
+                          className="w-4 h-4 rounded border-slate-300 text-[#0F766E] focus:ring-[#0F766E] cursor-pointer"
+                        />
 
-                        {/* Order ID & Operator */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center space-x-1.5">
-                            <span className="font-mono font-extrabold text-slate-900 text-xs sm:text-sm select-all">
-                              {order.orderId}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(order.orderId);
-                                showToast(`✓ Order ID ${order.orderId} disalin!`);
-                              }}
-                              className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="Salin Order ID"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {order.marketplace && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold">
-                                <ShoppingBag className="w-2.5 h-2.5 text-teal-600" />
-                                <span>{order.marketplace}</span>
-                              </span>
-                            )}
-                            {order.ekspedisi && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
-                                <Truck className="w-2.5 h-2.5 text-indigo-600" />
-                                <span>{order.ekspedisi}</span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center space-x-1">
-                            <span>Operator:</span>
-                            <span className="font-mono text-slate-700 font-semibold">{order.operatorId}</span>
-                          </div>
-                        </td>
+                        {/* Nomor Urut Kontras */}
+                        <div className="inline-flex items-center space-x-1 px-3 py-1 rounded-xl bg-slate-900 text-white font-mono font-black text-xs tracking-wider shadow-xs border border-slate-800 shrink-0">
+                          <span>ORDER</span>
+                          <span className="text-teal-400">#{String(globalOrderNumber).padStart(2, '0')}</span>
+                        </div>
 
-                        {/* Waktu Proses */}
-                        <td className="py-3 px-3 font-mono text-slate-600 tabular-nums">
-                          <div className="text-slate-800 font-semibold text-[11px]">{order.waktuProses}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">Rec: {order.videoTimestamp}</div>
-                        </td>
-
-                        {/* Jumlah Qty */}
-                        <td className="py-3 px-2 text-center">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-[#F0FDFA] text-[#0F766E] font-mono font-bold text-xs shadow-2xs border border-teal-200">
-                            {order.totalItemsCount} Unit
+                        {/* Order ID / No Resi */}
+                        <div className="flex items-center space-x-1.5 bg-slate-100/90 px-2.5 py-1 rounded-xl border border-slate-200 shrink-0">
+                          <span className="font-mono font-black text-slate-900 text-xs sm:text-sm select-all">
+                            {order.orderId}
                           </span>
-                          {order.damageCount > 0 && (
-                            <div className="text-[10px] font-bold text-rose-600 mt-0.5">
-                              {order.damageCount} Rusak
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Variasi SKU */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center space-x-1.5 mb-1">
-                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-800 font-bold text-[10px] border border-slate-200">
-                              <Boxes className="w-3 h-3 text-[#0F766E]" />
-                              <span>{order.skuVariationsCount} Variasi SKU</span>
-                            </span>
-                          </div>
-
-                          {/* Chips daftar SKU & jumlah masing-masing */}
-                          <div className="flex flex-wrap gap-1">
-                            {order.skuList.map((sku) => (
-                              <span
-                                key={sku.skuId}
-                                className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono border border-slate-200"
-                                title={`${sku.namaBarang} (Total: ${sku.qty})`}
-                              >
-                                <span className="font-bold text-[#0F766E]">{sku.skuId}</span>
-                                <span className="text-slate-400 font-sans">×</span>
-                                <span className="font-extrabold text-slate-900">{sku.qty}</span>
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        {/* Kondisi Barang */}
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {order.conditionBreakdown.good > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                                <span>Good:</span>
-                                <span>{order.conditionBreakdown.good}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.damageProduct > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-bold border border-rose-200">
-                                <span>Dmg:</span>
-                                <span>{order.conditionBreakdown.damageProduct}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.damagePackaging > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                                <span>Dus:</span>
-                                <span>{order.conditionBreakdown.damagePackaging}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.missing > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-bold border border-rose-200">
-                                <span>Hilang:</span>
-                                <span>{order.conditionBreakdown.missing}</span>
-                              </span>
-                            )}
-                            {order.conditionBreakdown.unexpected > 0 && (
-                              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-200">
-                                <span>Wrong:</span>
-                                <span>{order.conditionBreakdown.unexpected}</span>
-                              </span>
-                            )}
-                          </div>
-                          {order.damageCount > 0 && (
-                            <div className="text-[10px] text-rose-700 font-mono font-bold mt-1">
-                              Tuntutan: {formatRupiah(order.totalClaimAmount)}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Video & Drive */}
-                        <td className="py-3 px-3 font-mono text-[11px]">
-                          <div
-                            className="text-[#0F766E] bg-[#F0FDFA] px-1.5 py-0.5 rounded border border-teal-200 inline-block font-semibold truncate max-w-[130px]"
-                            title={order.namaFileVideo}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(order.orderId);
+                              showToast(`✓ Order ID ${order.orderId} disalin!`);
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-800 rounded hover:bg-white transition-colors cursor-pointer"
+                            title="Salin No Resi / Order ID"
                           >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Marketplace Chip */}
+                        {order.marketplace && (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold shrink-0">
+                            <ShoppingBag className="w-3.5 h-3.5 text-teal-600" />
+                            <span>{order.marketplace}</span>
+                          </span>
+                        )}
+
+                        {/* Ekspedisi Chip */}
+                        {order.ekspedisi && (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-xl bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-bold shrink-0">
+                            <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{order.ekspedisi}</span>
+                          </span>
+                        )}
+
+                        {/* Operator */}
+                        <span className="text-[11px] text-slate-500 font-medium flex items-center space-x-1 pl-1">
+                          <span>Opr:</span>
+                          <strong className="font-mono text-slate-700">{order.operatorId}</strong>
+                        </span>
+                      </div>
+
+                      {/* Right: Tombol Klaim, Tombol Pindahkan ke RMA, Tombol Tutup Rincian, Tombol Hapus */}
+                      <div className="flex items-center flex-wrap gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Tombol Klaim */}
+                        {!isOrderForwarded ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenOrderClaimModal(order)}
+                            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+                            title="Buka formulir klaim / hasil aju banding order ini"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5 text-teal-200" />
+                            <span>Klaim</span>
+                          </button>
+                        ) : (
+                          <span
+                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 select-none cursor-default"
+                            title="Kasus order ini telah dialihkan ke Tim RMA"
+                          >
+                            <Lock className="w-3 h-3 text-slate-400" />
+                            <span>Klaim di RMA</span>
+                          </span>
+                        )}
+
+                        {/* Tombol Pindahkan ke RMA */}
+                        {isOrderForwarded ? (
+                          <button
+                            type="button"
+                            onClick={() => onNavigateToRma && onNavigateToRma()}
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-xs transition-colors cursor-pointer"
+                            title="Kasus telah dialihkan ke Tim RMA. Klik untuk lihat di menu RMA Claim"
+                          >
+                            <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Di Tim RMA</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenForwardModal(order)}
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+                            title="Pindahkan kasus klaim ini ke Tim RMA Logistik"
+                          >
+                            <Truck className="w-3.5 h-3.5 text-indigo-200" />
+                            <span>Pindahkan ke RMA</span>
+                          </button>
+                        )}
+
+                        {/* Tombol Tutup Rincian / Buka Rincian */}
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderExpand(order.orderId)}
+                          className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                            isExpanded
+                              ? 'bg-[#0F766E] text-white'
+                              : 'bg-white hover:bg-teal-50 text-slate-700 hover:text-[#0F766E] border border-slate-300'
+                          }`}
+                          title="Buka / tutup rincian barang order ini"
+                        >
+                          <span>{isExpanded ? 'Tutup Rincian' : 'Buka Rincian'}</span>
+                          {isExpanded ? (
+                            <ChevronUp className="w-3.5 h-3.5 ml-0.5" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
+                          )}
+                        </button>
+
+                        {/* Tombol Hapus (Super Admin) */}
+                        {canDelete && onDeleteOrder && (
+                          <button
+                            type="button"
+                            onClick={() => setOrderToDelete(order.orderId)}
+                            className="p-1.5 rounded-xl text-rose-500 hover:text-white hover:bg-rose-600 border border-rose-200 transition-colors cursor-pointer"
+                            title="Hapus Data Return Order ID (Khusus Super Admin)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ROW 2: DETAILED METRICS STRIP (Variasi SKU, Qty, Kondisi, Waktu, Video) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 text-xs">
+                      {/* Metric 1: Jumlah Unit */}
+                      <div className="flex items-center space-x-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
+                          <Package className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Total Qty Unit</div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-mono font-black text-slate-900 text-xs sm:text-sm">
+                              {order.totalItemsCount} Unit
+                            </span>
+                            {order.damageCount > 0 ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-800">
+                                {order.damageCount} Rusak
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                                Semua Good
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Metric 2: Variasi SKU */}
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-slate-500 font-semibold uppercase flex items-center space-x-1">
+                            <Boxes className="w-3 h-3 text-[#0F766E]" />
+                            <span>Variasi SKU ({order.skuVariationsCount})</span>
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 max-h-12 overflow-y-auto no-scrollbar">
+                          {order.skuList.map((sku) => (
+                            <span
+                              key={sku.skuId}
+                              className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-white text-slate-700 text-[10px] font-mono border border-slate-200"
+                              title={`${sku.namaBarang} (Total: ${sku.qty})`}
+                            >
+                              <span className="font-bold text-[#0F766E]">{sku.skuId}</span>
+                              <span className="text-slate-400 font-sans">×</span>
+                              <span className="font-extrabold text-slate-900">{sku.qty}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Metric 3: Kondisi Barang */}
+                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Kondisi Fisik</div>
+                        <div className="flex flex-wrap gap-1">
+                          {order.conditionBreakdown.good > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200" title="Good Condition (Kondisi Baik)">
+                              <span>Good:</span>
+                              <span>{order.conditionBreakdown.good}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.damagePackaging > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200" title="Damage Packaging (Kemasan / Dus Rusak)">
+                              <span>Dus:</span>
+                              <span>{order.conditionBreakdown.damagePackaging}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.damageProduct > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-bold border border-rose-200" title="Damage Product (Produk Rusak / Cacat)">
+                              <span>Dmg:</span>
+                              <span>{order.conditionBreakdown.damageProduct}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.totallyDamage > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 text-[10px] font-bold border border-purple-200" title="Totally Damage (Kerusakan Total / Hancur)">
+                              <span>Tot Dmg:</span>
+                              <span>{order.conditionBreakdown.totallyDamage}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.unexpected > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 text-[10px] font-bold border border-blue-200" title="Wrong Item / Salah Barang">
+                              <span>Wrong:</span>
+                              <span>{order.conditionBreakdown.unexpected}</span>
+                            </span>
+                          )}
+                          {order.conditionBreakdown.missing > 0 && (
+                            <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-300" title="Missing Item (Barang Hilang / Kurang)">
+                              <span>Hilang:</span>
+                              <span>{order.conditionBreakdown.missing}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Metric 4: Video Bukti & Waktu */}
+                      <div className="flex items-center justify-between bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80" onClick={(e) => e.stopPropagation()}>
+                        <div className="min-w-0">
+                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Video & Waktu</div>
+                          <div className="text-[11px] font-mono text-slate-800 font-semibold truncate max-w-[140px]" title={order.namaFileVideo}>
                             {order.namaFileVideo || '-'}
                           </div>
-                          {order.linkVideo && (
-                            <div className="mt-0.5">
-                              <a
-                                href={getDirectVideoUrl(order.linkVideo, order.orderId)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[#0F766E] hover:underline font-semibold inline-flex items-center space-x-0.5 text-[10px]"
-                              >
-                                <span>Drive Video</span>
-                                <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                              </a>
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Status & Rincian CS */}
-                        <td className="py-3 px-3">
-                          <div className="flex flex-col items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <div className="shrink-0 scale-90 origin-center flex flex-col items-center gap-1">
-                              {getClaimStatusBadge(order.overallStatus)}
-                              {forwardedRmaMap.has(order.orderId) && (
-                                <span
-                                  onClick={() => onNavigateToRma && onNavigateToRma()}
-                                  className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 text-[9px] font-bold border border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
-                                  title="Kasus telah dialihkan ke Tim RMA. Klik untuk buka di RMA Claim"
-                                >
-                                  <Truck className="w-2.5 h-2.5 text-indigo-600" />
-                                  <span>Dialihkan ke RMA</span>
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleOrderExpand(order.orderId)}
-                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                  isExpanded
-                                    ? 'bg-[#0F766E] text-white shadow-xs'
-                                    : 'bg-slate-100 hover:bg-[#F0FDFA] text-slate-700 hover:text-[#0F766E] border border-slate-200'
-                                }`}
-                                title="Buka / tutup rincian klaim dan SKU order ini"
-                              >
-                                <span>{isExpanded ? 'Tutup' : 'Rincian'}</span>
-                                {isExpanded ? (
-                                  <ChevronUp className="w-3.5 h-3.5 ml-0.5" />
-                                ) : (
-                                  <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
-                                )}
-                              </button>
-                              {order.damageCount > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyOrderLetter(order)}
-                                  className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
-                                  title="Salin Surat Sanggahan / Klaim Order"
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              {/* Tombol Forward ke Tim RMA */}
-                              {forwardedRmaMap.has(order.orderId) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => onNavigateToRma && onNavigateToRma()}
-                                  className="p-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
-                                  title="Kasus telah dialihkan ke Tim RMA. Klik untuk lihat di RMA Claim"
-                                >
-                                  <Truck className="w-3.5 h-3.5" />
-                                </button>
-                              ) : order.damageCount > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenForwardModal(order)}
-                                  className="p-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
-                                  title="Forward / Teruskan kasus yang tidak selesai di CS ke Tim RMA"
-                                >
-                                  <Share2 className="w-3.5 h-3.5" />
-                                </button>
-                              ) : null}
-                              {canDelete && onDeleteOrder && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOrderToDelete(order.orderId);
-                                  }}
-                                  className="p-1 rounded-lg text-rose-500 hover:text-white hover:bg-rose-600 border border-rose-200 transition-colors cursor-pointer"
-                                  title="Hapus Data Return Order ID (Khusus Super Admin)"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {order.waktuProses}
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                        {order.linkVideo && (
+                          <a
+                            href={getDirectVideoUrl(order.linkVideo, order.orderId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 rounded-lg bg-[#F0FDFA] hover:bg-teal-100 text-[#0F766E] border border-teal-200 text-xs font-semibold flex items-center space-x-1 shrink-0 transition-colors"
+                            title="Buka bukti video unboxing di Google Drive"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span className="text-[10px]">Drive</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                      {/* SUB-PANEL: RINCIAN DISPUTE CS & SEMUA SKU */}
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={8} className="p-0 bg-slate-50/80 border-b border-slate-200">
-                            <div className="p-4 sm:p-5 space-y-4">
+                  {/* SUB-PANEL: RINCIAN DISPUTE CS & SEMUA SKU (Panel berlatar kontras dengan header sub-bagian) */}
+                  {isExpanded && (
+                    <div className="bg-slate-50/95 border-t-2 border-teal-500 p-4 sm:p-5 space-y-4 shadow-inner">
                               {/* Sub-Header baris rincian (identik dengan laporan + ringkasan finansial CS) */}
                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
                                 <div className="flex items-center space-x-2 text-xs font-bold text-slate-800 flex-wrap gap-y-1">
@@ -2060,30 +2312,6 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                           <Share2 className="w-3.5 h-3.5" />
                                           <span>Forward ke RMA Logistik</span>
                                         </button>
-                                      )}
-
-                                      {/* Tombol Cepat Selesaikan Order (Setujui / Tolak Semua SKU) */}
-                                      {!forwardedRmaMap.has(order.orderId) && (
-                                        <div className="flex items-center space-x-1 pl-1 border-l border-slate-200">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleQuickApproveAllOrder(order)}
-                                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
-                                            title="Setujui seluruh klaim barang dalam pesanan ini (langsung mengurangi angka Klaim CS di Navigation Bar)"
-                                          >
-                                            <Check className="w-3 h-3" />
-                                            <span>Setujui Semua</span>
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleQuickRejectAllOrder(order)}
-                                            className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
-                                            title="Tolak seluruh klaim barang dalam pesanan ini (langsung mengurangi angka Klaim CS di Navigation Bar)"
-                                          >
-                                            <X className="w-3 h-3" />
-                                            <span>Tolak Semua</span>
-                                          </button>
-                                        </div>
                                       )}
                                     </>
                                   )}
@@ -2316,24 +2544,30 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                         <div className="flex items-center justify-center space-x-1">
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenEditModal(item)}
+                                            onClick={() => {
+                                              if (isOrderForwarded) {
+                                                handleOpenEditModal(item);
+                                              } else {
+                                                handleOpenOrderClaimModal(order);
+                                              }
+                                            }}
                                             className={`px-2 py-1 rounded-lg text-white font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer ${
-                                              forwardedRmaMap.has(order.orderId)
+                                              isOrderForwarded
                                                 ? "bg-indigo-600 hover:bg-indigo-700"
                                                 : "bg-[#0F766E] hover:bg-[#115E59]"
                                             }`}
                                             title={
-                                              forwardedRmaMap.has(order.orderId)
+                                              isOrderForwarded
                                                 ? "Lihat rincian bukti klaim (Terkunci - Dikelola Tim RMA)"
-                                                : "Kelola status klaim & formulir detail"
+                                                : "Kelola status klaim & nominal aju banding order"
                                             }
                                           >
-                                            {forwardedRmaMap.has(order.orderId) ? (
+                                            {isOrderForwarded ? (
                                               <Eye className="w-3 h-3" />
                                             ) : (
-                                              <Edit3 className="w-3 h-3" />
+                                              <ShieldAlert className="w-3 h-3" />
                                             )}
-                                            <span>{forwardedRmaMap.has(order.orderId) ? "Lihat" : "Kelola"}</span>
+                                            <span>{isOrderForwarded ? "Lihat" : "Klaim"}</span>
                                           </button>
 
                                           <button
@@ -2344,32 +2578,6 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                           >
                                             <Copy className="w-3.5 h-3.5" />
                                           </button>
-
-                                          {/* Aksi Cepat Setujui / Tolak Item (Mengurangi angka navigation bar) */}
-                                          {!forwardedRmaMap.has(order.orderId) && (
-                                            <>
-                                              {claimStatus !== 'APPROVED' && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleQuickApproveItem(item)}
-                                                  className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-300 transition-all cursor-pointer shadow-2xs"
-                                                  title="Aksi Cepat: Setujui Klaim 100% (langsung mengurangi angka Klaim CS di Navigation Bar)"
-                                                >
-                                                  <Check className="w-3.5 h-3.5" />
-                                                </button>
-                                              )}
-                                              {claimStatus !== 'REJECTED' && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleQuickRejectItem(item)}
-                                                  className="p-1 rounded-lg bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 border border-rose-300 transition-all cursor-pointer shadow-2xs"
-                                                  title="Aksi Cepat: Tolak Klaim Rp 0 (langsung mengurangi angka Klaim CS di Navigation Bar)"
-                                                >
-                                                  <X className="w-3.5 h-3.5" />
-                                                </button>
-                                              )}
-                                            </>
-                                          )}
                                         </div>
                                       </td>
                                     </tr>
@@ -2479,14 +2687,10 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         </div>
                       )}
                     </div>
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* BOTTOM PAGINATION TOOLBAR */}
@@ -2708,13 +2912,13 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-bold cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                       >
-                        <option value="PENDING">🟡 Siap Diajukan (Draft CS - Angka Aktif)</option>
-                        <option value="SUBMITTED">🔵 Sedang Diajukan (Investigasi - Angka Aktif)</option>
-                        <option value="APPROVED">🟢 Disetujui (Ganti Rugi Cair - Mengurangi Angka Nav)</option>
-                        <option value="REJECTED">🔴 Ditolak (Tidak Diganti - Mengurangi Angka Nav)</option>
+                        <option value="PENDING">🟡 Pending (Draft Belum Diajukan)</option>
+                        <option value="SUBMITTED">🔵 Diajukan ke Marketplace (Proses Investigasi)</option>
+                        <option value="APPROVED">🟢 Klaim Disetujui (Pencairan Ganti Rugi Cair)</option>
+                        <option value="REJECTED">🔴 Klaim Ditolak oleh Marketplace</option>
                       </select>
                       <p className="text-[10px] text-slate-500 mt-1">
-                        💡 Memilih status <strong className="text-emerald-700">Disetujui</strong> atau <strong className="text-rose-700">Ditolak</strong> akan menyelesaikan kasus ini dan <strong>otomatis mengurangi angka di Navigation Bar</strong>.
+                        💡 CS tidak dapat menolak klaim secara sepihak. Status <strong className="text-rose-700">Klaim Ditolak</strong> mencatat hasil investigasi resmi marketplace / logistik dan otomatis menyelesaikan kasus di antrean aktif CS.
                       </p>
                     </div>
                   </div>
@@ -2899,6 +3103,438 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
         </div>
       )}
 
+      {/* MODAL POPUP HASIL AJU BANDING KLAIM PER 1 ORDER ID */}
+      {claimModalOrder && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in"
+          onClick={() => setClaimModalOrder(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl border border-teal-200 max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-teal-900 via-slate-900 to-teal-950 text-white flex items-start justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-11 h-11 rounded-2xl bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-teal-400/20 text-teal-300 border border-teal-400/30 font-mono">
+                      Order Klaim CS
+                    </span>
+                    <span className="font-mono text-xs text-slate-300 font-bold">
+                      Order ID: <strong className="text-white select-all">{claimModalOrder.orderId}</strong>
+                    </span>
+                    {claimModalOrder.marketplace && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-200 border border-teal-500/30">
+                        {claimModalOrder.marketplace}
+                      </span>
+                    )}
+                    {claimModalOrder.ekspedisi && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+                        {claimModalOrder.ekspedisi}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+                    Formulir Klaim & Hasil Aju Banding Marketplace
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClaimModalOrder(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 bg-slate-50 px-4 sm:px-5">
+              <button
+                type="button"
+                onClick={() => setClaimModalActiveTab('form')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  claimModalActiveTab === 'form'
+                    ? 'border-[#0F766E] text-[#0F766E] bg-white'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>1. Hasil Aju Banding Order</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setClaimModalActiveTab('evidence')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  claimModalActiveTab === 'evidence'
+                    ? 'border-[#0F766E] text-[#0F766E] bg-white'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>2. Bukti Video Unboxing Drive</span>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-4 text-xs">
+              {claimModalActiveTab === 'form' && (
+                <>
+                  {/* Rule Note for CS */}
+                  <div className="p-3 rounded-2xl bg-teal-50/70 border border-teal-200 text-teal-950 flex items-start space-x-2.5">
+                    <PackageCheck className="w-4 h-4 text-[#0F766E] shrink-0 mt-0.5" />
+                    <div className="text-[11px] leading-relaxed">
+                      <span className="font-bold text-[#0F766E]">Pencatatan Hasil Banding 1 Order:</span>
+                      {' '}Pilih produk dalam order yang berhasil disetujui platform di bawah, lalu masukkan total nominal pencairan klaim yang cair dari marketplace. CS tidak dapat menolak klaim unboxing secara sepihak; jika banding ditolak platform, catat sebagai <em>Klaim Ditolak</em> atau teruskan ke Tim RMA.
+                    </div>
+                  </div>
+
+                  {/* Grid Channel & Status */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Channel Tujuan Aju Banding:
+                      </label>
+                      <select
+                        value={claimModalChannel}
+                        onChange={(e) => setClaimModalChannel(e.target.value as ClaimChannel)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold cursor-pointer"
+                      >
+                        {DEFAULT_CHANNELS.map((ch) => (
+                          <option key={ch} value={ch}>
+                            {ch}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Status Hasil Banding:
+                      </label>
+                      <select
+                        value={claimModalStatus}
+                        onChange={(e) => {
+                          const nextSt = e.target.value as ClaimStatus;
+                          setClaimModalStatus(nextSt);
+                          if (nextSt === 'APPROVED') {
+                            if (!claimModalTotalSettlement || claimModalTotalSettlement === '0') {
+                              const est = claimModalOrder.totalClaimAmount > 0 ? claimModalOrder.totalClaimAmount : 150000;
+                              setClaimModalTotalSettlement(String(est));
+                            }
+                          } else if (nextSt === 'REJECTED') {
+                            // Tidak ada pencairan jika ditolak marketplace
+                            setClaimModalTotalSettlement('0');
+                          }
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold cursor-pointer"
+                      >
+                        <option value="PENDING">🟡 Pending (Draft Klaim Belum Diajukan)</option>
+                        <option value="SUBMITTED">🔵 Diajukan ke Marketplace (Proses Investigasi)</option>
+                        <option value="APPROVED">🟢 Klaim Disetujui (Pencairan Ganti Rugi Cair)</option>
+                        <option value="REJECTED">🔴 Klaim Ditolak (Ditolak oleh Marketplace / Ekspedisi)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* No. Tiket Banding */}
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Nomor Tiket Banding / ID Laporan Sengketa Platform:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: SHP-DISPUTE-2024-8890, TK-9901, atau JNT-CS-771"
+                      value={claimModalTicketNumber}
+                      onChange={(e) => setClaimModalTicketNumber(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-mono"
+                    />
+                  </div>
+
+                  {/* Checklist Produk yang Berhasil Lolos Aju Banding */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="font-bold text-slate-800 text-xs block">
+                          Rincian Produk dalam Order ({targetItemsForModal.length} Produk):
+                        </label>
+                        <p className="text-[11px] text-slate-500">
+                          Centang produk mana saja yang disetujui / dikabulkan kompensasinya oleh marketplace:
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allKeys = new Set(targetItemsForModal.map((d) => d.key));
+                            setSelectedSuccessSkuKeys(allKeys);
+                          }}
+                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-teal-50 text-[#0F766E] border border-teal-200 hover:bg-teal-100 transition-colors cursor-pointer"
+                        >
+                          Pilih Semua
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSuccessSkuKeys(new Set())}
+                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer"
+                        >
+                          Kosongkan
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+                            <th className="py-2.5 px-3 w-10 text-center">Pilih</th>
+                            <th className="py-2.5 px-3 min-w-[140px]">SKU ID & Nama Produk</th>
+                            <th className="py-2.5 px-3 min-w-[110px]">Kondisi Fisik</th>
+                            <th className="py-2.5 px-3 text-right">Nilai Barang</th>
+                            <th className="py-2.5 px-3 text-center w-32">Status Banding</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200/80 bg-white">
+                          {targetItemsForModal.map((item) => {
+                            const isChecked = selectedSuccessSkuKeys.has(item.key);
+                            return (
+                              <tr
+                                key={item.key}
+                                onClick={() => {
+                                  setSelectedSuccessSkuKeys((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(item.key)) next.delete(item.key);
+                                    else next.add(item.key);
+                                    return next;
+                                  });
+                                }}
+                                className={`cursor-pointer transition-colors ${
+                                  isChecked ? 'bg-teal-50/40 hover:bg-teal-50/70' : 'hover:bg-slate-50 opacity-80'
+                                }`}
+                              >
+                                <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setSelectedSuccessSkuKeys((prev) => {
+                                        const next = new Set(prev);
+                                        if (checked) next.add(item.key);
+                                        else next.delete(item.key);
+                                        return next;
+                                      });
+                                    }}
+                                    className="w-4 h-4 rounded border-slate-300 text-[#0F766E] focus:ring-[#0F766E] cursor-pointer"
+                                  />
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <span className="font-mono font-bold text-[#0F766E]">{item.row.SKU_ID}</span>
+                                  <div className="font-medium text-slate-800 truncate max-w-[220px]" title={item.row.Nama_Barang}>
+                                    {item.row.Nama_Barang}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  {getDamageBadge(item.row.Kondisi)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800">
+                                  {formatRupiah(item.claimAmount || item.masterPrice || item.basePrice || 150000)}
+                                </td>
+                                <td className="py-2.5 px-3 text-center">
+                                  {isChecked ? (
+                                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                                      <Check className="w-3 h-3 text-emerald-600" />
+                                      <span>Lolos Banding</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
+                                      <X className="w-3 h-3 text-rose-500" />
+                                      <span>Ditolak / Belum</span>
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Total Nominal Pencairan (Per 1 Order) */}
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <label className="font-extrabold text-amber-950 text-xs block">
+                          Total Nominal Pencairan Ganti Rugi Disetujui (1 Order):
+                        </label>
+                        <p className="text-[11px] text-amber-800/90">
+                          Masukkan total nilai transfer / refund kompensasi dari marketplace untuk seluruh order ini:
+                        </p>
+                      </div>
+                      <div className="relative min-w-[220px]">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-amber-900 text-sm">Rp</span>
+                        <input
+                          type="text"
+                          value={claimModalTotalSettlement}
+                          onChange={(e) => setClaimModalTotalSettlement(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder="Contoh: 350000"
+                          disabled={claimModalStatus === 'REJECTED'}
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-amber-300 rounded-xl font-mono font-black text-amber-950 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rangkuman Finansial Order */}
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-200/60 text-[11px] font-mono">
+                      <div>
+                        <span className="text-amber-800 text-[10px] block">Tuntutan Awal:</span>
+                        <strong className="text-slate-800">
+                          {formatRupiah(claimModalOrder.totalClaimAmount || 150000)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-emerald-800 text-[10px] block">Pencairan Cair:</span>
+                        <strong className="text-emerald-700">
+                          {formatRupiah(parseInt(claimModalTotalSettlement.replace(/[^0-9]/g, ''), 10) || 0)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-rose-800 text-[10px] block">Selisih Rugi Toko:</span>
+                        <strong className="text-rose-700">
+                          {formatRupiah(
+                            Math.max(
+                              0,
+                              (claimModalOrder.totalClaimAmount || 150000) -
+                                (parseInt(claimModalTotalSettlement.replace(/[^0-9]/g, ''), 10) || 0)
+                            )
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notice if REJECTED -> Button forward to RMA */}
+                  {claimModalStatus === 'REJECTED' && (
+                    <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-xs flex items-center space-x-1.5 text-rose-800">
+                          <ShieldAlert className="w-4 h-4 text-rose-600" />
+                          <span>Aju Banding Ditolak oleh Marketplace?</span>
+                        </div>
+                        <p className="text-[11px] text-rose-700">
+                          Anda dapat melimpahkan kasus klaim ini ke Tim RMA Logistik untuk investigasi fisik gudang & koordinasi ganti rugi ekspedisi.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const orderToFwd = claimModalOrder;
+                          setClaimModalOrder(null);
+                          handleOpenForwardModal(orderToFwd);
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer active:scale-95"
+                      >
+                        <Truck className="w-3.5 h-3.5 text-indigo-200" />
+                        <span>Pindahkan ke RMA Sekarang</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Catatan CS */}
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Catatan Tindak Lanjut CS:
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Tuliskan perkembangan respon agen CS marketplace, janji SLA investigasi, atau alasan jika ditolak..."
+                      value={claimModalCsNotes}
+                      onChange={(e) => setClaimModalCsNotes(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {claimModalActiveTab === 'evidence' && (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-teal-900 flex items-center space-x-1.5">
+                        <Video className="w-4 h-4 text-[#0F766E]" />
+                        <span>Bukti Video Unboxing Google Drive</span>
+                      </div>
+                      <span className="font-mono text-[11px] text-[#0F766E] bg-white px-2 py-0.5 rounded border border-teal-200">
+                        {claimModalOrder.namaFileVideo || '-'}
+                      </span>
+                    </div>
+                    <p className="text-teal-900/80 text-xs">
+                      Video direkam tanpa jeda dengan watermark dan live timestamp untuk membuktikan kondisi saat paket pertama kali dibuka oleh operator unboxing gudang.
+                    </p>
+                    {claimModalOrder.linkVideo && (() => {
+                      const directUrl = getDirectVideoUrl(claimModalOrder.linkVideo, claimModalOrder.orderId);
+                      return (
+                        <div className="pt-2 flex flex-wrap gap-2">
+                          <a
+                            href={directUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white rounded-xl text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                          >
+                            <span>Buka Video di Tab Baru</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(directUrl);
+                              showToast('✓ Link Google Drive tersalin!');
+                            }}
+                            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer"
+                          >
+                            Salin Link Drive Saja
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div className="text-[11px] text-slate-500 font-medium">
+                Tersimpan & tersinkronisasi langsung ke sistem
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setClaimModalOrder(null)}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveOrderClaim}
+                  className="px-5 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-700/20 active:scale-95 cursor-pointer flex items-center space-x-1.5"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Simpan Hasil Klaim</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL KONFIRMASI HAPUS ORDER IN-APP (SUPER ADMIN) */}
       {orderToDelete && (
         <div
@@ -2998,22 +3634,50 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 </p>
               </div>
 
-              {/* Rincian Barang Rusak */}
+              {/* Rincian Seluruh Barang dalam Paket (Damage + Goods) */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">
-                  Daftar Barang yang Diteruskan ({forwardingOrder.damageItems.length} SKU):
-                </label>
-                <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 p-2 space-y-1 bg-slate-50">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">
+                    Daftar Seluruh Barang dalam Paket ({forwardingOrder.allItems.length} Produk):
+                  </label>
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    <span className="text-rose-600 font-bold">{forwardingOrder.damageItems.length} Rusak</span>
+                    {' · '}
+                    <span className="text-emerald-600 font-bold">{forwardingOrder.goodItems.length} Baik</span>
+                  </span>
+                </div>
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 p-2 space-y-1 bg-slate-50">
+                  {/* Barang Rusak */}
                   {forwardingOrder.damageItems.map((d, i) => (
-                    <div key={i} className="flex items-center justify-between text-[11px] py-1 px-1.5 bg-white rounded-lg border border-slate-200">
+                    <div key={`dmg-${i}`} className="flex items-center justify-between text-[11px] py-1.5 px-2 bg-white rounded-lg border border-rose-200">
                       <div className="min-w-0 pr-2">
                         <span className="font-mono font-bold text-indigo-700">{d.row.SKU_ID}</span>
-                        <span className="text-slate-600 ml-1.5 font-medium truncate">{d.row.Nama_Barang}</span>
+                        <span className="text-slate-700 ml-1.5 font-medium truncate">{d.row.Nama_Barang}</span>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-rose-600 font-bold">[{d.row.Kondisi}]</span>
-                        <span className="font-mono text-slate-800 font-bold ml-2">
+                      <div className="text-right shrink-0 flex items-center space-x-2">
+                        <span className="text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 font-bold text-[10px]">
+                          {d.row.Kondisi}
+                        </span>
+                        <span className="font-mono text-slate-900 font-bold">
                           {formatRupiah(d.claimAmount || d.masterPrice || d.basePrice || 150000)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Barang Kondisi Baik */}
+                  {forwardingOrder.goodItems.map((g, i) => (
+                    <div key={`good-${i}`} className="flex items-center justify-between text-[11px] py-1.5 px-2 bg-white rounded-lg border border-emerald-200">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-mono font-bold text-slate-600">{g.SKU_ID}</span>
+                        <span className="text-slate-600 ml-1.5 font-medium truncate">{g.Nama_Barang}</span>
+                      </div>
+                      <div className="text-right shrink-0 flex items-center space-x-2">
+                        <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-bold text-[10px]">
+                          Kondisi Baik
+                        </span>
+                        <span className="font-mono text-slate-400 font-medium text-[10px]">
+                          Rp 0 (Restock)
                         </span>
                       </div>
                     </div>
@@ -3037,7 +3701,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                   />
                 </div>
                 <p className="text-[10px] text-slate-500 mt-0.5">
-                  Nilai estimasi kerugian barang untuk diajukan klaim ganti rugi ke pihak logistik oleh Tim RMA.
+                  *Hanya barang rusak/hilang yang dihitung ke dalam estimasi tuntutan ganti rugi logistik.
                 </p>
               </div>
 

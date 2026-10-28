@@ -24,7 +24,8 @@ import {
   FileText,
   UserCheck,
   ShieldCheck,
-  Info
+  Info,
+  Undo2
 } from 'lucide-react';
 import { RmaClaimRecord, RmaStageStatus, RMA_STAGE_LABELS } from '../types/rma';
 import { MasterSKUItem } from '../utils/excelTemplate';
@@ -36,6 +37,7 @@ import { syncService } from '../services/dataSyncService';
 interface RMAClaimsViewProps {
   rmaClaims: RmaClaimRecord[];
   onUpdateRmaClaim: (updatedClaim: RmaClaimRecord) => void;
+  onReturnToCs?: (orderId: string, reason: string) => void;
   onNavigateToDisputes: () => void;
   masterDatabase?: MasterSKUItem[];
 }
@@ -43,6 +45,7 @@ interface RMAClaimsViewProps {
 export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
   rmaClaims = [],
   onUpdateRmaClaim,
+  onReturnToCs,
   onNavigateToDisputes,
   masterDatabase = []
 }) => {
@@ -66,6 +69,10 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
   const [modalNotes, setModalNotes] = useState('');
   const [modalApprovedAmount, setModalApprovedAmount] = useState('');
   const [modalResolutionNote, setModalResolutionNote] = useState('');
+
+  // Modal Rollback / Kembalikan Kasus ke Tim CS
+  const [returnTarget, setReturnTarget] = useState<RmaClaimRecord | null>(null);
+  const [returnReason, setReturnReason] = useState<string>('');
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -565,18 +572,23 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                         {/* Barang & Kerusakan */}
                         <td className="py-3 px-3">
                           <div className="flex flex-wrap gap-1">
-                            {claim.items.map((item, iIdx) => (
+                            {claim.items.filter((item) => item.kondisi !== 'Good').map((item, iIdx) => (
                               <span
                                 key={iIdx}
-                                className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono border border-slate-200"
+                                className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-mono border border-rose-200"
                                 title={`${item.namaBarang} (${item.kondisi})`}
                               >
-                                <span className="font-bold text-indigo-700">{item.skuId}</span>
-                                <span className="text-slate-400 font-sans">×</span>
-                                <span className="font-bold text-slate-900">{item.qty}</span>
+                                <span className="font-bold text-rose-700">{item.skuId}</span>
+                                <span className="text-rose-400 font-sans">×</span>
+                                <span className="font-bold text-rose-900">{item.qty}</span>
                                 <span className="text-rose-600 font-sans text-[9px]">[{item.kondisi}]</span>
                               </span>
                             ))}
+                            {claim.items.filter((item) => item.kondisi === 'Good').length > 0 && (
+                              <span className="text-[10px] text-emerald-700 font-medium self-center pl-0.5">
+                                +{claim.items.filter((item) => item.kondisi === 'Good').length} restock
+                              </span>
+                            )}
                           </div>
                           {claim.csNotes && (
                             <p className="text-[10px] text-slate-500 italic mt-1 line-clamp-1" title={claim.csNotes}>
@@ -628,6 +640,20 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                               <Edit3 className="w-3 h-3" />
                               <span>Update</span>
                             </button>
+                            {onReturnToCs && claim.stageStatus !== 'SELESAI' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReturnTarget(claim);
+                                  setReturnReason('Bukan kendala ekspedisi/kurir (paket utuh); komplain ditangani CS Marketplace.');
+                                }}
+                                className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
+                                title="Kembalikan kasus ke antrean Klaim CS jika bukan kendala logistik"
+                              >
+                                <Undo2 className="w-3 h-3 text-amber-700" />
+                                <span className="hidden xl:inline">Ke CS</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => toggleOrderExpand(claim.id)}
@@ -661,19 +687,35 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                     </div>
                                   </div>
 
-                                  {claim.linkVideo && (
-                                    <a
-                                      href={getDirectVideoUrl(claim.linkVideo, claim.orderId)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="px-2.5 py-1 rounded-lg bg-[#F0FDFA] hover:bg-[#CCFBF1] text-[#0F766E] border border-teal-200 text-xs font-semibold flex items-center space-x-1 shrink-0"
-                                      title="Buka rekaman video unboxing di Google Drive"
-                                    >
-                                      <Video className="w-3.5 h-3.5" />
-                                      <span>Lihat Video Unboxing</span>
-                                      <ExternalLink className="w-2.5 h-2.5" />
-                                    </a>
-                                  )}
+                                  <div className="flex items-center space-x-2">
+                                    {onReturnToCs && claim.stageStatus !== 'SELESAI' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setReturnTarget(claim);
+                                          setReturnReason('Bukan kendala ekspedisi/kurir (paket utuh); komplain ditangani CS Marketplace.');
+                                        }}
+                                        className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-all shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+                                        title="Kembalikan kasus ke antrean aktif Klaim CS jika terjadi salah pelimpahan"
+                                      >
+                                        <Undo2 className="w-3.5 h-3.5 text-amber-700" />
+                                        <span>Kembalikan ke CS</span>
+                                      </button>
+                                    )}
+                                    {claim.linkVideo && (
+                                      <a
+                                        href={getDirectVideoUrl(claim.linkVideo, claim.orderId)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2.5 py-1 rounded-lg bg-[#F0FDFA] hover:bg-[#CCFBF1] text-[#0F766E] border border-teal-200 text-xs font-semibold flex items-center space-x-1 shrink-0"
+                                        title="Buka rekaman video unboxing di Google Drive"
+                                      >
+                                        <Video className="w-3.5 h-3.5" />
+                                        <span>Lihat Video Unboxing</span>
+                                        <ExternalLink className="w-2.5 h-2.5" />
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* Grid Rincian */}
@@ -719,11 +761,32 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                   </div>
                                 </div>
 
-                                {/* Tabel Rincian SKU Barang yang Dilimpahkan */}
+                                {/* Tabel Terpadu Rincian Seluruh Barang (Damage & Good) */}
                                 <div>
-                                  <div className="text-[11px] font-bold text-slate-700 mb-1.5">
-                                    Daftar Barang & Estimasi Nilai Ganti Rugi:
-                                  </div>
+                                  {/* Ringkasan Jumlah Barang Paket (misal: 5 Rusak, 2 Baik) */}
+                                  {(() => {
+                                    const damageItems = claim.items.filter((it) => it.kondisi !== 'Good');
+                                    const goodItems = claim.items.filter((it) => it.kondisi === 'Good');
+                                    return (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 mb-2">
+                                        <div className="flex items-center space-x-2">
+                                          <Boxes className="w-4 h-4 text-slate-600" />
+                                          <span className="text-xs font-bold text-slate-800">
+                                            Manifest Lengkap Paket: <span className="font-mono">{claim.items.length}</span> Produk
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center space-x-2 text-[11px]">
+                                          <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-bold border border-rose-200">
+                                            {damageItems.length} Rusak / Hilang (Dituntut)
+                                          </span>
+                                          <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                                            {goodItems.length} Kondisi Baik (Restock)
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+
                                   <div className="overflow-x-auto rounded-xl border border-slate-200">
                                     <table className="w-full text-left text-xs">
                                       <thead>
@@ -731,27 +794,55 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                           <th className="py-2 px-2.5">SKU ID</th>
                                           <th className="py-2 px-2.5">Nama Barang</th>
                                           <th className="py-2 px-2 text-center">Qty</th>
-                                          <th className="py-2 px-2.5">Kondisi</th>
+                                          <th className="py-2 px-2.5">Kondisi Fisik</th>
                                           <th className="py-2 px-2.5 text-right">Harga Satuan</th>
-                                          <th className="py-2 px-2.5 text-right">Subtotal Estimasi</th>
+                                          <th className="py-2 px-2.5 text-right">Subtotal Tuntutan</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100">
-                                        {claim.items.map((it, itIdx) => (
-                                          <tr key={itIdx} className="hover:bg-slate-50">
-                                            <td className="py-2 px-2.5 font-mono font-bold text-indigo-700">{it.skuId}</td>
-                                            <td className="py-2 px-2.5 text-slate-900 font-medium">{it.namaBarang}</td>
-                                            <td className="py-2 px-2 text-center font-bold">{it.qty}</td>
-                                            <td className="py-2 px-2.5 text-rose-700 font-semibold">{it.kondisi}</td>
-                                            <td className="py-2 px-2.5 text-right font-mono text-slate-600">{formatRupiah(it.hargaSatuan)}</td>
-                                            <td className="py-2 px-2.5 text-right font-mono font-bold text-slate-900">{formatRupiah(it.subtotalEstimasi)}</td>
-                                          </tr>
-                                        ))}
+                                        {claim.items.map((it, itIdx) => {
+                                          const isGood = it.kondisi === 'Good';
+                                          return (
+                                            <tr key={itIdx} className={`hover:bg-slate-50 transition-colors ${isGood ? 'bg-emerald-50/20' : ''}`}>
+                                              <td className="py-2 px-2.5 font-mono font-bold text-indigo-700">{it.skuId}</td>
+                                              <td className="py-2 px-2.5 text-slate-900 font-medium">{it.namaBarang}</td>
+                                              <td className="py-2 px-2 text-center font-bold">{it.qty}</td>
+                                              <td className="py-2 px-2.5">
+                                                {isGood ? (
+                                                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px] border border-emerald-200">
+                                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                                    <span>Kondisi Baik (Restock)</span>
+                                                  </span>
+                                                ) : (
+                                                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 font-bold text-[10px] border border-rose-200">
+                                                    <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                                    <span>{it.kondisi}</span>
+                                                  </span>
+                                                )}
+                                              </td>
+                                              <td className="py-2 px-2.5 text-right font-mono text-slate-600">{formatRupiah(it.hargaSatuan)}</td>
+                                              <td className="py-2 px-2.5 text-right font-mono font-bold">
+                                                {isGood ? (
+                                                  <span className="text-slate-400 font-normal text-[11px]">Rp 0 (Restock)</span>
+                                                ) : (
+                                                  <span className="text-rose-700">{formatRupiah(it.subtotalEstimasi)}</span>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
                                       </tbody>
                                       <tfoot>
                                         <tr className="bg-slate-50 font-bold border-t border-slate-200">
-                                          <td colSpan={5} className="py-2 px-2.5 text-right text-slate-700">Total Estimasi Ganti Rugi:</td>
-                                          <td className="py-2 px-2.5 text-right font-mono text-rose-700">{formatRupiah(claim.estimatedCompensation)}</td>
+                                          <td colSpan={5} className="py-2 px-2.5 text-right text-slate-700">
+                                            Total Estimasi Tuntutan Ganti Rugi:
+                                            <span className="text-[10px] font-normal text-slate-500 block">
+                                              (Hanya dihitung dari item barang rusak/hilang)
+                                            </span>
+                                          </td>
+                                          <td className="py-2 px-2.5 text-right font-mono text-base text-rose-700">
+                                            {formatRupiah(claim.estimatedCompensation)}
+                                          </td>
                                         </tr>
                                       </tfoot>
                                     </table>
@@ -934,6 +1025,122 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Simpan Perubahan RMA</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ROLLBACK: KEMBALIKAN KASUS KE CUSTOMER SERVICE */}
+      {returnTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setReturnTarget(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl border border-amber-200 max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-300">
+                  <Undo2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Kembalikan Kasus ke Customer Service
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Order ID: <strong className="text-slate-800">{returnTarget.orderId}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReturnTarget(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-1">
+                <p className="font-bold text-amber-900">
+                  Tanggung jawab penanganan kasus klaim ini akan dikembalikan ke tim Customer Service.
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Kasus akan otomatis dicabut dari antrean Tim RMA dan kembali aktif pada antrean Klaim CS. Angka badge Klaim CS di navigation bar akan bertambah 1 kembali, dan badge RMA berkurang 1.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                  Pilih / Tulis Alasan Pengembalian ke Tim CS:
+                </label>
+                <div className="space-y-1.5">
+                  {[
+                    'Bukan kendala ekspedisi/kurir (paket utuh); komplain ditangani CS Marketplace.',
+                    'Kemasan luar tersegel aman, indikasi cacat produksi / seller fraud oleh pembeli.',
+                    'Salah pelimpahan oleh operator CS, kasus sudah selesai di seller center.',
+                    'Lainnya (tulis manual pada catatan di bawah)'
+                  ].map((preset, pIdx) => (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      onClick={() => setReturnReason(preset)}
+                      className={`w-full text-left p-2.5 rounded-xl text-[11px] border transition-all cursor-pointer ${
+                        returnReason === preset
+                          ? 'bg-amber-100/90 text-amber-950 border-amber-400 font-semibold shadow-2xs'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                    Catatan Tambahan untuk Petugas CS:
+                  </label>
+                  <textarea
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    rows={2}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    placeholder="Tuliskan catatan detail untuk petugas CS..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <span>Petugas RMA: <strong className="text-slate-700">{currentUser?.fullName || 'RMA Specialist'}</strong></span>
+                <span>Ekspedisi: <strong className="text-slate-700">{returnTarget.channel || 'Ekspedisi'}</strong></span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setReturnTarget(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onReturnToCs && returnTarget) {
+                    onReturnToCs(returnTarget.orderId, returnReason.trim() || 'Dikembalikan oleh Tim RMA');
+                    showToast(`✓ Kasus Order ${returnTarget.orderId} berhasil dikembalikan ke antrean Klaim CS!`);
+                    setReturnTarget(null);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+                <span>Konfirmasi Kembalikan ke CS</span>
               </button>
             </div>
           </div>

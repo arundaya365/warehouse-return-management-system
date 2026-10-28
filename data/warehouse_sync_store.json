@@ -1,0 +1,3243 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-10-20T10:52:19.978Z",
+  "returns": [
+    {
+      "Waktu_Proses": "2026-10-19 08:31:11",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "ORD-992-JKT",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Operator mencatat kerusakan produk: \"...e wireless layarnya retak dan tombol klik patah.\"",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "ORD-992-JKT.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1vA8kL9mNpQrStUvWxYz-demo1/view",
+      "Marketplace": "Lainnya",
+      "Ekspedisi": "Lainnya"
+    },
+    {
+      "Waktu_Proses": "2026-10-19 08:31:11",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "ORD-992-JKT",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Operator mencatat kerusakan produk: \"...e wireless layarnya retak dan tombol klik patah.\"",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "ORD-992-JKT.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1vA8kL9mNpQrStUvWxYz-demo1/view",
+      "Marketplace": "Lainnya",
+      "Ekspedisi": "Lainnya"
+    },
+    {
+      "Waktu_Proses": "2026-10-19 08:31:11",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9823441",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus penyok hancur tertindih ekspedisi saat transit",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "SHP-9823441.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view",
+      "Marketplace": "Lainnya",
+      "Ekspedisi": "Lainnya"
+    },
+    {
+      "Waktu_Proses": "2026-10-19 08:31:11",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9823441",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Tombol klik retak & sensor mati",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "SHP-9823441.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view",
+      "Marketplace": "Lainnya",
+      "Ekspedisi": "Lainnya"
+    },
+    {
+      "Waktu_Proses": "2026-10-19 08:31:11",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-88492019",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Kondisi fisik dan kemasan baik sesuai standar.",
+      "Video_Timestamp": "2026-10-07 09:12:44",
+      "Nama_File_Video": "TKP-88492019.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view",
+      "Marketplace": "Tokopedia Indonesia",
+      "Ekspedisi": "SiCepat"
+    },
+    {
+      "Waktu_Proses": "2026-10-19 08:31:11",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-88492019",
+      "SKU_ID": "SKU-ACC-002",
+      "Nama_Barang": "Adaptor Charger Magnetic Original",
+      "Kondisi": "Missing",
+      "Catatan_Tambahan": "Barang tidak di-scan saat sesi unboxing (Missing).",
+      "Video_Timestamp": "2026-10-07 09:12:44",
+      "Nama_File_Video": "TKP-88492019.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view",
+      "Marketplace": "Tokopedia Indonesia",
+      "Ekspedisi": "SiCepat"
+    },
+    {
+      "Order_ID": "SHP-9948201",
+      "Waktu_Proses": "2026-10-09 10:15:22",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Segel utuh, pembeli salah pesan varian",
+      "Nama_File_Video": "SHP-9948201",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9948201/view",
+      "Video_Timestamp": "2026-10-09 10:15:22"
+    },
+    {
+      "Order_ID": "SHP-9948201",
+      "Waktu_Proses": "2026-10-09 10:15:22",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-BEAUTY-002",
+      "Nama_Barang": "Hydrating Rose Water Toner 150ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus sesuai pesanan",
+      "Nama_File_Video": "SHP-9948201",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9948201/view",
+      "Video_Timestamp": "2026-10-09 10:15:22"
+    },
+    {
+      "Order_ID": "TKP-8819204",
+      "Waktu_Proses": "2026-10-09 11:40:10",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Mikrofon patah dan earcup sobek",
+      "Nama_File_Video": "TKP-8819204",
+      "Link_Video": "https://drive.google.com/file/d/evidence-tkp-8819204/view",
+      "Video_Timestamp": "2026-10-09 11:40:10"
+    },
+    {
+      "Order_ID": "TTK-7749210",
+      "Waktu_Proses": "2026-10-09 13:22:45",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus luar sobek remuk tertimpa logistik J&T",
+      "Nama_File_Video": "TTK-7749210",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7749210/view",
+      "Video_Timestamp": "2026-10-09 13:22:45"
+    },
+    {
+      "Order_ID": "SHP-9823441",
+      "Waktu_Proses": "2026-10-08 14:20:15",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus penyok hancur tertindih ekspedisi saat transit",
+      "Nama_File_Video": "SHP-9823441",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view",
+      "Video_Timestamp": "2026-10-08 14:20:15"
+    },
+    {
+      "Order_ID": "SHP-9823441",
+      "Waktu_Proses": "2026-10-08 14:20:15",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Tombol klik retak & sensor mati",
+      "Nama_File_Video": "SHP-9823441",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view",
+      "Video_Timestamp": "2026-10-08 14:20:15"
+    },
+    {
+      "Order_ID": "ORD-992-JKT",
+      "Waktu_Proses": "2026-10-08 15:30:10",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Barang mulus, segel utuh",
+      "Nama_File_Video": "ORD-992-JKT",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ord-992/view",
+      "Video_Timestamp": "2026-10-08 15:30:10"
+    },
+    {
+      "Order_ID": "ORD-992-JKT",
+      "Waktu_Proses": "2026-10-08 15:30:10",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Plastik sobek terkena lakban SiCepat",
+      "Nama_File_Video": "ORD-992-JKT",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ord-992/view",
+      "Video_Timestamp": "2026-10-08 15:30:10"
+    },
+    {
+      "Order_ID": "TKP-88492019",
+      "Waktu_Proses": "2026-10-07 09:12:44",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Produk jam tangan normal mulus",
+      "Nama_File_Video": "TKP-88492019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view",
+      "Video_Timestamp": "2026-10-07 09:12:44"
+    },
+    {
+      "Order_ID": "TKP-88492019",
+      "Waktu_Proses": "2026-10-07 09:12:44",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-ACC-002",
+      "Nama_Barang": "Adaptor Charger Magnetic Original",
+      "Kondisi": "Missing",
+      "Catatan_Tambahan": "Charger tidak ada di dalam kotak saat di-unboxing",
+      "Nama_File_Video": "TKP-88492019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view",
+      "Video_Timestamp": "2026-10-07 09:12:44"
+    },
+    {
+      "Order_ID": "LZD-4418290",
+      "Waktu_Proses": "2026-10-07 16:05:12",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-SHOES-001",
+      "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Salah ukuran pembeli retur",
+      "Nama_File_Video": "LZD-4418290",
+      "Link_Video": "https://drive.google.com/file/d/evidence-lzd-4418290/view",
+      "Video_Timestamp": "2026-10-07 16:05:12"
+    },
+    {
+      "Order_ID": "SHP-9771024",
+      "Waktu_Proses": "2026-10-06 11:20:30",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-BAG-001",
+      "Nama_Barang": "Canvas Urban Backpack Waterproof Grey",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Barang normal",
+      "Nama_File_Video": "SHP-9771024",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9771024/view",
+      "Video_Timestamp": "2026-10-06 11:20:30"
+    },
+    {
+      "Order_ID": "TTK-7651092",
+      "Waktu_Proses": "2026-10-06 14:45:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus lengkap receiver dongle",
+      "Nama_File_Video": "TTK-7651092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7651092/view",
+      "Video_Timestamp": "2026-10-06 14:45:00"
+    },
+    {
+      "Order_ID": "TTK-7651092",
+      "Waktu_Proses": "2026-10-06 14:45:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kotak serum basah tertekan barang lain",
+      "Nama_File_Video": "TTK-7651092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7651092/view",
+      "Video_Timestamp": "2026-10-06 14:45:00"
+    },
+    {
+      "Order_ID": "BLI-2294104",
+      "Waktu_Proses": "2026-10-05 10:10:15",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Kaca layar retak parah saat tiba di gudang",
+      "Nama_File_Video": "BLI-2294104",
+      "Link_Video": "https://drive.google.com/file/d/evidence-bli-2294104/view",
+      "Video_Timestamp": "2026-10-05 10:10:15"
+    },
+    {
+      "Order_ID": "TKP-8761029",
+      "Waktu_Proses": "2026-10-05 13:50:20",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Pembeli minta tukar ukuran XL",
+      "Nama_File_Video": "TKP-8761029",
+      "Link_Video": "https://drive.google.com/file/d/evidence-tkp-8761029/view",
+      "Video_Timestamp": "2026-10-05 13:50:20"
+    },
+    {
+      "Order_ID": "SHP-9661840",
+      "Waktu_Proses": "2026-10-04 09:30:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-BEAUTY-002",
+      "Nama_Barang": "Hydrating Rose Water Toner 150ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus aman",
+      "Nama_File_Video": "SHP-9661840",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9661840/view",
+      "Video_Timestamp": "2026-10-04 09:30:00"
+    },
+    {
+      "Order_ID": "SHP-9661840",
+      "Waktu_Proses": "2026-10-04 09:30:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Unexpected",
+      "Catatan_Tambahan": "Diterima barang tidak sesuai daftar manifest retur",
+      "Nama_File_Video": "SHP-9661840",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9661840/view",
+      "Video_Timestamp": "2026-10-04 09:30:00"
+    },
+    {
+      "Order_ID": "TTK-7554910",
+      "Waktu_Proses": "2026-10-03 15:10:40",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-BAG-001",
+      "Nama_Barang": "Canvas Urban Backpack Waterproof Grey",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kemasan plastik packing koyak",
+      "Nama_File_Video": "TTK-7554910",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7554910/view",
+      "Video_Timestamp": "2026-10-03 15:10:40"
+    },
+    {
+      "Order_ID": "SHP-9554019",
+      "Waktu_Proses": "2026-09-28 11:15:00",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur pembeli",
+      "Nama_File_Video": "SHP-9554019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-1/view",
+      "Video_Timestamp": "2026-09-28 11:15:00"
+    },
+    {
+      "Order_ID": "TKP-8664018",
+      "Waktu_Proses": "2026-09-22 14:00:22",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Kabel terkelupas putus",
+      "Nama_File_Video": "TKP-8664018",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-2/view",
+      "Video_Timestamp": "2026-09-22 14:00:22"
+    },
+    {
+      "Order_ID": "TTK-7443029",
+      "Waktu_Proses": "2026-09-18 09:45:10",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Sesuai pesanan",
+      "Nama_File_Video": "TTK-7443029",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-3/view",
+      "Video_Timestamp": "2026-09-18 09:45:10"
+    },
+    {
+      "Order_ID": "LZD-4332019",
+      "Waktu_Proses": "2026-09-12 16:30:45",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus penyok",
+      "Nama_File_Video": "LZD-4332019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-4/view",
+      "Video_Timestamp": "2026-09-12 16:30:45"
+    },
+    {
+      "Order_ID": "SHP-9442010",
+      "Waktu_Proses": "2026-09-05 10:20:00",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-SHOES-001",
+      "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Kondisi bagus",
+      "Nama_File_Video": "SHP-9442010",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-5/view",
+      "Video_Timestamp": "2026-09-05 10:20:00"
+    },
+    {
+      "Order_ID": "SHP-9331019",
+      "Waktu_Proses": "2026-08-27 13:10:00",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur mulus",
+      "Nama_File_Video": "SHP-9331019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-1/view",
+      "Video_Timestamp": "2026-08-27 13:10:00"
+    },
+    {
+      "Order_ID": "TKP-8552019",
+      "Waktu_Proses": "2026-08-20 15:40:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Sensor scroll macet",
+      "Nama_File_Video": "TKP-8552019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-2/view",
+      "Video_Timestamp": "2026-08-20 15:40:00"
+    },
+    {
+      "Order_ID": "TTK-7331902",
+      "Waktu_Proses": "2026-08-11 11:00:20",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-BAG-001",
+      "Nama_Barang": "Canvas Urban Backpack Waterproof Grey",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Kondisi prima",
+      "Nama_File_Video": "TTK-7331902",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-3/view",
+      "Video_Timestamp": "2026-08-11 11:00:20"
+    },
+    {
+      "Order_ID": "BLI-2113094",
+      "Waktu_Proses": "2026-08-04 09:15:30",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-ACC-002",
+      "Nama_Barang": "Adaptor Charger Magnetic Original",
+      "Kondisi": "Missing",
+      "Catatan_Tambahan": "Kotak kosong",
+      "Nama_File_Video": "BLI-2113094",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-4/view",
+      "Video_Timestamp": "2026-08-04 09:15:30"
+    },
+    {
+      "Order_ID": "SHP-9220194",
+      "Waktu_Proses": "2026-07-29 14:50:00",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus pecah tertindih ekspedisi",
+      "Nama_File_Video": "SHP-9220194",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jul-1/view",
+      "Video_Timestamp": "2026-07-29 14:50:00"
+    },
+    {
+      "Order_ID": "TKP-8441029",
+      "Waktu_Proses": "2026-07-16 10:30:15",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Barang aman",
+      "Nama_File_Video": "TKP-8441029",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jul-2/view",
+      "Video_Timestamp": "2026-07-16 10:30:15"
+    },
+    {
+      "Order_ID": "LZD-4221092",
+      "Waktu_Proses": "2026-07-08 16:10:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur normal",
+      "Nama_File_Video": "LZD-4221092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jul-3/view",
+      "Video_Timestamp": "2026-07-08 16:10:00"
+    },
+    {
+      "Order_ID": "SHP-9119204",
+      "Waktu_Proses": "2026-06-25 11:20:00",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur komplit",
+      "Nama_File_Video": "SHP-9119204",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jun-1/view",
+      "Video_Timestamp": "2026-06-25 11:20:00"
+    },
+    {
+      "Order_ID": "TTK-7221092",
+      "Waktu_Proses": "2026-06-14 15:00:00",
+      "Operator_ID": "OPR-101",
+      "SKU_ID": "SKU-SHOES-001",
+      "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Sol sepatu lepas",
+      "Nama_File_Video": "TTK-7221092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jun-2/view",
+      "Video_Timestamp": "2026-06-14 15:00:00"
+    },
+    {
+      "Order_ID": "TKP-8331902",
+      "Waktu_Proses": "2026-05-20 13:30:00",
+      "Operator_ID": "OPR-042",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus sesuai pesanan",
+      "Nama_File_Video": "TKP-8331902",
+      "Link_Video": "https://drive.google.com/file/d/evidence-may-1/view",
+      "Video_Timestamp": "2026-05-20 13:30:00"
+    },
+    {
+      "Order_ID": "SHP-9008192",
+      "Waktu_Proses": "2026-05-10 10:15:00",
+      "Operator_ID": "OPR-992",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus rusak transit",
+      "Nama_File_Video": "SHP-9008192",
+      "Link_Video": "https://drive.google.com/file/d/evidence-may-2/view",
+      "Video_Timestamp": "2026-05-10 10:15:00"
+    }
+  ],
+  "disputes": {},
+  "masterDatabase": [
+    {
+      "BARCODE": "SKU-TEST-NEW-01",
+      "SKU_ID": "SKU-TEST-NEW-01",
+      "SKU_NAME": "Item Baru Tanpa Barcode",
+      "HARGA": 75000
+    },
+    {
+      "BARCODE": "SKU-TEST-B",
+      "SKU_ID": "SKU-TEST-B",
+      "SKU_NAME": "Test B",
+      "HARGA": 2000
+    },
+    {
+      "BARCODE": "SKU-TEST-A",
+      "SKU_ID": "SKU-TEST-A",
+      "SKU_NAME": "Test A",
+      "HARGA": 1000
+    },
+    {
+      "BARCODE": "899100100203",
+      "SKU_ID": "SKU-SHOES-03",
+      "SKU_NAME": "Air Cushion Running Shoes Black - 42",
+      "HARGA": 450000
+    },
+    {
+      "BARCODE": "899100100202",
+      "SKU_ID": "SKU-JACKET-02",
+      "SKU_NAME": "Techwear Waterproof Windbreaker Navy - L",
+      "HARGA": 389000
+    },
+    {
+      "BARCODE": "899100100201",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "SKU_NAME": "Glow Radiance Vitamin C Serum 30ml",
+      "HARGA": 149000
+    },
+    {
+      "BARCODE": "6928495812011",
+      "SKU_ID": "1007-01",
+      "SKU_NAME": "1007-01 Pensil Alis"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1007-02",
+      "SKU_NAME": "1007-02 Pensil Alis"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1007-03",
+      "SKU_NAME": "1007-03 Pensil Alis"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1007-04",
+      "SKU_NAME": "1007-04 Pensil Alis"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1007-05",
+      "SKU_NAME": "1007-05 Pensil Alis"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1007-06",
+      "SKU_NAME": "1007-06 Pensil Alis"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-01",
+      "SKU_NAME": "1009-01 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-02",
+      "SKU_NAME": "1009-02 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-05",
+      "SKU_NAME": "1009-05 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-06",
+      "SKU_NAME": "1009-06 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-07",
+      "SKU_NAME": "1009-07 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-08",
+      "SKU_NAME": "1009-08 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-09",
+      "SKU_NAME": "1009-09 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "SKU-TEST-1",
+      "SKU_ID": "SKU-TEST-1",
+      "SKU_NAME": "Test 1",
+      "HARGA": 1000
+    },
+    {
+      "BARCODE": "899999999999",
+      "SKU_ID": "SKU-TEST-PERSISTENCE",
+      "SKU_NAME": "Test SKU Persistence",
+      "HARGA": 99000
+    },
+    {
+      "BARCODE": "899100100210",
+      "SKU_ID": "SKU-ACC-002",
+      "SKU_NAME": "Adaptor Charger Magnetic Original",
+      "HARGA": 125000
+    },
+    {
+      "BARCODE": "899100100209",
+      "SKU_ID": "SKU-WATCH-001",
+      "SKU_NAME": "Smartwatch AMOLED Bluetooth Call",
+      "HARGA": 650000
+    },
+    {
+      "BARCODE": "899100100208",
+      "SKU_ID": "SKU-ELEC-003",
+      "SKU_NAME": "Mouse Wireless Ergonomic Silent Click",
+      "HARGA": 175000
+    },
+    {
+      "BARCODE": "899100100207",
+      "SKU_ID": "SKU-ELEC-001",
+      "SKU_NAME": "Headset Gaming 7.1 Surround RGB",
+      "HARGA": 320000
+    },
+    {
+      "BARCODE": "899100100206",
+      "SKU_ID": "SKU-APPR-202",
+      "SKU_NAME": "Kaos Polos Cotton Combed 30s Hitam L",
+      "HARGA": 75000
+    },
+    {
+      "BARCODE": "899100100205",
+      "SKU_ID": "SKU-PHONE-X9",
+      "SKU_NAME": "Smartphone Pro Max 256GB Midnight Black",
+      "HARGA": 12999000
+    },
+    {
+      "BARCODE": "899100100204",
+      "SKU_ID": "SKU-HEADSET-04",
+      "SKU_NAME": "Razer BlackShark V2 Gaming Headset",
+      "HARGA": 899000
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-03",
+      "SKU_NAME": "1009-03 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-04",
+      "SKU_NAME": "1009-04 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-10",
+      "SKU_NAME": "1009-10 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-11",
+      "SKU_NAME": "1009-11 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1009-12",
+      "SKU_NAME": "1009-12 Plum Tube Lipgloss"
+    },
+    {
+      "BARCODE": "6928495813193",
+      "SKU_ID": "1014-01",
+      "SKU_NAME": "1014-01 Lip Gloss"
+    },
+    {
+      "BARCODE": "6928495813209",
+      "SKU_ID": "1014-02",
+      "SKU_NAME": "1014-02 Lip Gloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1014-03",
+      "SKU_NAME": "1014-03 Lip Gloss"
+    },
+    {
+      "BARCODE": "6928495813223",
+      "SKU_ID": "1014-04",
+      "SKU_NAME": "1014-04 Lip Gloss"
+    },
+    {
+      "BARCODE": "6928495813230",
+      "SKU_ID": "1014-05",
+      "SKU_NAME": "1014-05 Lip Gloss"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1015",
+      "SKU_NAME": "1015 Lash Bold Volume Lifting Mascara"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1016-01",
+      "SKU_NAME": "1016-01 Velvet Matte Lipstick"
+    },
+    {
+      "BARCODE": "6928495813544",
+      "SKU_ID": "1019",
+      "SKU_NAME": "1019  Miraculous Cat-Eye Stamp Eyeliner Pen"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "36557.0000462963",
+      "SKU_NAME": "2000-2 Kuas Eyeshadow"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2001",
+      "SKU_NAME": "2001 smartwatch"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2022",
+      "SKU_NAME": "2022 THANKS CARD"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2071",
+      "SKU_NAME": "2071 Thumb Concealer Puff"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "62490.291712962964",
+      "SKU_NAME": "2071-02 Thumb Concealer Puff"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2072",
+      "SKU_NAME": "2072 10pcs cotton pad"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "67207.29171296296",
+      "SKU_NAME": "2084-01Tooth type foundation brush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2114",
+      "SKU_NAME": "2114 Christmas Canvas Tote Bag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "79260.00004629629",
+      "SKU_NAME": "2117-1 Brand Sticker-1"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "79291.00004629629",
+      "SKU_NAME": "2117-2 Brand Sticker-2"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "82182.29171296296",
+      "SKU_NAME": "2125-1 fridge magnet -SC032"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "82213.29171296296",
+      "SKU_NAME": "2125-2 fridge magnet- cake"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "82241.29171296296",
+      "SKU_NAME": "2125-3 fridge magnet -SC057"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2127",
+      "SKU_NAME": "2127 O.TWO.O Flyer Poster"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2128",
+      "SKU_NAME": "2128"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2130   LABUBU",
+      "SKU_NAME": "2130   LABUBU"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2131",
+      "SKU_NAME": "2131 Ramadan Envelope / Amplop Lebaran"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2132",
+      "SKU_NAME": "2132 RAMADAN LIMITED WISH GIFT BOX"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2133",
+      "SKU_NAME": "2133 PVC pendant"
+    },
+    {
+      "BARCODE": "611885622852",
+      "SKU_ID": "2140",
+      "SKU_NAME": "2140 Love Keychain"
+    },
+    {
+      "BARCODE": "611885622869",
+      "SKU_ID": "2141",
+      "SKU_NAME": "2141 Self-adhesive sticker"
+    },
+    {
+      "BARCODE": "611885622548",
+      "SKU_ID": "2145",
+      "SKU_NAME": "2145 Handbag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2159",
+      "SKU_NAME": "2159 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2160",
+      "SKU_NAME": "2160 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2161",
+      "SKU_NAME": "2161 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2162",
+      "SKU_NAME": "2162 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2163",
+      "SKU_NAME": "2163 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2164",
+      "SKU_NAME": "2164 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2165",
+      "SKU_NAME": "2165 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2166",
+      "SKU_NAME": "2166 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2167",
+      "SKU_NAME": "2167 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2172",
+      "SKU_NAME": "2172 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2173",
+      "SKU_NAME": "2173 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2174",
+      "SKU_NAME": "2174 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2177",
+      "SKU_NAME": "2177 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2178",
+      "SKU_NAME": "2178 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2181",
+      "SKU_NAME": "2181 Cosmetics Product"
+    },
+    {
+      "BARCODE": "611885619395",
+      "SKU_ID": "1515028.291712963",
+      "SKU_NAME": "6048-01 Concealer"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1515059.291712963",
+      "SKU_NAME": "6048-02 Concealer"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1515088.291712963",
+      "SKU_NAME": "6048-03 Concealer"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "1515119.291712963",
+      "SKU_NAME": "6048-04 Concealer"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "6054-21",
+      "SKU_NAME": "6054-21 Bedak / Powder"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2634130.291712963",
+      "SKU_NAME": "9112  Waterproof Eyeliner Pen"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2637783.291712963",
+      "SKU_NAME": "9122-01 Dropper Foundation"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2637814.291712963",
+      "SKU_NAME": "9122-02 Dropper Foundation"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2637842.291712963",
+      "SKU_NAME": "9122-03 Dropper Foundation"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2639609.291712963",
+      "SKU_NAME": "9127-01 Loose Powder"
+    },
+    {
+      "BARCODE": "6973263796147",
+      "SKU_ID": "9137",
+      "SKU_NAME": "9137  Brow Styling Soap"
+    },
+    {
+      "BARCODE": "6928495813278",
+      "SKU_ID": "2645818.291712963",
+      "SKU_NAME": "9144-01 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813810",
+      "SKU_ID": "2645849.291712963",
+      "SKU_NAME": "9144-02 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813827",
+      "SKU_ID": "2645878.291712963",
+      "SKU_NAME": "9144-03 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813834",
+      "SKU_ID": "2645909.291712963",
+      "SKU_NAME": "9144-04 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813841",
+      "SKU_ID": "2645939.291712963",
+      "SKU_NAME": "9144-05 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813858",
+      "SKU_ID": "2645970.291712963",
+      "SKU_NAME": "9144-06 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813865",
+      "SKU_ID": "2646000.291712963",
+      "SKU_NAME": "9144-07 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813872",
+      "SKU_ID": "2646031.291712963",
+      "SKU_NAME": "9144-08 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813889",
+      "SKU_ID": "2646062.291712963",
+      "SKU_NAME": "9144-09 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813896",
+      "SKU_ID": "2646092.291712963",
+      "SKU_NAME": "9144-10 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813902",
+      "SKU_ID": "2646123.291712963",
+      "SKU_NAME": "9144-11 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495813919",
+      "SKU_ID": "9144-14",
+      "SKU_NAME": "9144-14 Lips & Cheek Mud"
+    },
+    {
+      "BARCODE": "6928495811236",
+      "SKU_ID": "9981",
+      "SKU_NAME": "9981  Instant Oversize Volume Mascara"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2957736.291712963",
+      "SKU_NAME": "9998-01 Concealer"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-01",
+      "SKU_NAME": "BC-01 cosmetics bag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-02",
+      "SKU_NAME": "BC-02 otwoo totebag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-09SD",
+      "SKU_NAME": "BC-09SD rope bag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-17",
+      "SKU_NAME": "BC-17 Cosmetic bag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-20",
+      "SKU_NAME": "BC-20 14*17bubble pack"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-21",
+      "SKU_NAME": "BC-21 20*25bubble pack"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-22",
+      "SKU_NAME": "BC-22 12*16bubble pack"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-23",
+      "SKU_NAME": "BC-23 18*16bubblepack"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-24",
+      "SKU_NAME": "BC-24 Bubble Wrap"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-25",
+      "SKU_NAME": "BC-25 Tape 2 inch"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-26",
+      "SKU_NAME": "BC-26 Paper Bag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-27",
+      "SKU_NAME": "BC-27 Shopee Box S"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-28",
+      "SKU_NAME": "BC-28 Shopee Box M"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-29",
+      "SKU_NAME": "BC-29 Polymailer 17*30"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-30",
+      "SKU_NAME": "BC-30 Label Thermal"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-31",
+      "SKU_NAME": "BC-31 Label Sticker Warning"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-32",
+      "SKU_NAME": "BC-32 Plastic Wrap"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-33",
+      "SKU_NAME": "BC-33 18*23 bubble pack"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-51",
+      "SKU_NAME": "BC-51 Foreign trade carton"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-54",
+      "SKU_NAME": "BC-54 SHINE White Peach Jelly Bag"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-59",
+      "SKU_NAME": "BC-59 Easy tear carton"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-62",
+      "SKU_NAME": "BC-62 OTWOO BOX"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-ZY",
+      "SKU_NAME": "BC-ZY BC-ZY"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "DIGITAL RUBBER WATCH",
+      "SKU_NAME": "Digital rubber watch"
+    },
+    {
+      "BARCODE": "6928495810239",
+      "SKU_ID": "E110-H01",
+      "SKU_NAME": "E110-H01 Penjepit Bulu Mata"
+    },
+    {
+      "BARCODE": "6973263793030",
+      "SKU_ID": "FC001",
+      "SKU_NAME": "FC001 UV Protection Clear Sunscreen"
+    },
+    {
+      "BARCODE": "6973263793047",
+      "SKU_ID": "FC002",
+      "SKU_NAME": "FC002 Facial Cream"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "FC003",
+      "SKU_NAME": "FC003 Face Base"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "FLAT FOUNDATION BRUSH",
+      "SKU_NAME": "flat foundation brush"
+    },
+    {
+      "BARCODE": "6973263794457",
+      "SKU_ID": "HC001",
+      "SKU_NAME": "HC001 Haute Volumizing Waterproof Mascara"
+    },
+    {
+      "BARCODE": "6973263794471",
+      "SKU_ID": "HC002-01",
+      "SKU_NAME": "HC002-01 Haute Dreamy Watercolor Liquid Blush 01"
+    },
+    {
+      "BARCODE": "6973263794488",
+      "SKU_ID": "HC002-02",
+      "SKU_NAME": "HC002-02 Haute Dreamy Watercolor Liquid Blush 02"
+    },
+    {
+      "BARCODE": "6973263794495",
+      "SKU_ID": "HC002-03",
+      "SKU_NAME": "HC002-03 Haute Dreamy Watercolor Liquid Blush 03"
+    },
+    {
+      "BARCODE": "6973263794501",
+      "SKU_ID": "HC002-04",
+      "SKU_NAME": "HC002-04 Haute Dreamy Watercolor Liquid Blush 04"
+    },
+    {
+      "BARCODE": "6973263794518",
+      "SKU_ID": "HC002-05",
+      "SKU_NAME": "HC002-05 Haute Dreamy Watercolor Liquid Blush 05"
+    },
+    {
+      "BARCODE": "6973263794525",
+      "SKU_ID": "HC002-06",
+      "SKU_NAME": "HC002-06 Haute Dreamy Watercolor Liquid Blush 06"
+    },
+    {
+      "BARCODE": "6973263794594",
+      "SKU_ID": "HC003-01",
+      "SKU_NAME": "HC003-01 Haute Hydrating Vinyl Lip Gloss 01"
+    },
+    {
+      "BARCODE": "6973263794600",
+      "SKU_ID": "HC003-02",
+      "SKU_NAME": "HC003-02 Haute Hydrating Vinyl Lip Gloss 02"
+    },
+    {
+      "BARCODE": "6973263794617",
+      "SKU_ID": "HC003-03",
+      "SKU_NAME": "HC003-03 Haute Hydrating Vinyl Lip Gloss 03"
+    },
+    {
+      "BARCODE": "6973263794624",
+      "SKU_ID": "HC003-04",
+      "SKU_NAME": "HC003-04 Haute Hydrating Vinyl Lip Gloss 04"
+    },
+    {
+      "BARCODE": "6973263794631",
+      "SKU_ID": "HC003-05",
+      "SKU_NAME": "HC003-05 Haute Hydrating Vinyl Lip Gloss 05"
+    },
+    {
+      "BARCODE": "6973263794648",
+      "SKU_ID": "HC003-06",
+      "SKU_NAME": "HC003-06 Haute Hydrating Vinyl Lip Gloss 06"
+    },
+    {
+      "BARCODE": "6973263794655",
+      "SKU_ID": "HC003-07",
+      "SKU_NAME": "HC003-07 Haute Hydrating Vinyl Lip Gloss 07"
+    },
+    {
+      "BARCODE": "6973263794662",
+      "SKU_ID": "HC003-08",
+      "SKU_NAME": "HC003-08 Haute Hydrating Vinyl Lip Gloss 08"
+    },
+    {
+      "BARCODE": "6973263794679",
+      "SKU_ID": "HC003-09",
+      "SKU_NAME": "HC003-09 Haute Hydrating Vinyl Lip Gloss 09"
+    },
+    {
+      "BARCODE": "6973263794686",
+      "SKU_ID": "HC003-10",
+      "SKU_NAME": "HC003-10 Haute Hydrating Vinyl Lip Gloss 10"
+    },
+    {
+      "BARCODE": "6973263794693",
+      "SKU_ID": "HC003-11",
+      "SKU_NAME": "HC003-11 Haute Hydrating Vinyl Lip Gloss 11"
+    },
+    {
+      "BARCODE": "6973263794709",
+      "SKU_ID": "HC003-12",
+      "SKU_NAME": "HC003-12 Haute Hydrating Vinyl Lip Gloss 12"
+    },
+    {
+      "BARCODE": "6973263796895",
+      "SKU_ID": "MV001-F08",
+      "SKU_NAME": "MV001-F08"
+    },
+    {
+      "BARCODE": "6973263794563",
+      "SKU_ID": "HC004-02",
+      "SKU_NAME": "HC004-02 Haute All Day Coverage Foundation 02"
+    },
+    {
+      "BARCODE": "6973263794570",
+      "SKU_ID": "HC004-03",
+      "SKU_NAME": "HC004-03 Haute All Day Coverage Foundation 03"
+    },
+    {
+      "BARCODE": "6973263794587",
+      "SKU_ID": "HC004-04",
+      "SKU_NAME": "HC004-04 Haute All Day Coverage Foundation 04"
+    },
+    {
+      "BARCODE": "6973263794716",
+      "SKU_ID": "HC005-01",
+      "SKU_NAME": "HC005-01 Haute Galaxy Swirl Liquid Highlighter 01"
+    },
+    {
+      "BARCODE": "6973263794730",
+      "SKU_ID": "HC005-03",
+      "SKU_NAME": "HC005-03 Haute Galaxy Swirl Liquid Highlighter 03"
+    },
+    {
+      "BARCODE": "6973263794747",
+      "SKU_ID": "HC005-04",
+      "SKU_NAME": "HC005-04 Haute Galaxy Swirl Liquid Highlighter 04"
+    },
+    {
+      "BARCODE": "6973263794914",
+      "SKU_ID": "HC006-01",
+      "SKU_NAME": "HC006-01 Haute Watery Liquid lip&check Tint 01"
+    },
+    {
+      "BARCODE": "6973263794921",
+      "SKU_ID": "HC006-02",
+      "SKU_NAME": "HC006-02 Haute Watery Liquid lip&check Tint 02"
+    },
+    {
+      "BARCODE": "6973263794938",
+      "SKU_ID": "HC006-03",
+      "SKU_NAME": "HC006-03 Haute Watery Liquid lip&check Tint 03"
+    },
+    {
+      "BARCODE": "6973263794945",
+      "SKU_ID": "HC006-04",
+      "SKU_NAME": "HC006-04 Haute Watery Liquid lip&check Tint 04"
+    },
+    {
+      "BARCODE": "6973263794952",
+      "SKU_ID": "HC006-05",
+      "SKU_NAME": "HC006-05 Haute Watery Liquid lip&check Tint 05"
+    },
+    {
+      "BARCODE": "6973263794969",
+      "SKU_ID": "HC006-06",
+      "SKU_NAME": "HC006-06 Haute Watery Liquid lip&check Tint 06"
+    },
+    {
+      "BARCODE": "6973263794754",
+      "SKU_ID": "HC007-01",
+      "SKU_NAME": "HC007-01 Haute Sculpting Machete Brow Pencil 01"
+    },
+    {
+      "BARCODE": "6973263794761",
+      "SKU_ID": "HC007-02",
+      "SKU_NAME": "HC007-02 Haute Sculpting Machete Brow Pencil 02"
+    },
+    {
+      "BARCODE": "6973263794778",
+      "SKU_ID": "HC007-03",
+      "SKU_NAME": "HC007-03 Haute Sculpting Machete Brow Pencil 03"
+    },
+    {
+      "BARCODE": "6973263794785",
+      "SKU_ID": "HC007-04",
+      "SKU_NAME": "HC007-04 Haute Sculpting Machete Brow Pencil 04"
+    },
+    {
+      "BARCODE": "6973263794976",
+      "SKU_ID": "HC008-01",
+      "SKU_NAME": "HC008-01 Haute Matte Mesh Cushion Cream 01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC008-02",
+      "SKU_NAME": "HC008-02 Haute Matte Mesh Cushion Cream 02"
+    },
+    {
+      "BARCODE": "6973263794990",
+      "SKU_ID": "HC008-03",
+      "SKU_NAME": "HC008-03 Haute Matte Mesh Cushion Cream 03"
+    },
+    {
+      "BARCODE": "6973263795003",
+      "SKU_ID": "HC008-04",
+      "SKU_NAME": "HC008-04 Haute Matte Mesh Cushion Cream 04"
+    },
+    {
+      "BARCODE": "6973263795249",
+      "SKU_ID": "HC008-W01",
+      "SKU_NAME": "HC008-W01 Haute Matte Mesh Cushion Cream W01"
+    },
+    {
+      "BARCODE": "6973263795256",
+      "SKU_ID": "HC008-W02",
+      "SKU_NAME": "HC008-W02 Haute Matte Mesh Cushion Cream W02"
+    },
+    {
+      "BARCODE": "6973263795263",
+      "SKU_ID": "HC009-01",
+      "SKU_NAME": "HC009-01 Haute Hydrating Satin Lipstick 01"
+    },
+    {
+      "BARCODE": "6973263795270",
+      "SKU_ID": "HC009-02",
+      "SKU_NAME": "HC009-02 Haute Hydrating Satin Lipstick 02"
+    },
+    {
+      "BARCODE": "6973263795287",
+      "SKU_ID": "HC009-03",
+      "SKU_NAME": "HC009-03 Haute Hydrating Satin Lipstick 03"
+    },
+    {
+      "BARCODE": "6973263795294",
+      "SKU_ID": "HC009-04",
+      "SKU_NAME": "HC009-04 Haute Hydrating Satin Lipstick 04"
+    },
+    {
+      "BARCODE": "6973263795300",
+      "SKU_ID": "HC009-05",
+      "SKU_NAME": "HC009-05 Haute Hydrating Satin Lipstick 05"
+    },
+    {
+      "BARCODE": "6973263795317",
+      "SKU_ID": "HC009-06",
+      "SKU_NAME": "HC009-06 Haute Hydrating Satin Lipstick 06"
+    },
+    {
+      "BARCODE": "6973263795324",
+      "SKU_ID": "HC009-07",
+      "SKU_NAME": "HC009-07 Haute Hydrating Satin Lipstick 07"
+    },
+    {
+      "BARCODE": "6973263795331",
+      "SKU_ID": "HC009-08",
+      "SKU_NAME": "HC009-08 Haute Hydrating Satin Lipstick 08"
+    },
+    {
+      "BARCODE": "6973263794792",
+      "SKU_ID": "HC010",
+      "SKU_NAME": "HC010 Haute Zero Pores sunscreen primer"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC012",
+      "SKU_NAME": "HC012 HAUTE ULTRA THICK & CURLING MASCARA"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC014-01",
+      "SKU_NAME": "HC014-01 Haute Creamy Concealer Palette 01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC014-02",
+      "SKU_NAME": "HC014-02 Haute Creamy Concealer Palette 02"
+    },
+    {
+      "BARCODE": "6973263795058",
+      "SKU_ID": "HC015-01",
+      "SKU_NAME": "HC015-01 Haute Soft Focus Correct Powder 01"
+    },
+    {
+      "BARCODE": "6973263795065",
+      "SKU_ID": "HC015-02",
+      "SKU_NAME": "HC015-02 Haute Soft Focus Correct Powder 02"
+    },
+    {
+      "BARCODE": "6973263795386",
+      "SKU_ID": "HC016-01",
+      "SKU_NAME": "HC016-01 Haute Dual Color Silky-Soft Lip & Cheek Stick 01"
+    },
+    {
+      "BARCODE": "6973263795393",
+      "SKU_ID": "HC016-02",
+      "SKU_NAME": "HC016-02 Haute Dual Color Silky-Soft Lip & Cheek Stick 02"
+    },
+    {
+      "BARCODE": "6973263795409",
+      "SKU_ID": "HC016-03",
+      "SKU_NAME": "HC016-03 Haute Dual Color Silky-Soft Lip & Cheek Stick 03"
+    },
+    {
+      "BARCODE": "6973263795416",
+      "SKU_ID": "HC016-04",
+      "SKU_NAME": "HC016-04 Haute Dual Color Silky-Soft Lip & Cheek Stick 04"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-01",
+      "SKU_NAME": "HC017-01 Haute Long wear Velvet Matte Lipstick 01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-02",
+      "SKU_NAME": "HC017-02 Haute Long wear Velvet Matte Lipstick 02"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-03",
+      "SKU_NAME": "HC017-03 Haute Long wear Velvet Matte Lipstick 03"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-04",
+      "SKU_NAME": "HC017-04 Haute Long wear Velvet Matte Lipstick 04"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-05",
+      "SKU_NAME": "HC017-05 Haute Long wear Velvet Matte Lipstick 05"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-06",
+      "SKU_NAME": "HC017-06 Haute Long wear Velvet Matte Lipstick 06"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-07",
+      "SKU_NAME": "HC017-07 Haute Long wear Velvet Matte Lipstick 07"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "HC017-08",
+      "SKU_NAME": "HC017-08 Haute Long wear Velvet Matte Lipstick 08"
+    },
+    {
+      "BARCODE": "6973263796284",
+      "SKU_ID": "HC018-01",
+      "SKU_NAME": "HC018-01 Haute Gold Foil Thermochromic Lipstick 01"
+    },
+    {
+      "BARCODE": "6973263796291",
+      "SKU_ID": "HC018-02",
+      "SKU_NAME": "HC018-02 Haute Gold Foil Thermochromic Lipstick 02"
+    },
+    {
+      "BARCODE": "6973263796512",
+      "SKU_ID": "HC020-01",
+      "SKU_NAME": "HC020-01 Haute Weightless Cover Powder 01"
+    },
+    {
+      "BARCODE": "6973263796529",
+      "SKU_ID": "HC020-02",
+      "SKU_NAME": "HC020-02 Haute Weightless Cover Powder 02"
+    },
+    {
+      "BARCODE": "6973263796536",
+      "SKU_ID": "HC020-03",
+      "SKU_NAME": "HC020-03 Haute Weightless Cover Powder 03"
+    },
+    {
+      "BARCODE": "6973263796543",
+      "SKU_ID": "HC020-04",
+      "SKU_NAME": "HC020-04 Haute Weightless Cover Powder 04"
+    },
+    {
+      "BARCODE": "6973263797182",
+      "SKU_ID": "HC021",
+      "SKU_NAME": "HC021"
+    },
+    {
+      "BARCODE": "6973263797229",
+      "SKU_ID": "HC022",
+      "SKU_NAME": "HC022"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "INFINIX NOTE 30",
+      "SKU_NAME": "Infinix Note 30"
+    },
+    {
+      "BARCODE": "6973263796598",
+      "SKU_ID": "LE003-01",
+      "SKU_NAME": "LE003-01 Bloom Butterfly Jelly Set 01"
+    },
+    {
+      "BARCODE": "6973263796604",
+      "SKU_ID": "LE003-02",
+      "SKU_NAME": "LE003-02 Bloom Butterfly Jelly Set 02"
+    },
+    {
+      "BARCODE": "6973263796611",
+      "SKU_ID": "LE003-03",
+      "SKU_NAME": "LE003-03 Bloom Butterfly Jelly Set 03"
+    },
+    {
+      "BARCODE": "6973263797090",
+      "SKU_ID": "LE009-13",
+      "SKU_NAME": "LE009-13 高定盈亮润泽口红"
+    },
+    {
+      "BARCODE": "6973263797106",
+      "SKU_ID": "LE009-14",
+      "SKU_NAME": "LE009-14 高定盈亮润泽口红"
+    },
+    {
+      "BARCODE": "6973263797113",
+      "SKU_ID": "LE009-15",
+      "SKU_NAME": "LE009-15 高定盈亮润泽口红"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "MINI POWDER PUFF",
+      "SKU_NAME": "Mini Powder Puff"
+    },
+    {
+      "BARCODE": "6973263796826",
+      "SKU_ID": "MV001-F01",
+      "SKU_NAME": "MV001-F01"
+    },
+    {
+      "BARCODE": "6973263796833",
+      "SKU_ID": "MV001-F02",
+      "SKU_NAME": "MV001-F02"
+    },
+    {
+      "BARCODE": "6973263796840",
+      "SKU_ID": "MV001-F03",
+      "SKU_NAME": "MV001-F03"
+    },
+    {
+      "BARCODE": "6973263796857",
+      "SKU_ID": "MV001-F04",
+      "SKU_NAME": "MV001-F04"
+    },
+    {
+      "BARCODE": "6973263796864",
+      "SKU_ID": "MV001-F05",
+      "SKU_NAME": "MV001-F05"
+    },
+    {
+      "BARCODE": "6973263796871",
+      "SKU_ID": "MV001-F06",
+      "SKU_NAME": "MV001-F06"
+    },
+    {
+      "BARCODE": "6973263796888",
+      "SKU_ID": "MV001-F07",
+      "SKU_NAME": "MV001-F07"
+    },
+    {
+      "BARCODE": "6973263797137",
+      "SKU_ID": "MV003-02",
+      "SKU_NAME": "MV003-02"
+    },
+    {
+      "BARCODE": "6973263797144",
+      "SKU_ID": "MV003-03",
+      "SKU_NAME": "MV003-03"
+    },
+    {
+      "BARCODE": "6973263797168",
+      "SKU_ID": "MV003-05",
+      "SKU_NAME": "MV003-05"
+    },
+    {
+      "BARCODE": "6973263797175",
+      "SKU_ID": "MV003-06",
+      "SKU_NAME": "MV003-06"
+    },
+    {
+      "BARCODE": "6973263797199",
+      "SKU_ID": "MV006-01",
+      "SKU_NAME": "MV006 Aegyosal Pen"
+    },
+    {
+      "BARCODE": "6973263797205",
+      "SKU_ID": "MV006-02",
+      "SKU_NAME": "MV006 Aegyosal Pen"
+    },
+    {
+      "BARCODE": "6973263797212",
+      "SKU_ID": "MV006-03",
+      "SKU_NAME": "MV006 Aegyosal Pen"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "N9084-B",
+      "SKU_NAME": "N9084-B Liquid Eyeliner"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "NVMAR01",
+      "SKU_NAME": "NVMAR01 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "OBB02",
+      "SKU_NAME": "OBB02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "OBC01",
+      "SKU_NAME": "OBC01 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ORB01",
+      "SKU_NAME": "ORB01 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ORN04",
+      "SKU_NAME": "ORN04 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ORR03",
+      "SKU_NAME": "ORR03 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ORS02",
+      "SKU_NAME": "ORS02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ORW05",
+      "SKU_NAME": "ORW05 Cosmetics Product"
+    },
+    {
+      "BARCODE": "6973263795942",
+      "SKU_ID": "PF01-F02",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F02"
+    },
+    {
+      "BARCODE": "6973263795959",
+      "SKU_ID": "PF01-F03",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F03"
+    },
+    {
+      "BARCODE": "6973263795966",
+      "SKU_ID": "PF01-F04",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F04"
+    },
+    {
+      "BARCODE": "6973263795973",
+      "SKU_ID": "PF02-S01",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S01"
+    },
+    {
+      "BARCODE": "6973263795980",
+      "SKU_ID": "PF02-S02",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S02"
+    },
+    {
+      "BARCODE": "6973263795997",
+      "SKU_ID": "PF02-S03",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S03"
+    },
+    {
+      "BARCODE": "6973263796277",
+      "SKU_ID": "PF02-S04",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S04"
+    },
+    {
+      "BARCODE": "6973263797236",
+      "SKU_ID": "PR001-01",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797243",
+      "SKU_ID": "PR001-02",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797250",
+      "SKU_ID": "PR001-03",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797267",
+      "SKU_ID": "PR001-04",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797274",
+      "SKU_ID": "PR001-05",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797281",
+      "SKU_ID": "PR001-06",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797298",
+      "SKU_ID": "PR001-07",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797304",
+      "SKU_ID": "PR001-08",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797311",
+      "SKU_ID": "PR001-09",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797328",
+      "SKU_ID": "PR001-10",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797335",
+      "SKU_ID": "PR001-11",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "6973263797342",
+      "SKU_ID": "PR001-12",
+      "SKU_NAME": "PR001 Lip Tint"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "PR002-01",
+      "SKU_NAME": "PR002-01 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "PR002-02",
+      "SKU_NAME": "PR002-02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "PR002-03",
+      "SKU_NAME": "PR002-03 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "PR002-04",
+      "SKU_NAME": "PR002-04 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "PR007",
+      "SKU_NAME": "PR007 Cosmetics Product"
+    },
+    {
+      "BARCODE": "6973263796314",
+      "SKU_ID": "PS01-F02",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F02"
+    },
+    {
+      "BARCODE": "6973263796321",
+      "SKU_ID": "PS01-F03",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F03"
+    },
+    {
+      "BARCODE": "6973263796338",
+      "SKU_ID": "PS01-F04",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F04"
+    },
+    {
+      "BARCODE": "6973263796345",
+      "SKU_ID": "PS02-S01",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S01"
+    },
+    {
+      "BARCODE": "6973263796352",
+      "SKU_ID": "PS02-S02",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S02"
+    },
+    {
+      "BARCODE": "6973263796369",
+      "SKU_ID": "PS02-S03",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S03"
+    },
+    {
+      "BARCODE": "6973263796376",
+      "SKU_ID": "PS02-S04",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S04"
+    },
+    {
+      "BARCODE": "6973263790749",
+      "SKU_ID": "SC023-01",
+      "SKU_NAME": "SC023-01 Liquid Blush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC023-02",
+      "SKU_NAME": "SC023-02 Liquid Blush"
+    },
+    {
+      "BARCODE": "6973263790763",
+      "SKU_ID": "SC023-03",
+      "SKU_NAME": "SC023-03 Liquid Blush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC023-05",
+      "SKU_NAME": "SC023-05 Liquid Blush"
+    },
+    {
+      "BARCODE": "6973263791050",
+      "SKU_ID": "SC028-01",
+      "SKU_NAME": "SC028-01  Eyeliner Gel Pen 01 White"
+    },
+    {
+      "BARCODE": "6973263791067",
+      "SKU_ID": "SC028-02",
+      "SKU_NAME": "SC028-02  Eyeliner Gel Pen 02 Black"
+    },
+    {
+      "BARCODE": "6973263791081",
+      "SKU_ID": "SC028-04",
+      "SKU_NAME": "SC028-04 Eyeliner Gel Pen 04 Dark Brown"
+    },
+    {
+      "BARCODE": "6973263791494",
+      "SKU_ID": "SC029-01",
+      "SKU_NAME": "SC029-01 Eyebrow Dying Cream"
+    },
+    {
+      "BARCODE": "6973263791500",
+      "SKU_ID": "SC029-02",
+      "SKU_NAME": "SC029-02 Eyebrow Dying Cream"
+    },
+    {
+      "BARCODE": "6973263791142",
+      "SKU_ID": "SC030-03",
+      "SKU_NAME": "SC030-03 Magic Contour & Stick Highlight"
+    },
+    {
+      "BARCODE": "6973263791623",
+      "SKU_ID": "SC032",
+      "SKU_NAME": "SC032 Makeup Primer"
+    },
+    {
+      "BARCODE": "6973263791982",
+      "SKU_ID": "SC033-H001",
+      "SKU_NAME": "SC033-H001 concealer"
+    },
+    {
+      "BARCODE": "6973263791913",
+      "SKU_ID": "SC033-H002",
+      "SKU_NAME": "SC033-H002 concealer"
+    },
+    {
+      "BARCODE": "6973263792002",
+      "SKU_ID": "SC033-H003",
+      "SKU_NAME": "SC033-H003 concealer"
+    },
+    {
+      "BARCODE": "6973263791777",
+      "SKU_ID": "SC036-L01",
+      "SKU_NAME": "SC036-L01 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791784",
+      "SKU_ID": "SC036-L02",
+      "SKU_NAME": "SC036-L02 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791791",
+      "SKU_ID": "SC036-L03",
+      "SKU_NAME": "SC036-L03 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791807",
+      "SKU_ID": "SC036-L04",
+      "SKU_NAME": "SC036-L04 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791814",
+      "SKU_ID": "SC036-L05",
+      "SKU_NAME": "SC036-L05 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC036-L06",
+      "SKU_NAME": "SC036-L06 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791838",
+      "SKU_ID": "SC036-L07",
+      "SKU_NAME": "SC036-L07 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC036-L08",
+      "SKU_NAME": "SC036-L08 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791852",
+      "SKU_ID": "SC036-L09",
+      "SKU_NAME": "SC036-L09 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791869",
+      "SKU_ID": "SC036-L10",
+      "SKU_NAME": "SC036-L10 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263791876",
+      "SKU_ID": "SC036-L11",
+      "SKU_NAME": "SC036-L11 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC036-L12",
+      "SKU_NAME": "SC036-L12 Double-Ended Lipstick"
+    },
+    {
+      "BARCODE": "6973263792101",
+      "SKU_ID": "SC038-C01",
+      "SKU_NAME": "SC038-C01 Foundation (Oil Control)"
+    },
+    {
+      "BARCODE": "6973263792118",
+      "SKU_ID": "SC038-C02",
+      "SKU_NAME": "SC038-C02  Foundation (Oil Control)"
+    },
+    {
+      "BARCODE": "6973263792125",
+      "SKU_ID": "SC038-C03",
+      "SKU_NAME": "SC038-C03  Foundation (Oil Control)"
+    },
+    {
+      "BARCODE": "6973263792019",
+      "SKU_ID": "SC039",
+      "SKU_NAME": "SC039 Makeup Setting Spray"
+    },
+    {
+      "BARCODE": "6973263792033",
+      "SKU_ID": "SC040-01",
+      "SKU_NAME": "SC040-01 Eyeshadow"
+    },
+    {
+      "BARCODE": "6973263792040",
+      "SKU_ID": "SC040-02",
+      "SKU_NAME": "SC040-02 Eyeshadow"
+    },
+    {
+      "BARCODE": "6973263792057",
+      "SKU_ID": "SC040-03",
+      "SKU_NAME": "SC040-03 Eyeshadow"
+    },
+    {
+      "BARCODE": "6973263792064",
+      "SKU_ID": "SC040-04",
+      "SKU_NAME": "SC040-04 Eyeshadow"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC041-02",
+      "SKU_NAME": "SC041-02 Concealer + Blush Palette"
+    },
+    {
+      "BARCODE": "6973263792163",
+      "SKU_ID": "SC042-03",
+      "SKU_NAME": "SC042-03 Eyeshadow"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-01",
+      "SKU_NAME": "SC043-01 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-02",
+      "SKU_NAME": "SC043-02 lipstick"
+    },
+    {
+      "BARCODE": "6973263792194",
+      "SKU_ID": "SC043-03",
+      "SKU_NAME": "SC043-03 lipstick"
+    },
+    {
+      "BARCODE": "6973263792200",
+      "SKU_ID": "SC043-04",
+      "SKU_NAME": "SC043-04 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-05",
+      "SKU_NAME": "SC043-05 lipstick"
+    },
+    {
+      "BARCODE": "6973263792224",
+      "SKU_ID": "SC043-06",
+      "SKU_NAME": "SC043-06 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-07",
+      "SKU_NAME": "SC043-07 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-08",
+      "SKU_NAME": "SC043-08 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-09",
+      "SKU_NAME": "SC043-09 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-10",
+      "SKU_NAME": "SC043-10 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-11",
+      "SKU_NAME": "SC043-11 lipstick"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC043-12",
+      "SKU_NAME": "SC043-12 lipstick"
+    },
+    {
+      "BARCODE": "6973263792309",
+      "SKU_ID": "SC044-01",
+      "SKU_NAME": "SC044-01 Blush"
+    },
+    {
+      "BARCODE": "6973263792316",
+      "SKU_ID": "SC044-02",
+      "SKU_NAME": "SC044-02  Blush"
+    },
+    {
+      "BARCODE": "6973263792323",
+      "SKU_ID": "SC044-03",
+      "SKU_NAME": "SC044-03  Blush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC044-04",
+      "SKU_NAME": "SC044-04 Blush"
+    },
+    {
+      "BARCODE": "6973263792347",
+      "SKU_ID": "SC044-05",
+      "SKU_NAME": "SC044-05  Blush"
+    },
+    {
+      "BARCODE": "6973263792354",
+      "SKU_ID": "SC044-06",
+      "SKU_NAME": "SC044-06 Blush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC045-01",
+      "SKU_NAME": "SC045-01 Multifunctional Palette"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC045-02",
+      "SKU_NAME": "SC045-02 Multifunctional Palette"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC045-03",
+      "SKU_NAME": "SC045-03 Multifunctional Palette"
+    },
+    {
+      "BARCODE": "6973263792392",
+      "SKU_ID": "SC046",
+      "SKU_NAME": "SC046 Mascara"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC047-01",
+      "SKU_NAME": "SC047-1  Eyebrow pencil"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC047-03",
+      "SKU_NAME": "SC047-3  Eyebrow pencil"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC047-04",
+      "SKU_NAME": "SC047-4 Eyebrow pencil"
+    },
+    {
+      "BARCODE": "6973263792446",
+      "SKU_ID": "SC048-01",
+      "SKU_NAME": "SC048-01 Lip & Cheek Balm"
+    },
+    {
+      "BARCODE": "6973263792453",
+      "SKU_ID": "SC048-02",
+      "SKU_NAME": "SC048-02 Lip & Cheek Balm"
+    },
+    {
+      "BARCODE": "6973263792460",
+      "SKU_ID": "SC048-03",
+      "SKU_NAME": "SC048-03  Lip & Cheek Balm"
+    },
+    {
+      "BARCODE": "6973263792477",
+      "SKU_ID": "SC048-04",
+      "SKU_NAME": "SC048-04  Lip & Cheek Balm"
+    },
+    {
+      "BARCODE": "6973263792484",
+      "SKU_ID": "SC048-05",
+      "SKU_NAME": "SC048-05  Lip & Cheek Balm"
+    },
+    {
+      "BARCODE": "6973263792491",
+      "SKU_ID": "SC048-06",
+      "SKU_NAME": "SC048-06  Lip & Cheek Balm"
+    },
+    {
+      "BARCODE": "6973263792507",
+      "SKU_ID": "SC049-01",
+      "SKU_NAME": "SC049-01  Blush"
+    },
+    {
+      "BARCODE": "6973263792514",
+      "SKU_ID": "SC049-02",
+      "SKU_NAME": "SC049-02  Blush"
+    },
+    {
+      "BARCODE": "6973263792521",
+      "SKU_ID": "SC049-03",
+      "SKU_NAME": "SC049-03 Blush"
+    },
+    {
+      "BARCODE": "6973263792538",
+      "SKU_ID": "SC049-04",
+      "SKU_NAME": "SC049-04  Blush"
+    },
+    {
+      "BARCODE": "6973263792545",
+      "SKU_ID": "SC049-05",
+      "SKU_NAME": "SC049-05 Blush"
+    },
+    {
+      "BARCODE": "6973263792552",
+      "SKU_ID": "SC049-06",
+      "SKU_NAME": "SC049-06 Blush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC049-4",
+      "SKU_NAME": "【Brand-exclusive_1】【8PCS】O.TWO.O Set delapan potong emas mawar edisi terbatas Blush Stick & Makeup Primer & UV protection Sunscreen & Instant Oversize Volume Mascara & Miraculous Cat-Eye Stamp Eyeliner Pen & Peach Jelly Bag & Hair Tie & Random Sponge"
+    },
+    {
+      "BARCODE": "6973263792569",
+      "SKU_ID": "SC050",
+      "SKU_NAME": "SC050 Eyeliner"
+    },
+    {
+      "BARCODE": "6973263792774",
+      "SKU_ID": "SC053-01",
+      "SKU_NAME": "SC053-01 Three Grid Filter Loose Powder"
+    },
+    {
+      "BARCODE": "6973263792781",
+      "SKU_ID": "SC053-02",
+      "SKU_NAME": "SC053-02 Three Grid Filter Loose Powder"
+    },
+    {
+      "BARCODE": "6973263792798",
+      "SKU_ID": "SC053-03",
+      "SKU_NAME": "SC053-03 Three Grid Filter Loose Powder"
+    },
+    {
+      "BARCODE": "6973263792804",
+      "SKU_ID": "SC054-110",
+      "SKU_NAME": "SC054-110 Cushion Cream #110 Nude Beige"
+    },
+    {
+      "BARCODE": "6973263792811",
+      "SKU_ID": "SC054-120",
+      "SKU_NAME": "SC054-120 Cushion Cream #120 Warm Nude"
+    },
+    {
+      "BARCODE": "6973263792828",
+      "SKU_ID": "SC055-01",
+      "SKU_NAME": "SC055-01 Locking Powder 01 Natural Ivory"
+    },
+    {
+      "BARCODE": "6973263792835",
+      "SKU_ID": "SC055-02",
+      "SKU_NAME": "SC055-02 Locking Powder 02 Natural Beige"
+    },
+    {
+      "BARCODE": "6973263792842",
+      "SKU_ID": "SC055-03",
+      "SKU_NAME": "SC055-03 Locking Powder 03 Warm Nude"
+    },
+    {
+      "BARCODE": "6973263792859",
+      "SKU_ID": "SC056",
+      "SKU_NAME": "SC056 Ultra 5D Waterproof Mascara"
+    },
+    {
+      "BARCODE": "6973263792989",
+      "SKU_ID": "SC057-01",
+      "SKU_NAME": "SC057-01 Lolepop lipstick 01 Mist Pink"
+    },
+    {
+      "BARCODE": "6973263792958",
+      "SKU_ID": "SC057-02",
+      "SKU_NAME": "SC057-02 Lolepop lipstick 02 Milk Tea"
+    },
+    {
+      "BARCODE": "6973263792941",
+      "SKU_ID": "SC057-03",
+      "SKU_NAME": "SC057-03 Lolepop lipstick 03 Cocoa Brown"
+    },
+    {
+      "BARCODE": "6973263792934",
+      "SKU_ID": "SC057-04",
+      "SKU_NAME": "SC057-04 Lolepop lipstick 04 Pumpkin Brown"
+    },
+    {
+      "BARCODE": "6973263793023",
+      "SKU_ID": "SC057-05",
+      "SKU_NAME": "SC057-05 Lolepop lipstick 05 Apple Red"
+    },
+    {
+      "BARCODE": "6973263793016",
+      "SKU_ID": "SC057-06",
+      "SKU_NAME": "SC057-06 Lolepop lipstick 06 Wild Berry"
+    },
+    {
+      "BARCODE": "6973263793009",
+      "SKU_ID": "SC057-07",
+      "SKU_NAME": "SC057-07 Lolepop lipstic 07 Pink Rose"
+    },
+    {
+      "BARCODE": "6973263792996",
+      "SKU_ID": "SC057-08",
+      "SKU_NAME": "SC057-08 Lolepop lipstick 08 Purple Grapes"
+    },
+    {
+      "BARCODE": "6973263793207",
+      "SKU_ID": "SC059-N110",
+      "SKU_NAME": "SC059-N110  Ultra Longwear Matte Foundation N110 30ml"
+    },
+    {
+      "BARCODE": "6973263793214",
+      "SKU_ID": "SC059-N120",
+      "SKU_NAME": "SC059-N120 Ultra Longwear Matte Foundation N120 30ml"
+    },
+    {
+      "BARCODE": "6973263793221",
+      "SKU_ID": "SC059-N220",
+      "SKU_NAME": "SC059-N220  Ultra Longwear Matte Foundation N220 30ml"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC059-N230",
+      "SKU_NAME": "SC059-N230  Ultra Longwear Matte Foundation N230 30ml"
+    },
+    {
+      "BARCODE": "6973263793146",
+      "SKU_ID": "SC060",
+      "SKU_NAME": "SC060 2 In 1 Charming Eye Eyeliner Mascara"
+    },
+    {
+      "BARCODE": "6973263793108",
+      "SKU_ID": "SC061-01",
+      "SKU_NAME": "SC061-01 Lightweight And Seamless Concealer"
+    },
+    {
+      "BARCODE": "6973263793115",
+      "SKU_ID": "SC061-02",
+      "SKU_NAME": "SC061-02 Lightweight And Seamless Concealer"
+    },
+    {
+      "BARCODE": "6973263793122",
+      "SKU_ID": "SC061-03",
+      "SKU_NAME": "SC061-03 Lightweight And Seamless Concealer"
+    },
+    {
+      "BARCODE": "6973263793139",
+      "SKU_ID": "SC061-04",
+      "SKU_NAME": "SC061-04 Lightweight And Seamless Concealer"
+    },
+    {
+      "BARCODE": "6973263794167",
+      "SKU_ID": "SC063-E01",
+      "SKU_NAME": "SC063-E01 Powder Mist Liquid Eyeshadow E01"
+    },
+    {
+      "BARCODE": "6973263794174",
+      "SKU_ID": "SC063-E02",
+      "SKU_NAME": "SC063-E02 Powder Mist Liquid Eyeshadow E02"
+    },
+    {
+      "BARCODE": "6973263794181",
+      "SKU_ID": "SC063-E03",
+      "SKU_NAME": "SC063-E03 Powder Mist Liquid Eyeshadow E03"
+    },
+    {
+      "BARCODE": "6973263794198",
+      "SKU_ID": "SC063-E04",
+      "SKU_NAME": "SC063-E04 Powder Mist Liquid Eyeshadow E04"
+    },
+    {
+      "BARCODE": "6973263794204",
+      "SKU_ID": "SC063-E05",
+      "SKU_NAME": "SC063-E05 Powder Mist Liquid Eyeshadow E05"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC063-E06",
+      "SKU_NAME": "SC063-E06 Powder Mist Liquid Eyeshadow E06"
+    },
+    {
+      "BARCODE": "6973263793818",
+      "SKU_ID": "SC064-M11",
+      "SKU_NAME": "SC064-M11 Misty Kiss Lock Color Matte Lipstick M11"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TESTER ALLOWANCE",
+      "SKU_NAME": "TESTER ALLOWANCE Cosmetics Product"
+    },
+    {
+      "BARCODE": "6973263793832",
+      "SKU_ID": "SC064-M13",
+      "SKU_NAME": "SC064-M13 Misty Kiss Lock Color Matte Lipstick M13"
+    },
+    {
+      "BARCODE": "6973263793849",
+      "SKU_ID": "SC064-M14",
+      "SKU_NAME": "SC064-M14 Misty Kiss Lock Color Matte Lipstick M14"
+    },
+    {
+      "BARCODE": "6973263793856",
+      "SKU_ID": "SC064-M15",
+      "SKU_NAME": "SC064-M15 Misty Kiss Lock Color Matte Lipstick M15"
+    },
+    {
+      "BARCODE": "6973263793863",
+      "SKU_ID": "SC064-M16",
+      "SKU_NAME": "SC064-M16 Misty Kiss Lock Color Matte Lipstick M16"
+    },
+    {
+      "BARCODE": "6973263793870",
+      "SKU_ID": "SC064-M17",
+      "SKU_NAME": "SC064-M17 Misty Kiss Lock Color Matte Lipstick M17"
+    },
+    {
+      "BARCODE": "6973263795140",
+      "SKU_ID": "SC064-M19",
+      "SKU_NAME": "SC064-M19 Misty Kiss Lock Color Matte Lipstick M19"
+    },
+    {
+      "BARCODE": "6973263795157",
+      "SKU_ID": "SC064-M20",
+      "SKU_NAME": "SC064-M20 Misty Kiss Lock Color Matte Lipstick M20"
+    },
+    {
+      "BARCODE": "6973263795164",
+      "SKU_ID": "SC064-M21",
+      "SKU_NAME": "SC064-M21 Misty Kiss Lock Color Matte Lipstick M21"
+    },
+    {
+      "BARCODE": "6973263796567",
+      "SKU_ID": "SC064-N01",
+      "SKU_NAME": "SC064-N01"
+    },
+    {
+      "BARCODE": "6973263796574",
+      "SKU_ID": "SC064-N02",
+      "SKU_NAME": "SC064-N02"
+    },
+    {
+      "BARCODE": "6973263796581",
+      "SKU_ID": "SC064-N03",
+      "SKU_NAME": "SC064-N03"
+    },
+    {
+      "BARCODE": "6973263793719",
+      "SKU_ID": "SC065-01",
+      "SKU_NAME": "SC065-01 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 01"
+    },
+    {
+      "BARCODE": "6973263793726",
+      "SKU_ID": "SC065-02",
+      "SKU_NAME": "SC065-02 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 02"
+    },
+    {
+      "BARCODE": "6973263793733",
+      "SKU_ID": "SC065-03",
+      "SKU_NAME": "SC065-03 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 03"
+    },
+    {
+      "BARCODE": "6973263793740",
+      "SKU_ID": "SC065-04",
+      "SKU_NAME": "SC065-04 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 04"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC065-05",
+      "SKU_NAME": "SC065-05 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 05"
+    },
+    {
+      "BARCODE": "6973263793764",
+      "SKU_ID": "SC065-06",
+      "SKU_NAME": "SC065-06 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 06"
+    },
+    {
+      "BARCODE": "6973263793245",
+      "SKU_ID": "SC066-01",
+      "SKU_NAME": "SC066-01 Eyeshadow Palette #01"
+    },
+    {
+      "BARCODE": "6973263793252",
+      "SKU_ID": "SC066-03",
+      "SKU_NAME": "SC066-03 Eyeshadow Palette #03"
+    },
+    {
+      "BARCODE": "6973263794310",
+      "SKU_ID": "SC067-N110",
+      "SKU_NAME": "SC067-N110 All Day Soft Focus Powder & Cushion Cream N110"
+    },
+    {
+      "BARCODE": "6973263794327",
+      "SKU_ID": "SC067-N120",
+      "SKU_NAME": "SC067-N120 All Day Soft Focus Powder & Cushion Cream N120"
+    },
+    {
+      "BARCODE": "6973263794334",
+      "SKU_ID": "SC067-N130",
+      "SKU_NAME": "SC067-N130 All Day Soft Focus Powder & Cushion Cream N130"
+    },
+    {
+      "BARCODE": "6973263794136",
+      "SKU_ID": "SC069-01",
+      "SKU_NAME": "SC069-01 Fluff Shaping Brow Cream 01"
+    },
+    {
+      "BARCODE": "6973263794143",
+      "SKU_ID": "SC069-02",
+      "SKU_NAME": "SC069-02 Fluff Shaping Brow Cream 02"
+    },
+    {
+      "BARCODE": "6973263794150",
+      "SKU_ID": "SC069-03",
+      "SKU_NAME": "SC069-03 Fluff Shaping Brow Cream 03"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC076",
+      "SKU_NAME": "SC076"
+    },
+    {
+      "BARCODE": "6973263791630",
+      "SKU_ID": "SC137-W21",
+      "SKU_NAME": "SC137-W21 Air Cushion BB Cream"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC137-W22",
+      "SKU_NAME": "SC137-W22 Cushion BB Cream"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC138-W01",
+      "SKU_NAME": "SC138-W01 Foundation (Moisturizing)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC138-W02",
+      "SKU_NAME": "SC138-W02 Foundation (Moisturizing)"
+    },
+    {
+      "BARCODE": "6973263792095",
+      "SKU_ID": "SC138-W03",
+      "SKU_NAME": "SC138-W03 Foundation (Moisturizing)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SE003-01",
+      "SKU_NAME": "SE003-01 Vitality New Skin Cushion BB Cream 01"
+    },
+    {
+      "BARCODE": "6973263791562",
+      "SKU_ID": "SE010-01",
+      "SKU_NAME": "SE010-01  Brow Powder"
+    },
+    {
+      "BARCODE": "6973263791579",
+      "SKU_ID": "SE010-02",
+      "SKU_NAME": "SE010-02  Brow Powder"
+    },
+    {
+      "BARCODE": "6973263791586",
+      "SKU_ID": "SE010-03",
+      "SKU_NAME": "SE010-03  Brow Powder"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SK001",
+      "SKU_NAME": "SK001 Eye makeup set(4pcs)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SK010",
+      "SKU_NAME": "SK010 Eye makeup set(4pcs)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SK050",
+      "SKU_NAME": "SK050 Eye makeup set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SK060",
+      "SKU_NAME": "SK060 Eye makeup set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SM001-4",
+      "SKU_NAME": "SM001-4 Ultra Stay Lolepop Lipstick 04 Pumpkin Brown"
+    },
+    {
+      "BARCODE": "6973263794402",
+      "SKU_ID": "SM001-7",
+      "SKU_NAME": "SM001-7 Ultra Stay Lolepop Lipstick 07 Pink Rose"
+    },
+    {
+      "BARCODE": "6973263794419",
+      "SKU_ID": "SM002",
+      "SKU_NAME": "SM002 Volume and Curling Waterproof Mascara"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SM004",
+      "SKU_NAME": "SM004"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SM005",
+      "SKU_NAME": "SM005"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SM006",
+      "SKU_NAME": "SM006"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SM021",
+      "SKU_NAME": "SM021 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SM022",
+      "SKU_NAME": "SM022 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN001",
+      "SKU_NAME": "SN001 Blackhead Remover Nose Pore Strips"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN003",
+      "SKU_NAME": "SN003 50pcs Makeup Cotton"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN004",
+      "SKU_NAME": "SN004 Makeup Wipes"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN007-02",
+      "SKU_NAME": "SN007 Eye Makeup Auxiliary Bezel"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN008",
+      "SKU_NAME": "SN008 Cleansing Balm(1pcs)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN009",
+      "SKU_NAME": "SN009 Cleansing Balm(3PCS)"
+    },
+    {
+      "BARCODE": "6973263792637",
+      "SKU_ID": "SN010",
+      "SKU_NAME": "SN010 Eyelash Curler"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN011",
+      "SKU_NAME": "SN011 gift box"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN013",
+      "SKU_NAME": "SN013 Makeup Mirror"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN014",
+      "SKU_NAME": "SN014 Handheld Air Cushion Comb"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN015-01",
+      "SKU_NAME": "SN015-01 Folding Cushion Comb & Mirror-Little Winged Star-01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN015-02",
+      "SKU_NAME": "SN015-02 Folding Cushion Comb & Mirror-Pillow Head Girl-02"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN015-03",
+      "SKU_NAME": "SN015-03 Folding Cushion Comb & Mirror-Sakura Bunny-03"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN015-04",
+      "SKU_NAME": "SN015-04 Folding Cushion Comb & Mirror-Pink Bunny-04"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN015-05",
+      "SKU_NAME": "SN015-05 Folding Cushion Comb & Mirror-Pigtail Girl-05"
+    },
+    {
+      "BARCODE": "6973263794372",
+      "SKU_ID": "SN016",
+      "SKU_NAME": "SN016 Water-Oil Dual-Phase Makeup Remover"
+    },
+    {
+      "BARCODE": "6973263795010",
+      "SKU_ID": "SN017",
+      "SKU_NAME": "SN017 Sunflower 3D eyelash curler"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN018",
+      "SKU_NAME": "SN018 O.TWO.O Makeup Sponges Powder Puff"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN019-1",
+      "SKU_NAME": "SN019-1 O.TWO.O Canvas Tote Bag-1"
+    },
+    {
+      "BARCODE": "611885622029",
+      "SKU_ID": "SN019-2",
+      "SKU_NAME": "SN019-2 O.TWO.O Canvas Tote Bag-2"
+    },
+    {
+      "BARCODE": "6973263795355",
+      "SKU_ID": "SN020-02",
+      "SKU_NAME": "SN020-02 Fragrant wonderland perfume stick 02"
+    },
+    {
+      "BARCODE": "6973263795362",
+      "SKU_ID": "SN020-03",
+      "SKU_NAME": "SN020-03 Fragrant wonderland perfume stick 03"
+    },
+    {
+      "BARCODE": "6973263795379",
+      "SKU_ID": "SN020-04",
+      "SKU_NAME": "SN020-04 Fragrant wonderland perfume stick 04"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN021-01",
+      "SKU_NAME": "SN021 SCARF"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN023",
+      "SKU_NAME": "SN023 Pore Clear Blackhead Nose Strips"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN025",
+      "SKU_NAME": "SN025 Makeup Sponge (HC014 comes with a makeup sponge)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN027",
+      "SKU_NAME": "SN027 Makeup Brush"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN059-N110",
+      "SKU_NAME": "SN059-N110 Ultra Longwear Matte Foundation N110  1 mL"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SN059-N230",
+      "SKU_NAME": "SN059-N230 Ultra Longwear Matte Foundation N110  1 mL"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ST001",
+      "SKU_NAME": "ST001 TK Eye makeup set"
+    },
+    {
+      "BARCODE": "123",
+      "SKU_ID": "TEST-1",
+      "SKU_NAME": "Test",
+      "HARGA": 1000
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2169",
+      "SKU_NAME": "2169 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "2179",
+      "SKU_NAME": "2179 Cosmetics Product"
+    },
+    {
+      "BARCODE": "6928495811359",
+      "SKU_ID": "9131",
+      "SKU_NAME": "9131  Volume Lengthening Fiber Mascara"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC-34",
+      "SKU_NAME": "BC-34 12*18bubble pack"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "BC54",
+      "SKU_NAME": "【Brand-exclusive_1】【8PCS】O.TWO.O Set delapan potong emas mawar edisi terbatas Blush Stick & Makeup Primer & UV protection Sunscreen & Instant Oversize Volume Mascara & Miraculous Cat-Eye Stamp Eyeliner Pen & Peach Jelly Bag & Hair Tie & Random Sponge"
+    },
+    {
+      "BARCODE": "6973263794556",
+      "SKU_ID": "HC004-01",
+      "SKU_NAME": "HC004-01 Haute All Day Coverage Foundation 01"
+    },
+    {
+      "BARCODE": "6973263794723",
+      "SKU_ID": "HC005-02",
+      "SKU_NAME": "HC005-02 Haute Galaxy Swirl Liquid Highlighter 02"
+    },
+    {
+      "BARCODE": "6973263795072",
+      "SKU_ID": "HC015-03",
+      "SKU_NAME": "HC015-03 Haute Soft Focus Correct Powder 03"
+    },
+    {
+      "BARCODE": "6973263797120",
+      "SKU_ID": "MV003-01",
+      "SKU_NAME": "MV003-01"
+    },
+    {
+      "BARCODE": "6973263797151",
+      "SKU_ID": "MV003-04",
+      "SKU_NAME": "MV003-04"
+    },
+    {
+      "BARCODE": "6973263795935",
+      "SKU_ID": "PF01-F01",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F01"
+    },
+    {
+      "BARCODE": "6973263796307",
+      "SKU_ID": "PS01-F01",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC029-03",
+      "SKU_NAME": "SC029-03"
+    },
+    {
+      "BARCODE": "6973263791524",
+      "SKU_ID": "SC029-04",
+      "SKU_NAME": "SC029-04 Eyebrow Dying Cream"
+    },
+    {
+      "BARCODE": "6973263791135",
+      "SKU_ID": "SC030-02",
+      "SKU_NAME": "SC030-02 Magic Contour & Stick Highlight"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC041-01",
+      "SKU_NAME": "SC041-01 Concealer + Blush Palette"
+    },
+    {
+      "BARCODE": "6973263792156",
+      "SKU_ID": "SC042-01",
+      "SKU_NAME": "SC042-01 Eyeshadow"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC047-02",
+      "SKU_NAME": "SC047-2  Eyebrow pencil"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "SC049-2",
+      "SKU_NAME": "【Brand-exclusive_1】【8PCS】O.TWO.O Set delapan potong emas mawar edisi terbatas Blush Stick & Makeup Primer & UV protection Sunscreen & Instant Oversize Volume Mascara & Miraculous Cat-Eye Stamp Eyeliner Pen & Peach Jelly Bag & Hair Tie & Random Sponge"
+    },
+    {
+      "BARCODE": "6973263793825",
+      "SKU_ID": "SC064-M12",
+      "SKU_NAME": "SC064-M12 Misty Kiss Lock Color Matte Lipstick M12"
+    },
+    {
+      "BARCODE": "6973263793887",
+      "SKU_ID": "SC064-M18",
+      "SKU_NAME": "SC064-M18 Misty Kiss Lock Color Matte Lipstick M18"
+    },
+    {
+      "BARCODE": "6973263794389",
+      "SKU_ID": "SM001-1",
+      "SKU_NAME": "SM001-1 Ultra Stay Lolepop Lipstick 01 Mist Pink"
+    },
+    {
+      "BARCODE": "6973263795348",
+      "SKU_ID": "SN020-01",
+      "SKU_NAME": "SN020-01 Fragrant wonderland perfume stick 01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TS011",
+      "SKU_NAME": "TS011 Balm Mix Color Card"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TS137-W21",
+      "SKU_NAME": "TS137-W21 Cushion BB Cream Replacement set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TS137-W22",
+      "SKU_NAME": "TS137-W22 Cushion BB Cream Replacement set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ013",
+      "SKU_NAME": "TZ013 Gift Box Sets(5pcs)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ015",
+      "SKU_NAME": "TZ015 Gift Box Sets(5pcs)"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ016",
+      "SKU_NAME": "TZ016 Perfect focus eye make up set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ017-S01",
+      "SKU_NAME": "TZ017-S01 Lip Glaze Set #S01"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ017-S02",
+      "SKU_NAME": "TZ017-S02 Lip Glaze Set #S02"
+    },
+    {
+      "BARCODE": "6973263794228",
+      "SKU_ID": "TZ018",
+      "SKU_NAME": "TZ018 Beautiful Glow Gift Set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ020",
+      "SKU_NAME": "TZ020 Beloved Makeup Gift Set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "WL-05",
+      "SKU_NAME": "WL-05 Security code"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ044",
+      "SKU_NAME": "ZJ044 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ044-02",
+      "SKU_NAME": "ZJ044-02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ045",
+      "SKU_NAME": "ZJ045 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ045-02",
+      "SKU_NAME": "ZJ045-02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ046",
+      "SKU_NAME": "ZJ046 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ046-02",
+      "SKU_NAME": "ZJ046-02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ047",
+      "SKU_NAME": "ZJ047 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ047-02",
+      "SKU_NAME": "ZJ047-02 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ048",
+      "SKU_NAME": "ZJ048 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ049",
+      "SKU_NAME": "ZJ049 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ050",
+      "SKU_NAME": "ZJ050 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZJ051",
+      "SKU_NAME": "ZJ051 Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-6PCS",
+      "SKU_NAME": "Beauty Festival Gift Set"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-AIRFRY",
+      "SKU_NAME": "ZP-AIRFRY直播赠品空气炸锅"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-BAG",
+      "SKU_NAME": "ZP-BAG ZP-BAG 直播赠品包包"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-BG",
+      "SKU_NAME": "ZP-BG baby gold 赠品"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-BOOK",
+      "SKU_NAME": "ZP-BOOK祈祷书"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-BREU",
+      "SKU_NAME": "ZP-BREU Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-BTS",
+      "SKU_NAME": "ZP-BTS  Keychain 赠品"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-CAMERA",
+      "SKU_NAME": "ZP-CAMERA Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-ELEFAN",
+      "SKU_NAME": "ZP-ELEFAN ZP-ELEFAN直播赠品电风扇"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-F006",
+      "SKU_NAME": "ZP-F006 Sponge"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-GOWN",
+      "SKU_NAME": "ZP-GOWN祈祷袍"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-HRDR",
+      "SKU_NAME": "ZP-HRDR 直播赠品吹风机"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-HRTE",
+      "SKU_NAME": "ZP-HRTE 直播赠品发绳"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-JZ",
+      "SKU_NAME": "ZP-JZ 直播赠品护颈枕"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-KQZG",
+      "SKU_NAME": "ZP-KQZG 直播赠品空气炸锅"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-KT01",
+      "SKU_NAME": "ZP-KT01 Card holder"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-KT02",
+      "SKU_NAME": "ZP-KT02 Card holder"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-LBBCE",
+      "SKU_NAME": "ZP-LBBCE Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-LBCBW",
+      "SKU_NAME": "ZP-LBCBW Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-MAT",
+      "SKU_NAME": "ZP-MAT祈祷垫"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-MIBS",
+      "SKU_NAME": "ZP-MIBS 迷你化妆刷赠品"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-NECK",
+      "SKU_NAME": "ZP-NECK ZP-NECK 直播赠品项链"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-PHOS",
+      "SKU_NAME": "ZP-PHOS ZP-PHOS 直播赠品手机链"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-PIPPI",
+      "SKU_NAME": "ZP-PIPPI Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-SE008",
+      "SKU_NAME": "ZP-SE008-Redom Color Eyebrow pencil-(gift)single pcs"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-STRAP KOL",
+      "SKU_NAME": "ZP-Strap Kol"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-STRYDE",
+      "SKU_NAME": "ZP-STRYDE Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-TIKET",
+      "SKU_NAME": "ZP-TIKET Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-TS001",
+      "SKU_NAME": "ZP-TS001 Hair Tie"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-TS002",
+      "SKU_NAME": "ZP-TS002 Glass Bottle"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-VEIL",
+      "SKU_NAME": "ZP-VEIL ZP-VEIL直播赠品头巾"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-ZIPA",
+      "SKU_NAME": "ZP-ZIPA 拉锁透明袋"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "苹果15直播赠品",
+      "SKU_NAME": "苹果15直播赠品"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TS010",
+      "SKU_NAME": "TS010 Color card YJ001"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "TZ017-S03",
+      "SKU_NAME": "TZ017-S03 Lip Glaze Set #S03"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZP-ELECTRIC TOOTHBRUSH",
+      "SKU_NAME": "ZP-ELECTRIC TOOTHBRUSH Cosmetics Product"
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "ZPTS001",
+      "SKU_NAME": "【Brand-exclusive_1】【8PCS】O.TWO.O Set delapan potong emas mawar edisi terbatas Blush Stick & Makeup Primer & UV protection Sunscreen & Instant Oversize Volume Mascara & Miraculous Cat-Eye Stamp Eyeliner Pen & Peach Jelly Bag & Hair Tie & Random Sponge"
+    }
+  ],
+  "users": [
+    {
+      "id": "USR-001",
+      "username": "yaya.sanjaya",
+      "fullName": "Yaya Sanjaya",
+      "email": "yaya.sanjaya@tirtakumalasari.co.id",
+      "role": "SUPER_ADMIN",
+      "department": "Direksi / IT & Supply Chain",
+      "company": "PT. Tirta Kumala Sari",
+      "operatorCode": "OPR-HQ-01",
+      "pin": "1234",
+      "status": "ACTIVE"
+    }
+  ]
+}

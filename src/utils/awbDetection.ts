@@ -43,6 +43,11 @@ export const STANDARD_LOGISTICS = [
   'Shopee Instan',
   'Goto Logistik',
   'Anteraja',
+  'Lion Parcel',
+  'ID Express',
+  'POS Indonesia',
+  'TIKI',
+  'Wahana',
   'Lainnya'
 ] as const;
 
@@ -146,6 +151,22 @@ export function saveLearnedAwbPrefix(prefix: string, marketplace: string, logist
     console.error('Gagal menyimpan learned prefix:', err);
   }
 }
+
+/**
+ * Terapkan kamus prefix dari remote database (Cloud SQL / Firestore)
+ */
+export function applyRemoteLearnedPrefixes(remotePrefixes: Record<string, LearnedAwbPrefix>): void {
+  if (!remotePrefixes || typeof remotePrefixes !== 'object') return;
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    const current = getLearnedPrefixes();
+    const merged = { ...current, ...remotePrefixes };
+    localStorage.setItem(STORAGE_CUSTOM_PREFIXES_KEY, JSON.stringify(merged));
+  } catch (err) {
+    console.warn('Gagal menerapkan remote learned prefixes:', err);
+  }
+}
+
 
 export interface AwbDetectionResult {
   marketplace: string;

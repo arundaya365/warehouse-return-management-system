@@ -39,7 +39,7 @@ export const returns = pgTable('returns', {
 // Master Database SKU items
 export const masterSkus = pgTable('master_skus', {
   id: serial('id').primaryKey(),
-  barcode: text('barcode').notNull().unique(),
+  barcode: text('barcode').default(''),
   skuId: text('sku_id').notNull().unique(),
   skuName: text('sku_name').notNull(),
   harga: integer('harga'),

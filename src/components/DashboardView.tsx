@@ -93,6 +93,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const kpiData = useMemo(() => {
     const totalItems = rows.length;
 
+    // Jika seluruh return dihapus (rows kosong), pastikan SEMUA metrik adalah 0 secara mutlak!
+    if (totalItems === 0) {
+      return {
+        totalItems: 0,
+        totalOrders: 0,
+        goodCount: 0,
+        damagePackagingCount: 0,
+        damageProductCount: 0,
+        missingCount: 0,
+        unexpectedCount: 0,
+        totalDefectsAndLosses: 0,
+        defectRatePct: '0',
+        goodRatePct: '0',
+        totalReturnGoodsValue: 0,
+        totalDamagedGoodsValue: 0,
+        totalClaimAmount: 0,
+        totalSettlementApproved: 0,
+        csSettlementApproved: 0,
+        rmaApprovedSettlement: 0,
+        combinedSettlementApproved: 0,
+        recoveryRatePct: 0,
+        rmaTotalCount: 0,
+        rmaCompletedCount: 0,
+        rmaInvestigatingCount: 0,
+        rmaTransferredCount: 0,
+        rmaReceivedCsCount: 0,
+        rmaTotalEstimated: 0
+      };
+    }
+
+    const activeOrderIds = new Set(
+      rows.map((r) => String(r.Order_ID || '').trim().toUpperCase()).filter(Boolean)
+    );
+    const totalOrders = activeOrderIds.size;
+
     let goodCount = 0;
     let damagePackagingCount = 0;
     let damageProductCount = 0;
@@ -104,39 +139,57 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const price = lookupItemPrice(r.SKU_ID);
       totalReturnGoodsValue += price;
 
-      if (r.Kondisi === 'Good') goodCount++;
-      else if (r.Kondisi === 'Damage Packaging') damagePackagingCount++;
-      else if (r.Kondisi === 'Missing' || r.Kondisi === 'Missing Item') missingCount++;
-      else if (r.Kondisi === 'Unexpected' || r.Kondisi === 'Wrong Item') unexpectedCount++;
-      else damageProductCount++;
+      const k = (r.Kondisi || '').trim().toLowerCase();
+      if (k === 'good' || k === 'baik' || k === 'good condition') {
+        goodCount++;
+      } else if (k === 'damage packaging' || k === 'dus' || k === 'kemasan rusak') {
+        damagePackagingCount++;
+      } else if (k === 'missing' || k === 'missing item' || k === 'barang hilang') {
+        missingCount++;
+      } else if (k === 'unexpected' || k === 'wrong item' || k === 'salah barang') {
+        unexpectedCount++;
+      } else {
+        // Damage Product / Totally Damage / Defective
+        damageProductCount++;
+      }
     });
 
-    const totalDefectsAndLosses = damagePackagingCount + damageProductCount + missingCount + unexpectedCount;
+    const totalDefectsAndLosses = totalItems - goodCount;
     const defectRatePct = totalItems > 0 ? ((totalDefectsAndLosses / totalItems) * 100).toFixed(1) : '0';
     const goodRatePct = totalItems > 0 ? ((goodCount / totalItems) * 100).toFixed(1) : '0';
 
-    // Ambil data dispute dari localStorage untuk nilai klaim riil
+    // Ambil data dispute dari localStorage HANYA untuk Order ID yang masih aktif di dalam rows
     let totalClaimAmount = 0;
     let totalSettlementApproved = 0;
     try {
       const saved = localStorage.getItem('rma_cs_dispute_claims_v1');
       if (saved) {
         const records = JSON.parse(saved);
-        Object.values(records).forEach((rec: any) => {
-          if (rec?.claimAmount) totalClaimAmount += Number(rec.claimAmount) || 0;
-          if (rec?.settlementAmount) totalSettlementApproved += Number(rec.settlementAmount) || 0;
-          else if (rec?.claimStatus === 'APPROVED' && rec?.claimAmount) {
-            totalSettlementApproved += Number(rec.claimAmount) || 0;
+        Object.entries(records).forEach(([key, rec]: [string, any]) => {
+          if (key === '_rma_claims_list_') return;
+          const orderIdFromKey = key.split('__')[0]?.split('_')[0]?.trim().toUpperCase();
+          const recOrderId = String(rec?.orderId || orderIdFromKey || '').trim().toUpperCase();
+
+          if (recOrderId && activeOrderIds.has(recOrderId)) {
+            if (rec?.claimAmount) totalClaimAmount += Number(rec.claimAmount) || 0;
+            if (rec?.settlementAmount !== undefined && rec?.settlementAmount !== null) {
+              totalSettlementApproved += Number(rec.settlementAmount) || 0;
+            } else if (rec?.claimStatus === 'APPROVED' && rec?.claimAmount) {
+              totalSettlementApproved += Number(rec.claimAmount) || 0;
+            }
           }
         });
       }
     } catch {}
 
     const totalDamagedGoodsValue = rows
-      .filter((r) => r.Kondisi !== 'Good')
+      .filter((r) => {
+        const k = (r.Kondisi || '').trim().toLowerCase();
+        return k !== 'good' && k !== 'baik' && k !== 'good condition';
+      })
       .reduce((acc, curr) => acc + lookupItemPrice(curr.SKU_ID), 0);
 
-    // Ambil data RMA klaim logistik
+    // Ambil data RMA klaim logistik HANYA untuk Order ID yang masih aktif di rows
     let effectiveRmaClaims = rmaClaims;
     if (!effectiveRmaClaims || effectiveRmaClaims.length === 0) {
       try {
@@ -147,22 +200,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       } catch {}
     }
+    const activeRmaClaims = (effectiveRmaClaims || []).filter((c) =>
+      activeOrderIds.has(String(c.orderId || '').trim().toUpperCase())
+    );
 
-    const distinctOrdersSet = new Set(rows.map((r) => r.Order_ID).filter(Boolean));
-    (effectiveRmaClaims || []).forEach((c) => {
-      if (c.orderId) distinctOrdersSet.add(c.orderId);
-    });
-    const totalOrders = distinctOrdersSet.size;
+    const rmaTotalCount = activeRmaClaims.length;
+    const rmaCompletedCount = activeRmaClaims.filter((c) => c.stageStatus === 'SELESAI').length;
+    const rmaInvestigatingCount = activeRmaClaims.filter((c) => c.stageStatus === 'INVESTIGASI').length;
+    const rmaTransferredCount = activeRmaClaims.filter((c) => c.stageStatus === 'DIALIHKAN_KE_RMA').length;
+    const rmaReceivedCsCount = activeRmaClaims.filter((c) => c.stageStatus === 'DITERIMA_CS').length;
+    const rmaTotalEstimated = activeRmaClaims.reduce((sum, c) => sum + (c.estimatedCompensation || 0), 0);
 
-    const rmaTotalCount = effectiveRmaClaims.length;
-    const rmaCompletedCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'SELESAI').length;
-    const rmaInvestigatingCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'INVESTIGASI').length;
-    const rmaTransferredCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'DIALIHKAN_KE_RMA').length;
-    const rmaReceivedCsCount = effectiveRmaClaims.filter((c) => c.stageStatus === 'DITERIMA_CS').length;
-    const rmaTotalEstimated = effectiveRmaClaims.reduce((sum, c) => sum + (c.estimatedCompensation || 0), 0);
-    
     // Nilai kompensasi RMA diperhitungkan saat status klaim sudah Selesai (sesuai konfirmasi user)
-    const rmaApprovedSettlement = effectiveRmaClaims
+    const rmaApprovedSettlement = activeRmaClaims
       .filter((c) => c.stageStatus === 'SELESAI')
       .reduce((sum, c) => sum + (c.approvedCompensation || 0), 0);
 
@@ -237,9 +287,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       entry.total++;
       if (r.Order_ID) entry.orders.add(r.Order_ID);
 
-      if (r.Kondisi === 'Good') {
+      const k = (r.Kondisi || '').trim().toLowerCase();
+      if (k === 'good' || k === 'baik' || k === 'good condition') {
         entry.good++;
-      } else if (r.Kondisi === 'Damage Packaging' || r.Kondisi === 'Damage Product') {
+      } else if (
+        k === 'damage packaging' ||
+        k === 'damage product' ||
+        k === 'damage products' ||
+        k === 'totally damage' ||
+        k === 'damage total' ||
+        k === 'rusak' ||
+        k === 'dus'
+      ) {
         entry.damage++;
       } else {
         entry.missingUnexpected++;
@@ -298,9 +357,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       entry.totalValue += lookupItemPrice(r.SKU_ID);
       if (r.Order_ID) entry.orders.add(r.Order_ID);
 
-      if (r.Kondisi === 'Good') {
+      const k = (r.Kondisi || '').trim().toLowerCase();
+      if (k === 'good' || k === 'baik' || k === 'good condition') {
         entry.good++;
-      } else if (r.Kondisi === 'Damage Packaging' || r.Kondisi === 'Damage Product') {
+      } else if (
+        k === 'damage packaging' ||
+        k === 'damage product' ||
+        k === 'damage products' ||
+        k === 'totally damage' ||
+        k === 'damage total' ||
+        k === 'rusak' ||
+        k === 'dus'
+      ) {
         entry.damage++;
       } else {
         entry.missingUnexpected++;

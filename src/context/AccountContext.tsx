@@ -8,6 +8,7 @@ import {
   INITIAL_ACCOUNTS
 } from '../types/account.ts';
 import { syncService } from '../services/dataSyncService';
+import { firestoreSync } from '../services/firestoreSyncService';
 
 export type { UserRole, UserAccount, RolePermission };
 export { ROLE_DEFINITIONS, INITIAL_ACCOUNTS };
@@ -22,10 +23,31 @@ export const getUserPermissions = (user: UserAccount): RolePermission => {
   };
 };
 
+export interface TenantConfig {
+  companyName: string;
+  appName: string;
+  tagline: string;
+  copyrightText: string;
+  accentTheme: 'teal' | 'emerald' | 'slate' | 'indigo';
+  isDemoMode: boolean;
+  tenantLogoUrl?: string | null;
+}
+
+export const DEFAULT_TENANT_CONFIG: TenantConfig = {
+  companyName: 'PT. Tirta Kumala Sari',
+  appName: 'unboxin.id',
+  tagline: 'Sistem Inspeksi Retur & Rekaman Video Bukti',
+  copyrightText: '© 2026 unboxin.id • PT. Tirta Kumala Sari. Copyright by Yaya Sanjaya.',
+  accentTheme: 'teal',
+  isDemoMode: false,
+  tenantLogoUrl: null
+};
+
 const STORAGE_USERS_KEY = 'unboxin_users_list_v1';
 const STORAGE_CURRENT_USER_ID_KEY = 'unboxin_current_user_id_v1';
 const STORAGE_GDRIVE_EMAIL_KEY = 'unboxin_gdrive_email_v1';
 const STORAGE_HAS_LOGGED_IN_KEY = 'unboxin_has_logged_in_v1';
+const STORAGE_TENANT_CONFIG_KEY = 'unboxin_tenant_config_v1';
 
 interface AccountContextType {
   users: UserAccount[];
@@ -52,6 +74,13 @@ interface AccountContextType {
   companyName: string;
   copyrightText: string;
   appName: string;
+  tenantConfig: TenantConfig;
+  updateTenantConfig: (updates: Partial<TenantConfig>) => void;
+  resetTenantConfig: () => void;
+  isTenantModalOpen: boolean;
+  setIsTenantModalOpen: (open: boolean) => void;
+  saveUsersToCloud: (customUsers?: UserAccount[]) => Promise<boolean>;
+  cleanDemoAccounts: () => Promise<boolean>;
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
@@ -106,6 +135,38 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return true;
   });
 
+  const [tenantConfig, setTenantConfig] = useState<TenantConfig>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_TENANT_CONFIG_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_TENANT_CONFIG, ...parsed };
+      }
+    } catch (e) {
+      console.warn('Failed to load tenant config:', e);
+    }
+    return DEFAULT_TENANT_CONFIG;
+  });
+
+  const [isTenantModalOpen, setIsTenantModalOpen] = useState<boolean>(false);
+
+  const updateTenantConfig = (updates: Partial<TenantConfig>) => {
+    setTenantConfig((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_TENANT_CONFIG_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const resetTenantConfig = () => {
+    setTenantConfig(DEFAULT_TENANT_CONFIG);
+    try {
+      localStorage.setItem(STORAGE_TENANT_CONFIG_KEY, JSON.stringify(DEFAULT_TENANT_CONFIG));
+    } catch {}
+  };
+
   const setGoogleDriveEmail = (email: string) => {
     setGoogleDriveEmailState(email);
     try {
@@ -116,14 +177,27 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const setHasLoggedIn = (val: boolean) => {
     setHasLoggedInState(val);
     try {
-      localStorage.setItem(STORAGE_HAS_LOGGED_IN_KEY, String(val));
+      if (val) {
+        localStorage.setItem(STORAGE_HAS_LOGGED_IN_KEY, 'true');
+      } else {
+        localStorage.removeItem(STORAGE_HAS_LOGGED_IN_KEY);
+      }
     } catch {}
   };
 
   useEffect(() => {
-    const unsubscribe = syncService.subscribe((payload) => {
+    // 1. Hubungkan pendengar data cloud Firestore real-time (Mirroring instan ke semua HP & PC)
+    const unsubFirestore = firestoreSync.subscribe((cloudState) => {
+      if (cloudState && Array.isArray(cloudState.users) && cloudState.users.length > 0) {
+        setUsers(cloudState.users);
+        try {
+          localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(cloudState.users));
+        } catch {}
+      }
+    });
 
-
+    // 2. Hubungkan pendengar syncService (Polling Express & BroadcastChannel lokal)
+    const unsubSyncService = syncService.subscribe((payload) => {
       if (payload.users && Array.isArray(payload.users) && payload.users.length > 0) {
         setUsers(payload.users);
         try {
@@ -131,7 +205,14 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } catch {}
       }
     });
-    return () => unsubscribe();
+
+    // 3. Tarik sinkronisasi awal saat aplikasi dibuka
+    syncService.syncPull().catch(() => {});
+
+    return () => {
+      unsubFirestore();
+      unsubSyncService();
+    };
   }, []);
 
   useEffect(() => {
@@ -166,7 +247,10 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const logoutOperator = () => {
     setHasLoggedIn(false);
     setTargetLoginUser(null);
-    setIsLoginModalOpen(true);
+    try {
+      localStorage.removeItem(STORAGE_HAS_LOGGED_IN_KEY);
+    } catch {}
+    setIsLoginModalOpen(false);
   };
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || INITIAL_ACCOUNTS[0];
@@ -270,8 +354,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     const userPin = matched.pin || '1234';
-    // Toleran: terima PIN yang terdaftar ATAU fallback master PIN 1234 jika user lupa
-    if (userPin !== cleanPin && cleanPin !== '1234') {
+    if (userPin !== cleanPin) {
       return {
         success: false,
         message: 'PIN salah! Silakan periksa kembali PIN keamanan akun Anda.'
@@ -295,6 +378,20 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   };
 
+  const persistAndSyncUsers = (updatedList: UserAccount[]) => {
+    setUsers(updatedList);
+    try {
+      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(updatedList));
+    } catch {}
+    // Otomatis simpan ke Cloud Firestore & endpoint server sinkronisasi
+    firestoreSync.pushUsers(updatedList).catch((err) => {
+      console.warn('Firestore pushUsers warning:', err);
+    });
+    syncService.pushUsers(updatedList).catch((err) => {
+      console.warn('Server pushUsers warning:', err);
+    });
+  };
+
   const addUser = (userData: Omit<UserAccount, 'id'>) => {
     const newId = `USR-${String(Date.now()).slice(-4)}`;
     const colors = [
@@ -313,39 +410,68 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
       avatarColor,
       lastLogin: '-'
     };
-    setUsers((prev) => [newUser, ...prev]);
+    const nextList = [newUser, ...users];
+    persistAndSyncUsers(nextList);
   };
 
   const updateUser = (id: string, updates: Partial<UserAccount>) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...updates } : u))
-    );
+    const nextList = users.map((u) => (u.id === id ? { ...u, ...updates } : u));
+    persistAndSyncUsers(nextList);
   };
 
   const toggleUserStatus = (id: string) => {
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === id) {
-          const nextStatus = u.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-          return { ...u, status: nextStatus };
-        }
-        return u;
-      })
-    );
+    const nextList: UserAccount[] = users.map((u) => {
+      if (u.id === id) {
+        const nextStatus: 'ACTIVE' | 'INACTIVE' = u.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        return { ...u, status: nextStatus };
+      }
+      return u;
+    });
+    persistAndSyncUsers(nextList);
   };
 
   const deleteUser = (id: string) => {
-    if (users.length <= 1) return;
+    const targetUser = users.find((u) => u.id === id);
+    // Proteksi Super Admin Yaya Sanjaya dari penghapusan
+    if (id === 'USR-001' || targetUser?.operatorCode === 'OPR-HQ-01' || targetUser?.role === 'SUPER_ADMIN') {
+      console.warn('Super Admin Yaya Sanjaya diproteksi dan tidak dapat dihapus.');
+      return;
+    }
+
     if (id === currentUserId) {
-      const nextAvailable = users.find((u) => u.id !== id);
+      const nextAvailable = users.find((u) => u.id !== id && u.id === 'USR-001') || users.find((u) => u.id !== id);
       if (nextAvailable) setCurrentUserId(nextAvailable.id);
     }
-    setUsers((prev) => prev.filter((u) => u.id !== id));
+    const nextList = users.filter((u) => u.id !== id);
+    persistAndSyncUsers(nextList);
+
+    // Kirim sinyal hapus permanen ke endpoint backend Cloud SQL
+    syncService.deleteUser(id, targetUser?.operatorCode).catch((err) => {
+      console.warn('Backend deleteUser error:', err);
+    });
   };
 
   const resetToDefaultUsers = () => {
-    setUsers(INITIAL_ACCOUNTS);
     setCurrentUserId('USR-001');
+    persistAndSyncUsers(INITIAL_ACCOUNTS);
+    syncService.cleanDemoUsers().catch(() => {});
+  };
+
+  const cleanDemoAccounts = async (): Promise<boolean> => {
+    setCurrentUserId('USR-001');
+    const yayaOnly = INITIAL_ACCOUNTS; // USR-001 Yaya Sanjaya
+    persistAndSyncUsers(yayaOnly);
+    const ok = await syncService.cleanDemoUsers();
+    await firestoreSync.pushUsers(yayaOnly);
+    return ok;
+  };
+
+  const saveUsersToCloud = async (customUsers?: UserAccount[]): Promise<boolean> => {
+    const target = customUsers || users;
+    persistAndSyncUsers(target);
+    const fOk = await firestoreSync.pushUsers(target);
+    const sOk = await syncService.pushUsers(target);
+    return fOk || sOk;
   };
 
   const hasPermission = (permissionKey: keyof RolePermission): boolean => {
@@ -368,6 +494,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleUserStatus,
         deleteUser,
         resetToDefaultUsers,
+        cleanDemoAccounts,
         hasPermission,
         getUserPermissions,
         authenticateWithPin,
@@ -381,9 +508,15 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setTargetLoginUser,
         promptSwitchUser,
         logoutOperator,
-        appName: 'Unboxin',
-        companyName: 'PT. Tirta Kumala Sari',
-        copyrightText: 'Copyright Yaya Sanjaya'
+        appName: tenantConfig.appName,
+        companyName: tenantConfig.companyName,
+        copyrightText: tenantConfig.copyrightText,
+        tenantConfig,
+        updateTenantConfig,
+        resetTenantConfig,
+        isTenantModalOpen,
+        setIsTenantModalOpen,
+        saveUsersToCloud
       }}
     >
       {children}

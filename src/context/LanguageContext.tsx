@@ -180,7 +180,7 @@ const translations: Record<Language, Translations> = {
     nav_rma: 'RMA Claim',
     nav_database: 'Database',
     nav_accounts: 'Akun',
-    nav_subtitle: 'PT. Tirta Kumala Sari — Warehouse Unboxing & Returns',
+    nav_subtitle: 'Sistem Inspeksi & Retur Gudang e-Commerce',
     nav_operator: 'Operator Gudang',
     nav_google_connected: 'Google Drive Terhubung',
     nav_language: 'Bahasa',
@@ -333,9 +333,9 @@ const translations: Record<Language, Translations> = {
     master_price_guide: 'Kolom 4 (HARGA BARANG) digunakan untuk kalkulasi otomatis klaim ganti rugi CS.',
 
     // Footer
-    footer_title: 'Unboxin — PT. Tirta Kumala Sari',
+    footer_title: 'unboxin.id',
     footer_desc: 'Sistem Stasiun Inspeksi Retur & Rekaman Video Bukti',
-    footer_operator: 'Copyright Yaya Sanjaya',
+    footer_operator: 'Copyright by Yaya Sanjaya',
     footer_drive_ready: 'Google Drive Sync Active'
   },
   en: {
@@ -347,7 +347,7 @@ const translations: Record<Language, Translations> = {
     nav_rma: 'RMA Claim',
     nav_database: 'Database',
     nav_accounts: 'Accounts',
-    nav_subtitle: 'PT. Tirta Kumala Sari — Warehouse Returns System',
+    nav_subtitle: 'Warehouse Returns & Inspection System',
     nav_operator: 'Warehouse Operator',
     nav_google_connected: 'Google Drive Connected',
     nav_language: 'Language',
@@ -500,9 +500,9 @@ const translations: Record<Language, Translations> = {
     master_price_guide: 'Column 4 (ITEM PRICE) is used for automatic compensation calculations in CS disputes.',
 
     // Footer
-    footer_title: 'Unboxin — PT. Tirta Kumala Sari',
+    footer_title: 'unboxin.id',
     footer_desc: 'Return Inspection Station & Video Evidence Recorder',
-    footer_operator: 'Copyright Yaya Sanjaya',
+    footer_operator: 'Copyright by Yaya Sanjaya',
     footer_drive_ready: 'Google Drive Sync Active'
   }
 };

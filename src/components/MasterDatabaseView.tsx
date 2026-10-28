@@ -22,6 +22,7 @@ import {
   parseExcelOrCsvFile,
   DEFAULT_MASTER_DATABASE,
   saveMasterDatabase,
+  mergeMasterSkus,
   formatRupiah,
   parseNumericPrice
 } from '../utils/excelTemplate';
@@ -58,11 +59,15 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
 
     try {
       const parsed = await parseExcelOrCsvFile(file);
-      setMasterData(parsed);
-      saveMasterDatabase(parsed);
+      if (!parsed || parsed.length === 0) {
+        throw new Error('File tidak berisi data baris SKU yang valid.');
+      }
+      const mergeResult = mergeMasterSkus(masterData, parsed);
+      setMasterData(mergeResult.merged);
+      saveMasterDatabase(mergeResult.merged);
       setUploadMessage({
         type: 'success',
-        text: `Berhasil mengimpor ${parsed.length} baris Master SKU dari file "${file.name}"!`
+        text: `Berhasil memproses "${file.name}": ${mergeResult.addedCount} SKU baru ditambahkan, ${mergeResult.updatedCount} SKU diperbarui (Total: ${mergeResult.totalCount} SKU aktif). Tersimpan di server & dicadangkan di browser!`
       });
     } catch (err) {
       setUploadMessage({
@@ -91,9 +96,9 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
       HARGA: parsedHarga
     };
 
-    const updated = [newItem, ...masterData];
-    setMasterData(updated);
-    saveMasterDatabase(updated);
+    const mergeResult = mergeMasterSkus(masterData, [newItem]);
+    setMasterData(mergeResult.merged);
+    saveMasterDatabase(mergeResult.merged);
 
     setNewBarcode('');
     setNewSkuId('');
@@ -101,7 +106,7 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
     setNewHarga('');
     setUploadMessage({
       type: 'success',
-      text: `Master SKU ${newItem.SKU_ID} (${newItem.SKU_NAME}) ${newItem.HARGA ? `dengan harga ${formatRupiah(newItem.HARGA)}` : ''} berhasil ditambahkan!`
+      text: `Master SKU ${newItem.SKU_ID} (${newItem.SKU_NAME}) ${newItem.HARGA ? `dengan harga ${formatRupiah(newItem.HARGA)}` : ''} berhasil disimpan ke server & dicadangkan di browser!`
     });
   };
 

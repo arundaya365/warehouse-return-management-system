@@ -1,6 +1,6 @@
 import { db } from './index.ts';
 import { users, returns, masterSkus, disputes, warehouseMeta } from './schema.ts';
-import { eq, inArray, and, desc } from 'drizzle-orm';
+import { eq, inArray, and, or, ne, desc } from 'drizzle-orm';
 import type { ProcessedReturnRow, StandardKondisi } from '../processor.ts';
 import type { MasterSKUItem } from '../utils/excelTemplate.ts';
 import { DEFAULT_MASTER_DATABASE } from '../utils/excelTemplate.ts';
@@ -17,6 +17,7 @@ export interface WarehouseSyncData {
   disputes: Record<string, any>;
   masterDatabase: MasterSKUItem[];
   users: UserAccount[];
+  learnedPrefixes?: Record<string, any>;
 }
 
 function generateInitialSeedReturns(): ProcessedReturnRow[] {
@@ -159,13 +160,35 @@ async function touchLastUpdated(): Promise<string> {
 export async function getWarehouseData(): Promise<WarehouseSyncData> {
   await ensureDatabaseSeeded();
   try {
-    const [dbUsers, dbReturns, dbMaster, dbDisputes, dbMeta] = await Promise.all([
-      db.select().from(users),
-      db.select().from(returns).orderBy(desc(returns.id)),
-      db.select().from(masterSkus),
-      db.select().from(disputes),
-      db.select().from(warehouseMeta).where(eq(warehouseMeta.metaKey, 'lastUpdated')),
-    ]);
+    const fetchAllWarehouseTables = async () => {
+      return await Promise.all([
+        db.select().from(users),
+        db.select().from(returns).orderBy(desc(returns.id)),
+        db.select().from(masterSkus),
+        db.select().from(disputes),
+        db.select().from(warehouseMeta),
+      ]);
+    };
+
+    let dbResults;
+    try {
+      dbResults = await fetchAllWarehouseTables();
+    } catch (firstErr: any) {
+      const msg = firstErr?.message || String(firstErr);
+      if (
+        msg.includes('Connection terminated unexpectedly') ||
+        msg.includes('write EPIPE') ||
+        msg.includes('ECONNRESET')
+      ) {
+        console.warn('Transient SQL proxy socket drop, retrying with fresh connection...');
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        dbResults = await fetchAllWarehouseTables();
+      } else {
+        throw firstErr;
+      }
+    }
+
+    const [dbUsers, dbReturns, dbMaster, dbDisputes, dbMeta] = dbResults;
 
     const formattedUsers: UserAccount[] = dbUsers.map((u) => {
       let customPerms = undefined;
@@ -204,7 +227,7 @@ export async function getWarehouseData(): Promise<WarehouseSyncData> {
     }));
 
     const formattedMaster: MasterSKUItem[] = dbMaster.map((m) => ({
-      BARCODE: m.barcode,
+      BARCODE: m.barcode || m.skuId || '',
       SKU_ID: m.skuId,
       SKU_NAME: m.skuName,
       HARGA: m.harga || undefined,
@@ -219,7 +242,16 @@ export async function getWarehouseData(): Promise<WarehouseSyncData> {
       }
     }
 
-    const lastUpdated = dbMeta[0]?.metaValue || new Date().toISOString();
+    const lastUpdatedMeta = dbMeta.find((m) => m.metaKey === 'lastUpdated');
+    const lastUpdated = lastUpdatedMeta?.metaValue || new Date().toISOString();
+
+    const learnedMeta = dbMeta.find((m) => m.metaKey === 'learned_awb_prefixes');
+    let formattedLearnedPrefixes: Record<string, any> = {};
+    if (learnedMeta && learnedMeta.metaValue) {
+      try {
+        formattedLearnedPrefixes = JSON.parse(learnedMeta.metaValue);
+      } catch {}
+    }
 
     return {
       version: 1,
@@ -228,6 +260,7 @@ export async function getWarehouseData(): Promise<WarehouseSyncData> {
       disputes: formattedDisputes,
       masterDatabase: formattedMaster.length > 0 ? formattedMaster : DEFAULT_MASTER_DATABASE,
       users: formattedUsers.length > 0 ? formattedUsers : INITIAL_ACCOUNTS,
+      learnedPrefixes: formattedLearnedPrefixes,
     };
   } catch (error) {
     console.error('Error in getWarehouseData:', error);
@@ -382,18 +415,49 @@ export async function dbSaveDisputes(disputesMap: Record<string, any>): Promise<
 export async function dbSaveMasterDatabase(items: MasterSKUItem[]): Promise<number> {
   await ensureDatabaseSeeded();
   try {
+    if (!Array.isArray(items) || items.length === 0) {
+      const countResult = await db.select().from(masterSkus);
+      return countResult.length;
+    }
+
+    // Filter, validate, and deduplicate by SKU_ID
+    const validMap = new Map<string, { barcode: string; skuId: string; skuName: string; harga: number }>();
     for (const item of items) {
+      if (!item) continue;
+      const skuId = String(item.SKU_ID ?? item.BARCODE ?? '').trim().toUpperCase();
+      const barcode = String(item.BARCODE ?? item.SKU_ID ?? '').trim().toUpperCase();
+      const skuName = String(item.SKU_NAME ?? '').trim();
+      if (!skuId) continue;
+
+      let numHarga = 0;
+      if (typeof item.HARGA === 'number' && !isNaN(item.HARGA)) {
+        numHarga = Math.round(item.HARGA);
+      } else if (item.HARGA) {
+        const cleanStr = String(item.HARGA).replace(/[^0-9]/g, '');
+        numHarga = cleanStr ? parseInt(cleanStr, 10) : 0;
+      }
+      if (isNaN(numHarga) || numHarga < 0) numHarga = 0;
+
+      validMap.set(skuId, {
+        barcode: barcode || skuId,
+        skuId,
+        skuName: skuName || `Produk ${skuId}`,
+        harga: numHarga,
+      });
+    }
+
+    for (const validItem of validMap.values()) {
       await db.insert(masterSkus).values({
-        barcode: item.BARCODE,
-        skuId: item.SKU_ID,
-        skuName: item.SKU_NAME,
-        harga: item.HARGA || 0,
+        barcode: validItem.barcode,
+        skuId: validItem.skuId,
+        skuName: validItem.skuName,
+        harga: validItem.harga,
       }).onConflictDoUpdate({
         target: masterSkus.skuId,
         set: {
-          barcode: item.BARCODE,
-          skuName: item.SKU_NAME,
-          harga: item.HARGA || 0,
+          barcode: validItem.barcode,
+          skuName: validItem.skuName,
+          harga: validItem.harga,
           updatedAt: new Date(),
         },
       });
@@ -441,6 +505,27 @@ export async function dbSaveUsers(userList: UserAccount[]): Promise<number> {
         },
       });
     }
+
+    // Rekonsiliasi penghapusan: Hapus akun di database yang tidak ada di userList (kecuali Yaya Sanjaya yang diproteksi)
+    const validCodes = userList.map((u) => u.operatorCode.trim().toUpperCase()).filter(Boolean);
+    const validUids = userList.map((u) => u.id.trim()).filter(Boolean);
+
+    const allDbUsers = await db.select().from(users);
+    for (const dbUser of allDbUsers) {
+      const code = (dbUser.operatorCode || '').trim().toUpperCase();
+      const uid = (dbUser.uid || '').trim();
+
+      // Lindungi Super Admin Yaya Sanjaya
+      if (code === 'OPR-HQ-01' || uid === 'USR-001') {
+        continue;
+      }
+
+      if (!validCodes.includes(code) && !validUids.includes(uid)) {
+        console.log(`[Cloud SQL] Menghapus akun dari database: ${dbUser.fullName} (${dbUser.operatorCode})`);
+        await db.delete(users).where(eq(users.id, dbUser.id));
+      }
+    }
+
     await touchLastUpdated();
     const countResult = await db.select().from(users);
     return countResult.length;
@@ -449,3 +534,135 @@ export async function dbSaveUsers(userList: UserAccount[]): Promise<number> {
     throw new Error('Failed to save users.', { cause: error });
   }
 }
+
+/**
+ * Hapus satu akun pengguna berdasarkan UID atau Operator Code
+ * Super Admin Yaya Sanjaya diproteksi dan tidak dapat dihapus
+ */
+export async function dbDeleteUser(idOrCode: string): Promise<boolean> {
+  await ensureDatabaseSeeded();
+  try {
+    const clean = (idOrCode || '').trim();
+    if (!clean) return false;
+
+    // Proteksi akun Super Admin Yaya Sanjaya
+    if (clean === 'USR-001' || clean.toUpperCase() === 'OPR-HQ-01') {
+      console.warn('Super Admin Yaya Sanjaya diproteksi dan tidak dapat dihapus.');
+      return false;
+    }
+
+    await db.delete(users).where(
+      or(
+        eq(users.uid, clean),
+        eq(users.operatorCode, clean)
+      )
+    );
+    await touchLastUpdated();
+    return true;
+  } catch (error) {
+    console.error('Error in dbDeleteUser:', error);
+    throw new Error('Failed to delete user.', { cause: error });
+  }
+}
+
+/**
+ * Bersihkan seluruh akun demo lama dari database Cloud SQL, menyisakan Yaya Sanjaya
+ */
+export async function dbCleanDemoAccounts(): Promise<number> {
+  await ensureDatabaseSeeded();
+  try {
+    const allUsers = await db.select().from(users);
+    for (const u of allUsers) {
+      const code = (u.operatorCode || '').trim().toUpperCase();
+      const uid = (u.uid || '').trim();
+      if (code !== 'OPR-HQ-01' && uid !== 'USR-001') {
+        console.log(`[Cloud SQL] Membersihkan akun demo: ${u.fullName} (${u.operatorCode})`);
+        await db.delete(users).where(eq(users.id, u.id));
+      }
+    }
+    await touchLastUpdated();
+    const remaining = await db.select().from(users);
+    return remaining.length;
+  } catch (error) {
+    console.error('Error in dbCleanDemoAccounts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Simpan prefix AWB yang dipelajari ke database Cloud SQL (warehouse_meta)
+ */
+export async function dbSaveLearnedPrefix(
+  prefix: string,
+  marketplace: string,
+  logistics: string
+): Promise<Record<string, any>> {
+  await ensureDatabaseSeeded();
+  try {
+    const cleanPrefix = (prefix || '').trim().toUpperCase();
+    if (!cleanPrefix) return {};
+
+    const existingMeta = await db
+      .select()
+      .from(warehouseMeta)
+      .where(eq(warehouseMeta.metaKey, 'learned_awb_prefixes'));
+
+    let currentMap: Record<string, any> = {};
+    if (existingMeta.length > 0 && existingMeta[0].metaValue) {
+      try {
+        currentMap = JSON.parse(existingMeta[0].metaValue);
+      } catch {}
+    }
+
+    currentMap[cleanPrefix] = {
+      prefix: cleanPrefix,
+      marketplace,
+      logistics,
+      createdAt: new Date().toISOString()
+    };
+
+    const serialized = JSON.stringify(currentMap);
+    await db
+      .insert(warehouseMeta)
+      .values({
+        metaKey: 'learned_awb_prefixes',
+        metaValue: serialized
+      })
+      .onConflictDoUpdate({
+        target: warehouseMeta.metaKey,
+        set: {
+          metaValue: serialized
+        }
+      });
+
+    await touchLastUpdated();
+    return currentMap;
+  } catch (err) {
+    console.error('Error saving learned prefix in dbSaveLearnedPrefix:', err);
+    throw err;
+  }
+}
+
+/**
+ * Ambil seluruh prefix AWB yang telah dipelajari dari database Cloud SQL
+ */
+export async function dbGetLearnedPrefixes(): Promise<Record<string, any>> {
+  try {
+    const existing = await db
+      .select()
+      .from(warehouseMeta)
+      .where(eq(warehouseMeta.metaKey, 'learned_awb_prefixes'));
+
+    if (existing.length > 0 && existing[0].metaValue) {
+      try {
+        return JSON.parse(existing[0].metaValue);
+      } catch {}
+    }
+    return {};
+  } catch (err) {
+    console.warn('Error reading learned prefixes in dbGetLearnedPrefixes:', err);
+    return {};
+  }
+}
+
+

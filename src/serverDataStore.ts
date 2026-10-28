@@ -20,6 +20,7 @@ export interface WarehouseSyncData {
   disputes: Record<string, any>;
   masterDatabase: MasterSKUItem[];
   users: UserAccount[];
+  learnedPrefixes?: Record<string, any>;
 }
 
 function generateInitialSeedReturns(): ProcessedReturnRow[] {
@@ -81,7 +82,8 @@ function initDataFile(): WarehouseSyncData {
     returns: generateInitialSeedReturns(),
     disputes: {},
     masterDatabase: DEFAULT_MASTER_DATABASE,
-    users: INITIAL_ACCOUNTS
+    users: INITIAL_ACCOUNTS,
+    learnedPrefixes: {}
   };
 
   try {
@@ -95,7 +97,8 @@ function initDataFile(): WarehouseSyncData {
           returns: parsed.returns,
           disputes: parsed.disputes || {},
           masterDatabase: Array.isArray(parsed.masterDatabase) ? parsed.masterDatabase : DEFAULT_MASTER_DATABASE,
-          users: Array.isArray(parsed.users) ? parsed.users : INITIAL_ACCOUNTS
+          users: Array.isArray(parsed.users) ? parsed.users : INITIAL_ACCOUNTS,
+          learnedPrefixes: (parsed && typeof parsed.learnedPrefixes === 'object') ? parsed.learnedPrefixes : {}
         };
       }
     }
@@ -261,5 +264,45 @@ export const WarehouseStore = {
       persistStore();
     }
     return inMemoryStore;
+  },
+
+  /**
+   * Hapus akun pengguna (selain Super Admin Yaya Sanjaya)
+   */
+  deleteUser(userIdOrCode: string): WarehouseSyncData {
+    if (!userIdOrCode) return inMemoryStore;
+    const clean = userIdOrCode.trim();
+    if (clean === 'USR-001' || clean.toUpperCase() === 'OPR-HQ-01') {
+      return inMemoryStore;
+    }
+
+    inMemoryStore.users = inMemoryStore.users.filter(
+      (u) => u.id !== clean && u.operatorCode !== clean
+    );
+    persistStore();
+    return inMemoryStore;
+  },
+
+  /**
+   * Simpan prefix AWB yang dipelajari ke in-memory store & persist ke file
+   */
+  saveLearnedPrefix(prefix: string, marketplace: string, logistics: string): WarehouseSyncData {
+    const clean = (prefix || '').trim().toUpperCase();
+    if (!clean) return inMemoryStore;
+
+    if (!inMemoryStore.learnedPrefixes) {
+      inMemoryStore.learnedPrefixes = {};
+    }
+
+    inMemoryStore.learnedPrefixes[clean] = {
+      prefix: clean,
+      marketplace,
+      logistics,
+      createdAt: new Date().toISOString()
+    };
+
+    persistStore();
+    return inMemoryStore;
   }
 };
+
