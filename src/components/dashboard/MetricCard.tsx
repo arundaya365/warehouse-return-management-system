@@ -1,0 +1,5 @@
+import React from 'react';
+import { LucideIcon } from 'lucide-react';
+export function MetricCard({title,value,icon:Icon,comparison,note,loading,unavailable,index}:{title:string;value:string;icon:LucideIcon;comparison:{text:string;tone:'neutral'|'good'|'bad'};note:string;loading:boolean;unavailable?:boolean;index:number}){
+ return <article className="dashboard-metric" style={{'--card-index':index} as React.CSSProperties} aria-label={title}><div className="dashboard-metric-top"><h2>{title}</h2><span className="dashboard-metric-icon"><Icon size={18} aria-hidden="true"/></span></div>{loading?<><div className="dashboard-skeleton dashboard-skeleton-value"/><div className="dashboard-skeleton dashboard-skeleton-line"/></>:<><p className="dashboard-metric-value">{unavailable?"—":value}</p><p className={`dashboard-comparison dashboard-comparison-${comparison.tone}`}>{unavailable?"Belum dapat dikonfirmasi":comparison.text}</p></>}<p className="dashboard-metric-note">{loading||unavailable?"Menunggu data dari server":note}</p></article>;
+}

@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Runtime database, backups, and launcher build artifacts
+runtime/
+local-database/
+launcher-build/
+backups/
+*.tar.gz

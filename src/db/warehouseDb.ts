@@ -69,15 +69,25 @@ function generateInitialSeedReturns(): ProcessedReturnRow[] {
 }
 
 let isSeeded = false;
+let seedPromise: Promise<void> | undefined;
+export function ensureDatabaseSeeded(): Promise<void> {
+  if (isSeeded) return Promise.resolve();
+  if (!seedPromise) seedPromise = initializeDatabase().catch(error=>{seedPromise=undefined;throw error;});
+  return seedPromise;
+}
 
-export async function ensureDatabaseSeeded(): Promise<void> {
+async function initializeDatabase(): Promise<void> {
   if (isSeeded) return;
   try {
+    await db.transaction(async (tx: any) => {
+    // An initialized database may intentionally contain empty tables.
+    const initialized = await tx.select().from(warehouseMeta).where(eq(warehouseMeta.metaKey, 'lastUpdated')).limit(1);
+    if (initialized.length) return;
     // 1. Check & seed users
-    const existingUsers = await db.select().from(users).limit(1);
+    const existingUsers = await tx.select().from(users).limit(1);
     if (existingUsers.length === 0) {
       for (const u of INITIAL_ACCOUNTS) {
-        await db.insert(users).values({
+        await tx.insert(users).values({
           uid: u.id,
           email: u.email,
           username: u.username,
@@ -95,10 +105,10 @@ export async function ensureDatabaseSeeded(): Promise<void> {
     }
 
     // 2. Check & seed masterSkus
-    const existingMaster = await db.select().from(masterSkus).limit(1);
+    const existingMaster = await tx.select().from(masterSkus).limit(1);
     if (existingMaster.length === 0) {
       for (const m of DEFAULT_MASTER_DATABASE) {
-        await db.insert(masterSkus).values({
+        await tx.insert(masterSkus).values({
           barcode: m.BARCODE,
           skuId: m.SKU_ID,
           skuName: m.SKU_NAME,
@@ -108,11 +118,11 @@ export async function ensureDatabaseSeeded(): Promise<void> {
     }
 
     // 3. Check & seed initial returns
-    const existingReturns = await db.select().from(returns).limit(1);
+    const existingReturns = await tx.select().from(returns).limit(1);
     if (existingReturns.length === 0) {
       const seedReturns = generateInitialSeedReturns();
       for (const r of seedReturns) {
-        await db.insert(returns).values({
+        await tx.insert(returns).values({
           waktuProses: r.Waktu_Proses,
           operatorId: r.Operator_ID,
           orderId: r.Order_ID,
@@ -128,24 +138,27 @@ export async function ensureDatabaseSeeded(): Promise<void> {
     }
 
     // 4. Check & seed warehouse_meta
-    const metaTimestamp = await db.select().from(warehouseMeta).where(eq(warehouseMeta.metaKey, 'lastUpdated'));
+    const metaTimestamp = await tx.select().from(warehouseMeta).where(eq(warehouseMeta.metaKey, 'lastUpdated'));
     if (metaTimestamp.length === 0) {
-      await db.insert(warehouseMeta).values({
+      await tx.insert(warehouseMeta).values({
         metaKey: 'lastUpdated',
         metaValue: new Date().toISOString(),
       }).onConflictDoNothing();
     }
 
+
+    });
     isSeeded = true;
   } catch (error) {
     console.error('Error during database seeding check:', error);
+    throw error;
   }
 }
 
-async function touchLastUpdated(): Promise<string> {
+async function touchLastUpdated(connection: any = db): Promise<string> {
   const now = new Date().toISOString();
   try {
-    await db.insert(warehouseMeta)
+    await connection.insert(warehouseMeta)
       .values({ metaKey: 'lastUpdated', metaValue: now })
       .onConflictDoUpdate({
         target: warehouseMeta.metaKey,
@@ -153,6 +166,7 @@ async function touchLastUpdated(): Promise<string> {
       });
   } catch (err) {
     console.warn('Could not update warehouse_meta lastUpdated:', err);
+    throw err;
   }
   return now;
 }
@@ -258,8 +272,8 @@ export async function getWarehouseData(): Promise<WarehouseSyncData> {
       lastUpdated,
       returns: formattedReturns,
       disputes: formattedDisputes,
-      masterDatabase: formattedMaster.length > 0 ? formattedMaster : DEFAULT_MASTER_DATABASE,
-      users: formattedUsers.length > 0 ? formattedUsers : INITIAL_ACCOUNTS,
+      masterDatabase: formattedMaster,
+      users: formattedUsers,
       learnedPrefixes: formattedLearnedPrefixes,
     };
   } catch (error) {
@@ -271,14 +285,15 @@ export async function getWarehouseData(): Promise<WarehouseSyncData> {
 export async function dbSaveReturns(rows: ProcessedReturnRow[], orderId?: string): Promise<{ count: number; lastUpdated: string }> {
   await ensureDatabaseSeeded();
   try {
+    return await db.transaction(async (tx: any) => {
     const targetOrderId = orderId || rows[0]?.Order_ID;
     if (targetOrderId) {
       // Remove previous records for this order to replace with updated state
-      await db.delete(returns).where(eq(returns.orderId, targetOrderId));
+      await tx.delete(returns).where(eq(returns.orderId, targetOrderId));
     }
 
     for (const r of rows) {
-      await db.insert(returns).values({
+      await tx.insert(returns).values({
         waktuProses: r.Waktu_Proses,
         operatorId: r.Operator_ID,
         orderId: r.Order_ID,
@@ -292,9 +307,10 @@ export async function dbSaveReturns(rows: ProcessedReturnRow[], orderId?: string
       });
     }
 
-    const lastUpdated = await touchLastUpdated();
-    const countResult = await db.select().from(returns);
+    const lastUpdated = await touchLastUpdated(tx);
+    const countResult = await tx.select().from(returns);
     return { count: countResult.length, lastUpdated };
+    });
   } catch (error) {
     console.error('Error in dbSaveReturns:', error);
     throw new Error('Failed to save returns to database.', { cause: error });
@@ -304,9 +320,10 @@ export async function dbSaveReturns(rows: ProcessedReturnRow[], orderId?: string
 export async function dbSetAllReturns(rows: ProcessedReturnRow[]): Promise<{ count: number; lastUpdated: string }> {
   await ensureDatabaseSeeded();
   try {
-    await db.delete(returns);
+    return await db.transaction(async (tx: any) => {
+    await tx.delete(returns);
     for (const r of rows) {
-      await db.insert(returns).values({
+      await tx.insert(returns).values({
         waktuProses: r.Waktu_Proses,
         operatorId: r.Operator_ID,
         orderId: r.Order_ID,
@@ -319,8 +336,9 @@ export async function dbSetAllReturns(rows: ProcessedReturnRow[]): Promise<{ cou
         linkVideo: r.Link_Video || '',
       });
     }
-    const lastUpdated = await touchLastUpdated();
+    const lastUpdated = await touchLastUpdated(tx);
     return { count: rows.length, lastUpdated };
+    });
   } catch (error) {
     console.error('Error in dbSetAllReturns:', error);
     throw new Error('Failed to replace returns in database.', { cause: error });
@@ -395,9 +413,10 @@ export async function dbDeleteBulkRows(rowKeys: string[]): Promise<number> {
 export async function dbSaveDisputes(disputesMap: Record<string, any>): Promise<string> {
   await ensureDatabaseSeeded();
   try {
+    return await db.transaction(async (tx: any) => {
     for (const [orderId, data] of Object.entries(disputesMap)) {
       const strData = typeof data === 'string' ? data : JSON.stringify(data);
-      await db.insert(disputes).values({
+      await tx.insert(disputes).values({
         orderId,
         claimData: strData,
       }).onConflictDoUpdate({
@@ -405,7 +424,8 @@ export async function dbSaveDisputes(disputesMap: Record<string, any>): Promise<
         set: { claimData: strData, updatedAt: new Date() },
       });
     }
-    return await touchLastUpdated();
+    return await touchLastUpdated(tx);
+    });
   } catch (error) {
     console.error('Error in dbSaveDisputes:', error);
     throw new Error('Failed to save disputes.', { cause: error });

@@ -412,7 +412,9 @@ export const AccountManagementView: React.FC = () => {
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0F766E] border border-teal-200">
                 {users.length} {isEn ? 'Registered Accounts' : 'Akun Terdaftar'}
               </span>
-              {cloudStatus === 'quota_exceeded' ? (
+              {cloudStatus === 'disabled' ? (
+                <span className="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-700">{isEn ? 'Local database · Firestore disabled' : 'Database laptop · Firestore dimatikan'}</span>
+              ) : cloudStatus === 'quota_exceeded' ? (
                 <span
                   className="inline-flex items-center space-x-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs"
                   title="Batas kuota harian Firebase Free Tier tercapai hari ini. Data tetap tersimpan aman di Database Server Cloud SQL & Local Storage. Kuota Firestore akan direset besok."

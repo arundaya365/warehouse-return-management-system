@@ -156,3 +156,7 @@ Aplikasi akan berjalan di `http://localhost:3000`.
 - **Perusahaan**: PT. Tirta Kumala Sari
 - **Hak Cipta**: © 2026 Yaya Sanjaya. Seluruh Hak Cipta Dilindungi.
 - **Sistem**: Unboxin Processor — E-Commerce Return Warehouse WMS.
+
+## Pembaruan trial lokal dan dashboard
+
+Panduan instalasi, launcher Windows, pengujian dan batas penggunaan tersedia di [docs/LOCAL-TRIAL.md](docs/LOCAL-TRIAL.md). Konfigurasi contoh tidak berisi kredensial nyata. Database operasional, backup dan hasil EXE tidak disertakan dalam perubahan kode.

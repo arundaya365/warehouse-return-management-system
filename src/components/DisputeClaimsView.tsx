@@ -1,3 +1,4 @@
+import { ClaimFlowNotice } from './ClaimFlowNotice';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   AlertTriangle,
@@ -46,9 +47,10 @@ import { useAccount, ROLE_DEFINITIONS } from '../context/AccountContext';
 import { getDirectVideoUrl } from './ResultViewer';
 import { syncService } from '../services/dataSyncService';
 import { RmaClaimRecord, RmaClaimItem, RMA_STAGE_LABELS } from '../types/rma';
+import { getEscalationError, rejectedItems, logisticsChannel, approvedMarketplaceAmount, uncoveredClaimAmount, allocateClaimAmount, paymentStatus } from '../utils/claimWorkflow';
 import { detectMarketplaceAndLogistics } from '../utils/awbDetection';
 
-export type ClaimStatus = 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'PARTIAL' | 'REJECTED';
+export type ClaimStatus = 'PENDING' | 'SUBMITTED' | 'WAITING' | 'APPROVED' | 'PARTIAL' | 'REJECTED';
 
 export type ClaimChannel =
   | 'Shopee'
@@ -71,6 +73,10 @@ export interface DisputeRecord {
   claimStatus: ClaimStatus;
   ticketNumber: string;
   claimAmount: number; // in IDR (nilai tuntutan diajukan ke ekspedisi/marketplace)
+  approvedAmount?: number;
+  paymentStatus?: string;
+  paymentReference?: string;
+  history?: Array<{at:string; by:string; note:string}>;
   settlementAmount?: number; // in IDR (nilai penggantian aktual yang disetujui/dicairkan ekspedisi)
   settlementNote?: string; // alasan selisih ganti rugi ekspedisi
   isForwardedToRma?: boolean;
@@ -86,6 +92,10 @@ export interface DamagedDisputeItem {
   claimStatus: ClaimStatus;
   ticketNumber: string;
   claimAmount: number;
+  approvedAmount?: number;
+  paymentStatus?: string;
+  paymentReference?: string;
+  history?: Array<{at:string; by:string; note:string}>;
   settlementAmount?: number;
   settlementNote: string;
   masterPrice?: number;
@@ -140,16 +150,7 @@ interface DisputeClaimsViewProps {
   onDisputeRecordsChange?: (records: Record<string, any>) => void;
 }
 
-const DEFAULT_CHANNELS: ClaimChannel[] = [
-  'Shopee',
-  'TikTok Shop',
-  'Tokopedia',
-  'Lazada',
-  'J&T Express',
-  'SiCepat',
-  'SPX Express',
-  'JNE'
-];
+const DEFAULT_CHANNELS: ClaimChannel[] = ['Shopee', 'TikTok Shop', 'Tokopedia', 'Lazada', 'Blibli', 'Lainnya'];
 
 export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   rows,
@@ -203,14 +204,10 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   }, [onDisputeRecordsChange]);
 
   // Simpan perubahan ke localStorage & server database Cloud SQL dengan menjaga _rma_claims_list_
-  const saveDisputeRecords = (
+  const saveDisputeRecords = async (
     updated: Record<string, Partial<DisputeRecord>>,
     explicitRmaClaims?: RmaClaimRecord[]
   ) => {
-    setDisputeRecords(updated);
-    if (onDisputeRecordsChange) {
-      onDisputeRecordsChange(updated);
-    }
     try {
       const currentRmaList = explicitRmaClaims || (rmaClaims && rmaClaims.length > 0 ? rmaClaims : (() => {
         try {
@@ -219,16 +216,20 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         } catch { return []; }
       })());
       const payloadToSave: Record<string, any> = { ...updated };
-      if (Array.isArray(currentRmaList) && currentRmaList.length > 0) {
+      if (Array.isArray(currentRmaList)) {
         payloadToSave['_rma_claims_list_'] = currentRmaList;
       }
+      const saved = await syncService.pushDisputes(payloadToSave);
+      if (!saved) { showToast('Gagal menyimpan klaim ke server. Periksa koneksi lalu coba lagi.'); return false; }
+      setDisputeRecords(payloadToSave);
+      onDisputeRecordsChange?.(payloadToSave);
       localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payloadToSave));
       if (Array.isArray(currentRmaList)) {
         localStorage.setItem('rma_claims_records_v1', JSON.stringify(currentRmaList));
         localStorage.setItem('rma_claims_storage_v1', JSON.stringify(currentRmaList));
       }
-      syncService.pushDisputes(payloadToSave);
-    } catch {}
+      return true;
+    } catch { showToast('Gagal menyimpan klaim. Coba lagi.'); return false; }
   };
 
 
@@ -261,17 +262,19 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     });
   };
 
-  // Modal Hasil Aju Banding Klaim Order (Per 1 Order dengan checklist produk)
+  // Modal Hasil Pengajuan banding Klaim Order (Per 1 Order dengan checklist produk)
   const [claimModalOrder, setClaimModalOrder] = useState<OrderDisputeGroup | null>(null);
   const [claimModalChannel, setClaimModalChannel] = useState<ClaimChannel>('Shopee');
   const [claimModalStatus, setClaimModalStatus] = useState<ClaimStatus>('SUBMITTED');
   const [claimModalTicketNumber, setClaimModalTicketNumber] = useState<string>('');
   const [claimModalTotalSettlement, setClaimModalTotalSettlement] = useState<string>('');
+  const [marketplaceReceived, setMarketplaceReceived] = useState('0');
+  const [marketplacePaymentRef, setMarketplacePaymentRef] = useState('');
   const [claimModalCsNotes, setClaimModalCsNotes] = useState<string>('');
   const [selectedSuccessSkuKeys, setSelectedSuccessSkuKeys] = useState<Set<string>>(new Set());
   const [claimModalActiveTab, setClaimModalActiveTab] = useState<'form' | 'template' | 'evidence'>('form');
 
-  // Modal Detail / Form Aju Banding (Legacy / per item fallback)
+  // Modal Detail / Form Pengajuan banding (Legacy / per item fallback)
   const [selectedDispute, setSelectedDispute] = useState<{
     key: string;
     row: ProcessedReturnRow;
@@ -284,8 +287,8 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const [formChannel, setFormChannel] = useState<ClaimChannel>('Shopee');
   const [formStatus, setFormStatus] = useState<ClaimStatus>('PENDING');
   const [formTicketNumber, setFormTicketNumber] = useState<string>('');
-  const [formClaimAmount, setFormClaimAmount] = useState<string>('150000');
-  const [formSettlementAmount, setFormSettlementAmount] = useState<string>('150000');
+  const [formClaimAmount, setFormClaimAmount] = useState<string>('0');
+  const [formSettlementAmount, setFormSettlementAmount] = useState<string>('0');
   const [formSettlementNote, setFormSettlementNote] = useState<string>('');
   const [formCsNotes, setFormCsNotes] = useState<string>('');
   const [activeModalTab, setActiveModalTab] = useState<'form' | 'template' | 'evidence'>('form');
@@ -304,6 +307,9 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   const [forwardingOrder, setForwardingOrder] = useState<OrderDisputeGroup | null>(null);
   const [forwardEstCompensation, setForwardEstCompensation] = useState<string>('');
   const [forwardCsNotes, setForwardCsNotes] = useState<string>('');
+  const [forwardLogistics, setForwardLogistics] = useState('');
+  const [forwardDecisionEvidence, setForwardDecisionEvidence] = useState('');
+  const [isForwarding, setIsForwarding] = useState(false);
 
   const forwardedRmaMap = useMemo(() => {
     const map = new Map<string, RmaClaimRecord>();
@@ -319,21 +325,31 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   }, [rmaClaims]);
 
   const handleOpenForwardModal = (order: OrderDisputeGroup) => {
-    setForwardingOrder(order);
-    const calculatedEst = order.damageItems.reduce(
-      (acc, curr) => acc + (curr.claimAmount || curr.masterPrice || curr.basePrice || 150000),
+    const error = getEscalationError(order.damageItems, forwardedRmaMap.has(order.orderId.trim().toUpperCase()));
+    if (error) { showToast(error); return; }
+    const failed = rejectedItems(order.damageItems);
+    setForwardDecisionEvidence(failed.map(item=>item.ticketNumber).find(ticket=>ticket && ticket!=='-') || '');
+    setForwardingOrder({...order, damageItems: failed, goodItems: [], allItems: failed.map((item) => item.row)});
+    setForwardLogistics(order.ekspedisi && order.ekspedisi !== 'Lainnya' ? order.ekspedisi : '');
+    const calculatedEst = failed.reduce(
+      (acc, curr) => acc + uncoveredClaimAmount(curr),
       0
     );
-    setForwardEstCompensation(String(calculatedEst || 150000));
+    setForwardEstCompensation(String(calculatedEst || 0));
     setForwardCsNotes(
-      order.damageItems.map((d) => d.csNotes).filter(Boolean).join('; ') ||
-      'Ekspedisi menolak ganti rugi tingkat CS / butuh investigasi fisik gudang dan bukti rekaman unboxing.'
+      failed.map((d) => d.csNotes).filter(Boolean).join('; ')
     );
   };
 
-  const handleConfirmForwardToRma = () => {
-    if (!forwardingOrder) return;
+  const handleConfirmForwardToRma = async () => {
+    if (!forwardingOrder || isForwarding) return;
+    const latest = orderGroups.find((order) => order.orderId.trim().toUpperCase() === forwardingOrder.orderId.trim().toUpperCase());
+    const error = getEscalationError(latest?.damageItems || [], forwardedRmaMap.has(forwardingOrder.orderId.trim().toUpperCase()));
+    if (error) { showToast(error); return; }
+    if (!forwardCsNotes.trim() || !forwardLogistics.trim() || !forwardDecisionEvidence.trim()) { showToast('Isi alasan, referensi keputusan marketplace (tiket / dokumen), dan nama logistik tujuan.'); return; }
     const estCompNum = parseInt(forwardEstCompensation.replace(/[^0-9]/g, ''), 10) || 0;
+    if (estCompNum > forwardingOrder.damageItems.reduce((sum,item) => sum + uncoveredClaimAmount(item),0)) { showToast('Tuntutan logistik tidak boleh melebihi bagian yang tidak disetujui marketplace.'); return; }
+    if (!Number.isSafeInteger(estCompNum) || estCompNum <= 0) { showToast('Isi nilai tuntutan logistik yang valid. Harga barang yang belum terdaftar tidak diisi otomatis.'); return; }
     const nowIso = new Date().toISOString();
     const cleanOrderId = String(forwardingOrder.orderId || '').trim();
 
@@ -349,31 +365,24 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         namaBarang: d.row.Nama_Barang,
         qty: 1,
         kondisi: d.row.Kondisi,
-        hargaSatuan: d.masterPrice || d.basePrice || 150000,
-        subtotalEstimasi: d.claimAmount || d.masterPrice || d.basePrice || 150000
+        hargaSatuan: d.masterPrice || d.basePrice || 0,
+        subtotalEstimasi: uncoveredClaimAmount(d)
       });
     });
 
-    // Tambahkan seluruh barang berkondisi baik
-    forwardingOrder.goodItems.forEach((g) => {
-      const price = lookupItemPrice(g.SKU_ID) || 150000;
-      allRmaItems.push({
-        skuId: g.SKU_ID,
-        namaBarang: g.Nama_Barang,
-        qty: 1,
-        kondisi: 'Good',
-        hargaSatuan: price,
-        subtotalEstimasi: 0 // Barang kondisi baik bernilai klaim Rp 0 sesuai konfirmasi pengguna
-      });
-    });
 
-    const primaryChannel = forwardingOrder.damageItems[0]?.channel || detectChannelFromOrderId(cleanOrderId);
+    const primaryChannel = logisticsChannel(forwardLogistics);
 
     const rmaRecord: RmaClaimRecord = {
       id: `rma_${cleanOrderId}_${Date.now()}`,
       orderId: cleanOrderId,
       awb: (forwardingOrder.allItems[0] as Record<string, any>)?.No_Resi || cleanOrderId,
       channel: primaryChannel,
+      logisticsName: forwardLogistics.trim(),
+      marketplaceChannel: forwardingOrder.damageItems[0]?.channel,
+      marketplaceRejectionReason: forwardCsNotes.trim(),
+      marketplaceDecisionEvidence: forwardDecisionEvidence.trim(),
+      marketplaceTicket: forwardingOrder.damageItems[0]?.ticketNumber,
       stageStatus: 'DIALIHKAN_KE_RMA',
       items: allRmaItems,
       estimatedCompensation: estCompNum,
@@ -418,14 +427,17 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     });
 
     // Simpan atomic: updatedDisputes + newRmaList dikirim langsung ke server & localStorage
-    saveDisputeRecords(updatedDisputes, newRmaList);
+    setIsForwarding(true);
+    const saved = await saveDisputeRecords(updatedDisputes, newRmaList);
+    setIsForwarding(false);
+    if (!saved) return;
 
     if (onForwardToRma) {
       onForwardToRma(rmaRecord);
     }
 
     setForwardingOrder(null);
-    showToast(`✓ Kasus Order ${cleanOrderId} (${allRmaItems.length} produk: ${forwardingOrder.damageItems.length} rusak, ${forwardingOrder.goodItems.length} baik) berhasil dialihkan ke Tim RMA!`);
+    showToast(`✓ Kasus Order ${cleanOrderId} (${allRmaItems.length} barang ditolak marketplace) berhasil dialihkan ke Tim RMA!`);
   };
 
   // Generate Key unik untuk setiap item retur kerusakan (deterministik per Order ID)
@@ -440,16 +452,11 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     if (detected.marketplace === 'Tokopedia Indonesia') return 'Tokopedia';
     if (detected.marketplace === 'Lazada Indonesia') return 'Lazada';
     if (detected.marketplace === 'Shopee Indonesia') return 'Shopee';
-    if (detected.logistics === 'J&T') return 'J&T Express';
-    if (detected.logistics === 'SiCepat') return 'SiCepat';
-    if (detected.logistics === 'Shopee Express') return 'SPX Express';
-    if (detected.logistics === 'JNE') return 'JNE';
-    if (detected.logistics === 'Ninja Express') return 'Ninja Xpress';
     const id = (orderId || '').toUpperCase();
     if (id.includes('TOKOPEDIA') || id.includes('TKP')) return 'Tokopedia';
     if (id.includes('TIKTOK') || id.includes('TTS')) return 'TikTok Shop';
     if (id.includes('LAZADA') || id.includes('LZD')) return 'Lazada';
-    return 'Shopee'; // default paling umum untuk e-commerce Indonesia
+    return 'Lainnya'; // Kanal belum diketahui: harus dipilih operator.
   };
 
   // Format IDR currency
@@ -495,7 +502,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
           )?.[1];
         const channel = (claim?.channel as ClaimChannel) || detectChannelFromOrderId(row.Order_ID);
         const itemMasterPrice = lookupItemPrice(row.SKU_ID);
-        const basePrice = itemMasterPrice !== undefined ? itemMasterPrice : 150000;
+        const basePrice = itemMasterPrice !== undefined ? itemMasterPrice : 0;
 
         const isFull100Claim =
           row.Kondisi === 'Totally Damage' ||
@@ -503,18 +510,18 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
           row.Kondisi === 'Missing' ||
           (row.Kondisi as string) === 'Damage Total';
 
-        const defaultClaimAmount = isFull100Claim ? basePrice : (itemMasterPrice !== undefined ? itemMasterPrice : 150000);
+        const defaultClaimAmount = isFull100Claim ? basePrice : (itemMasterPrice !== undefined ? itemMasterPrice : 0);
         const claimAmount = claim?.claimAmount ?? defaultClaimAmount;
-        const defaultStatus: ClaimStatus = isFull100Claim ? 'SUBMITTED' : 'PENDING';
+        const defaultStatus: ClaimStatus = 'PENDING';
         const status: ClaimStatus = (claim?.claimStatus as ClaimStatus) || defaultStatus;
-        const ticketNumber = claim?.ticketNumber || (isFull100Claim ? `AUTO-100-${Math.floor(100000 + Math.random() * 900000)}` : '-');
+        const ticketNumber = claim?.ticketNumber || '-';
 
         const settlementAmount =
           claim?.settlementAmount !== undefined
             ? claim.settlementAmount
-            : (status === 'APPROVED' ? claimAmount : (status === 'REJECTED' ? 0 : undefined));
+            : (status === 'REJECTED' ? 0 : undefined);
 
-        const actualCompensation = settlementAmount ?? (status === 'APPROVED' ? claimAmount : 0);
+        const actualCompensation = ['APPROVED', 'PARTIAL'].includes(status) ? (settlementAmount ?? 0) : 0;
         const netLoss = Math.max(0, basePrice - actualCompensation);
         const recoveryPct = basePrice > 0 ? Math.min(100, Math.round((actualCompensation / basePrice) * 100)) : 0;
 
@@ -526,6 +533,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
           claimStatus: status,
           ticketNumber,
           claimAmount,
+          approvedAmount: claim?.approvedAmount ?? (['APPROVED','PARTIAL'].includes(status) ? settlementAmount : 0),
           settlementAmount,
           settlementNote: claim?.settlementNote || '',
           masterPrice: itemMasterPrice,
@@ -551,7 +559,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         overallStatus = 'REJECTED';
       } else if (damagedItems.some((d) => d.claimStatus === 'PARTIAL' || d.claimStatus === 'APPROVED')) {
         overallStatus = 'PARTIAL';
-      } else if (damagedItems.some((d) => d.claimStatus === 'SUBMITTED')) {
+      } else if (damagedItems.some((d) => ['SUBMITTED','WAITING'].includes(d.claimStatus))) {
         overallStatus = 'SUBMITTED';
       }
 
@@ -656,7 +664,9 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
           return rec?.isForwardedToRma === true || (rec?.csNotes && rec.csNotes.includes('[DIALIHKAN KE RMA]'));
         });
 
-      if (filterStatus === 'FORWARDED_RMA') {
+      if (filterStatus === 'PAYMENT_PENDING') {
+        if (!group.damageItems.some(item => approvedMarketplaceAmount(item) > item.actualCompensation)) return false;
+      } else if (filterStatus === 'FORWARDED_RMA') {
         // Tampilkan hanya order yang telah dialihkan ke Tim RMA
         if (!isForwardedToRma) return false;
       } else {
@@ -768,14 +778,14 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
       (o) => o.damageCount > 0 && !forwardedRmaMap.has(o.orderId)
     );
     const activeOrdersCount = nonForwardedDamageOrders.filter(
-      (o) => o.overallStatus === 'PENDING' || o.overallStatus === 'SUBMITTED'
+      (o) => o.damageItems.some((item) => item.claimStatus !== 'APPROVED')
     ).length;
 
     const nonForwardedDamageItems = nonForwardedDamageOrders.flatMap((o) => o.damageItems);
 
     const totalCount = nonForwardedDamageItems.length;
     const pendingCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'PENDING').length;
-    const submittedCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'SUBMITTED').length;
+    const submittedCount = nonForwardedDamageItems.filter((d) => ['SUBMITTED','WAITING'].includes(d.claimStatus)).length;
     const approvedCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'APPROVED').length;
     const partialCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'PARTIAL').length;
     const rejectedCount = nonForwardedDamageItems.filter((d) => d.claimStatus === 'REJECTED').length;
@@ -808,7 +818,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     return claimModalOrder.allItems.map((r, i) => {
       const key = `${r.Order_ID}_${r.SKU_ID}_${i}`;
       const rec = disputeRecords[key] || {};
-      const basePrice = lookupItemPrice(r.SKU_ID) || 150000;
+      const basePrice = lookupItemPrice(r.SKU_ID) || 0;
       return {
         key,
         itemIndex: i,
@@ -829,27 +839,24 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     });
   }, [claimModalOrder, disputeRecords, masterDatabase]);
 
-  // Handler membuka Modal Hasil Aju Banding per 1 Order ID (Checklist SKU + Total Nominal Order)
+  // Handler membuka Modal Hasil Pengajuan banding per 1 Order ID (Checklist SKU + Total Nominal Order)
   const handleOpenOrderClaimModal = (order: OrderDisputeGroup) => {
+    if (!order.damageItems.length) { showToast('Barang kondisi baik tidak perlu dibuatkan klaim kerusakan.'); return; }
     setClaimModalOrder(order);
     const primaryChannel = order.damageItems[0]?.channel || detectChannelFromOrderId(order.orderId);
-    setClaimModalChannel(primaryChannel);
-    
+    setClaimModalChannel(DEFAULT_CHANNELS.includes(primaryChannel) ? primaryChannel : 'Lainnya');
+
     // Status klaim keseluruhan: default ke SUBMITTED jika baru diajukan
-    setClaimModalStatus(order.overallStatus || 'SUBMITTED');
+    setClaimModalStatus(order.overallStatus === 'PARTIAL' ? 'APPROVED' : (order.overallStatus || 'PENDING'));
 
     // Pre-fill No. Tiket
     const existingTicket = order.damageItems.find((d) => d.ticketNumber && d.ticketNumber !== '-')?.ticketNumber || '';
     setClaimModalTicketNumber(existingTicket);
 
     // Pre-fill total nominal: total per 1 order
-    const initialAmount = order.totalSettlementReceived > 0
-      ? order.totalSettlementReceived
-      : order.totalClaimAmount > 0
-      ? order.totalClaimAmount
-      : order.damageItems.reduce((acc, curr) => acc + (curr.masterPrice || curr.basePrice || 150000), 0) ||
-        order.allItems.reduce((acc, curr) => acc + (lookupItemPrice(curr.SKU_ID) || 150000), 0);
-    setClaimModalTotalSettlement(String(initialAmount || 150000));
+    setClaimModalTotalSettlement(String(order.damageItems.reduce((sum,item) => sum + approvedMarketplaceAmount(item),0)));
+    setMarketplaceReceived(String(order.totalSettlementReceived || 0));
+    setMarketplacePaymentRef(order.damageItems.map(item => disputeRecords[item.key]?.paymentReference).find(Boolean) || '');
 
     // Pre-fill checklist produk yang berhasil diklaim
     const items = order.damageItems.length > 0 ? order.damageItems : order.allItems.map((r, i) => ({
@@ -874,69 +881,43 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     setClaimModalActiveTab('form');
   };
 
-  // Simpan hasil aju banding order (Total nominal 1 order & checklist produk lolos banding)
-  const handleSaveOrderClaim = () => {
+  // Simpan hasil pengajuan banding order (Total nominal 1 order & checklist produk lolos banding)
+  const handleSaveOrderClaim = async () => {
     if (!claimModalOrder) return;
+    const locked = forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase());
     const nowIso = new Date().toISOString();
-    const totalSettlementNum = parseInt(claimModalTotalSettlement.replace(/[^0-9]/g, ''), 10) || 0;
-    
     const items = targetItemsForModal;
-    const checkedItems = items.filter((d) => selectedSuccessSkuKeys.has(d.key));
-    const checkedCount = checkedItems.length;
-
-    const updatedDisputes = { ...disputeRecords };
-
-    items.forEach((d) => {
-      const existing = updatedDisputes[d.key] || {};
-      const isChecked = selectedSuccessSkuKeys.has(d.key);
-
-      let itemStatus: ClaimStatus = claimModalStatus;
-      let itemSettlement: number | undefined = undefined;
-
-      if (claimModalStatus === 'APPROVED') {
-        if (isChecked && checkedCount > 0) {
-          itemStatus = 'APPROVED';
-          // Distribusi proporsional nominal total 1 order ke SKU yang lolos banding
-          const basePerItem = Math.floor(totalSettlementNum / checkedCount);
-          const remainder = totalSettlementNum % checkedCount;
-          const checkedIndex = checkedItems.findIndex((ci) => ci.key === d.key);
-          itemSettlement = checkedIndex === checkedCount - 1 ? basePerItem + remainder : basePerItem;
-        } else {
-          itemStatus = 'REJECTED';
-          itemSettlement = 0;
-        }
-      } else if (claimModalStatus === 'REJECTED') {
-        itemStatus = 'REJECTED';
-        itemSettlement = 0;
-      } else if (claimModalStatus === 'SUBMITTED') {
-        itemStatus = 'SUBMITTED';
-        itemSettlement = undefined;
-      } else {
-        itemStatus = 'PENDING';
-        itemSettlement = undefined;
-      }
-
-      const updatedItem = {
-        ...existing,
-        id: d.key,
-        row: d.row,
-        channel: claimModalChannel,
-        claimStatus: itemStatus,
-        ticketNumber: claimModalTicketNumber.trim(),
-        claimAmount: d.claimAmount || d.masterPrice || d.basePrice || 150000,
-        settlementAmount: itemSettlement,
-        csNotes: claimModalCsNotes.trim(),
-        updatedAt: nowIso
+    if (!locked && !DEFAULT_CHANNELS.includes(claimModalChannel)) { showToast('Pilih marketplace tujuan banding.'); return; }
+    if (!locked && claimModalStatus === 'REJECTED' && !claimModalCsNotes.trim()) { showToast('Isi alasan penolakan marketplace.'); return; }
+    const approvedTotal = locked ? items.reduce((sum,item) => sum+approvedMarketplaceAmount(item),0) : (claimModalStatus === 'APPROVED' ? Number(claimModalTotalSettlement) : 0);
+    const receivedTotal = Number(marketplaceReceived);
+    if (!Number.isSafeInteger(approvedTotal) || approvedTotal < 0 || !Number.isSafeInteger(receivedTotal) || receivedTotal < 0 || receivedTotal > approvedTotal) { showToast('Dana diterima tidak boleh melebihi nominal disetujui. Isi 0 jika belum cair.'); return; }
+    if (!locked && claimModalStatus === 'APPROVED' && (!selectedSuccessSkuKeys.size || approvedTotal <= 0)) { showToast('Pilih barang dan isi nominal disetujui marketplace.'); return; }
+    let approvedAmounts: number[];
+    let receivedAmounts: number[];
+    try {
+      approvedAmounts = locked ? items.map(item=>approvedMarketplaceAmount(item)) : allocateClaimAmount(approvedTotal,items.map(item => selectedSuccessSkuKeys.has(item.key) && claimModalStatus === 'APPROVED' ? item.claimAmount : 0));
+      receivedAmounts = allocateClaimAmount(receivedTotal,approvedAmounts);
+    } catch (error) { showToast((error as Error).message); return; }
+    const updatedDisputes = {...disputeRecords};
+    items.forEach((item,index) => {
+      const previous = updatedDisputes[item.key] || {};
+      const approved = approvedAmounts[index];
+      const received = receivedAmounts[index];
+      const status: ClaimStatus = locked ? item.claimStatus : claimModalStatus === 'APPROVED' ? (approved === 0 ? 'REJECTED' : approved < item.claimAmount ? 'PARTIAL' : 'APPROVED') : claimModalStatus;
+      const record = {
+        ...previous, id:item.key,row:item.row, channel:locked ? item.channel : claimModalChannel,
+        claimStatus:status, ticketNumber:locked ? item.ticketNumber : claimModalTicketNumber.trim(),
+        claimAmount:item.claimAmount,approvedAmount:approved,settlementAmount:received,
+        paymentStatus:paymentStatus(approved,received),paymentReference:marketplacePaymentRef.trim(),
+        csNotes:locked ? item.csNotes : claimModalCsNotes.trim(),updatedAt:nowIso,
+        history:[...(previous.history || []),{at:nowIso,by:currentUser.fullName,note:`Marketplace ${status}; disetujui ${approved}; diterima ${received}`}],
       };
-
-      updatedDisputes[d.key] = updatedItem;
-      const legacyKey = `${d.row.Order_ID}_${d.row.SKU_ID}_${d.itemIndex}`;
-      if (legacyKey !== d.key) {
-        updatedDisputes[legacyKey] = { ...(updatedDisputes[legacyKey] || {}), ...updatedItem, id: legacyKey };
-      }
+      updatedDisputes[item.key]=record;
+      const alias=`${item.row.Order_ID}_${item.row.SKU_ID}_${item.itemIndex}`;
+      if (alias!==item.key) updatedDisputes[alias]={...record,id:alias};
     });
-
-    saveDisputeRecords(updatedDisputes);
+    if (!(await saveDisputeRecords(updatedDisputes))) return;
     const savedOrderId = claimModalOrder.orderId;
     setClaimModalOrder(null);
     showToast(`✓ Hasil klaim Order [${savedOrderId}] berhasil disimpan! Status: ${claimModalStatus}`);
@@ -948,7 +929,7 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     const existing = disputeRecords[key];
     const initialChannel = (existing?.channel as ClaimChannel) || item.channel;
     const itemMasterPrice = lookupItemPrice(row.SKU_ID);
-    const defaultAmount = itemMasterPrice !== undefined ? itemMasterPrice : 150000;
+    const defaultAmount = itemMasterPrice !== undefined ? itemMasterPrice : 0;
 
     setSelectedDispute({ key, row });
     setFormChannel(initialChannel);
@@ -968,8 +949,9 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
   };
 
   // Simpan data klaim dari modal
-  const handleSaveModalClaim = () => {
+  const handleSaveModalClaim = async () => {
     if (!selectedDispute) return;
+    if (!DEFAULT_CHANNELS.includes(formChannel)) { showToast('Pilih marketplace tujuan banding CS. Banding logistik ditangani RMA.'); return; }
     const { key, row } = selectedDispute;
     const claimAmountNum = parseInt(formClaimAmount.replace(/[^0-9]/g, ''), 10) || 0;
     const settlementAmountNum = parseInt(formSettlementAmount.replace(/[^0-9]/g, ''), 10) || 0;
@@ -983,14 +965,14 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
         claimStatus: formStatus,
         ticketNumber: formTicketNumber.trim(),
         claimAmount: claimAmountNum,
-        settlementAmount: settlementAmountNum,
+        settlementAmount: ['APPROVED', 'PARTIAL'].includes(formStatus) ? settlementAmountNum : 0,
         settlementNote: formSettlementNote.trim(),
         csNotes: formCsNotes.trim(),
         updatedAt: new Date().toISOString()
       }
     };
 
-    saveDisputeRecords(updated);
+    if (!(await saveDisputeRecords(updated))) return;
     setSelectedDispute(null);
     showToast(`✓ Data klaim Order [${row.Order_ID}] berhasil disimpan`);
   };
@@ -1001,13 +983,13 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     setInlineSettlementInput(String(currentVal !== undefined ? currentVal : fallbackVal));
   };
 
-  const handleSaveInlineEdit = (key: string, row: ProcessedReturnRow, claimAmount: number) => {
+  const handleSaveInlineEdit = async (key: string, row: ProcessedReturnRow, claimAmount: number) => {
     const settlementNum = parseInt(inlineSettlementInput.replace(/[^0-9]/g, ''), 10) || 0;
     const existing = disputeRecords[key] || {};
 
     let nextStatus: ClaimStatus = (existing.claimStatus as ClaimStatus) || 'SUBMITTED';
     if (settlementNum === 0) {
-      nextStatus = 'REJECTED';
+      nextStatus = (existing.claimStatus as ClaimStatus) || 'PENDING';
     } else if (settlementNum >= claimAmount) {
       nextStatus = 'APPROVED';
     } else if (settlementNum > 0 && settlementNum < claimAmount) {
@@ -1029,9 +1011,9 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
       }
     };
 
-    saveDisputeRecords(updated);
+    if (!(await saveDisputeRecords(updated))) return;
     setInlineEditingKey(null);
-    showToast(`✓ Nilai ganti rugi ekspedisi diperbarui: ${formatRupiah(settlementNum)}`);
+    showToast(`✓ Nilai ganti rugi marketplace diperbarui: ${formatRupiah(settlementNum)}`);
   };
 
   const handleCancelInlineEdit = () => {
@@ -1039,16 +1021,16 @@ export const DisputeClaimsView: React.FC<DisputeClaimsViewProps> = ({
     setInlineSettlementInput('');
   };
 
-  // Generator teks template surat / draf aju banding CS per item
+  // Generator teks template surat / draf pengajuan banding CS per item
   const generateDisputeLetter = (row: ProcessedReturnRow, channel: string, ticketNo?: string, amount?: number) => {
-    const formattedAmount = formatRupiah(amount || 150000);
+    const formattedAmount = formatRupiah(amount || 0);
     const driveUrl = getDirectVideoUrl(row.Link_Video || '', row.Order_ID) || 'https://drive.google.com/file/d/evidence-video/view';
 
     return `Yth. Tim Customer Service / Resolution Center ${channel}
-Perihal: Permohonan Aju Banding Retur Barang Rusak / Hilang (Claim Reimbursement)
+Perihal: Pengajuan banding atas retur barang rusak atau hilang
 
 Dengan hormat,
-Bersama pesan ini kami mengajukan permohonan aju banding atas pesanan retur berikut:
+Bersama pesan ini kami mengajukan permohonan pengajuan banding atas pesanan retur berikut:
 
 1. DATA PESANAN & RETUR:
 - No. Pesanan / Order ID : ${row.Order_ID}
@@ -1069,7 +1051,7 @@ ${ticketNo && ticketNo !== '-' ? `- No. Kasus / Tiket CS   : ${ticketNo}\n` : ''
   ${driveUrl}
 
 KETERANGAN KRONOLOGIS:
-Paket retur dibuka di stasiun unboxing resmi RMA Warehouse dengan perekaman webcam kontinu 30 FPS dan watermark live timestamp tanpa terputus. Kerusakan/kehilangan terjadi di luar kendali penjual selama proses penanganan logistik transit. 
+Paket retur dibuka di stasiun unboxing resmi RMA Warehouse dengan perekaman webcam kontinu 30 FPS dan watermark live timestamp tanpa terputus. Kerusakan/kehilangan terjadi di luar kendali penjual selama proses penanganan logistik transit.
 
 Kami memohon ganti rugi/kompensasi dana penuh sebesar ${formattedAmount} sesuai ketentuan perlindungan seller. Mohon proses investigasi dan pencairan dana klaim.
 
@@ -1105,10 +1087,10 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
         : '  (Tidak ada barang kondisi baik dalam pesanan ini)';
 
     return `Yth. Tim Customer Service / Resolution Center ${targetChannel}
-Perihal: Permohonan Aju Banding Retur Barang Rusak / Hilang (Claim Reimbursement)
+Perihal: Pengajuan banding atas retur barang rusak atau hilang
 
 Dengan hormat,
-Bersama pesan ini kami mengajukan permohonan aju banding resmi atas pesanan retur berikut:
+Bersama pesan ini kami mengajukan permohonan pengajuan banding resmi atas pesanan retur berikut:
 
 1. DATA PESANAN:
 - No. Pesanan / Order ID : ${order.orderId}
@@ -1140,20 +1122,20 @@ Customer Service & RMA Resolution Team
 PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
   };
 
-  // Salin template teks aju banding
+  // Salin template teks pengajuan banding
   const handleCopyClaimTemplate = (row: ProcessedReturnRow, channel: string, ticketNo?: string, amount?: number) => {
     const text = generateDisputeLetter(row, channel, ticketNo, amount);
     navigator.clipboard.writeText(text);
     setCopiedDraft(true);
     setTimeout(() => setCopiedDraft(false), 2500);
-    showToast(`✓ Draf aju banding untuk ${row.Order_ID} disalin ke clipboard!`);
+    showToast(`✓ Draf pengajuan banding untuk ${row.Order_ID} disalin ke clipboard!`);
   };
 
   // Salin template teks order lengkap
   const handleCopyOrderLetter = (order: OrderDisputeGroup) => {
     const text = generateDisputeLetterForOrder(order);
     navigator.clipboard.writeText(text);
-    showToast(`✓ Draf aju banding Order [${order.orderId}] (${order.totalItemsCount} SKU) berhasil disalin!`);
+    showToast(`✓ Draf pengajuan banding Order [${order.orderId}] (${order.totalItemsCount} SKU) berhasil disalin!`);
   };
 
   // Salin cepat link drive
@@ -1164,7 +1146,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
     showToast(`✓ Link Google Drive ${orderId || ''} disalin!`);
   };
 
-  // Export CSV Data Aju Banding dengan kolom rincian finansial & semua SKU
+  // Export CSV Data Pengajuan banding dengan kolom rincian finansial & semua SKU
   const handleDownloadDisputeCsv = () => {
     if (filteredOrders.length === 0) return;
 
@@ -1269,6 +1251,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
             <span>Siap Diajukan</span>
           </span>
         );
+      case 'WAITING':
       case 'SUBMITTED':
         return (
           <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
@@ -1397,6 +1380,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <ClaimFlowNotice stage="marketplace" />
       {/* Toast Feedback */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xl border border-slate-700 flex items-center space-x-2 animate-bounce">
@@ -1432,15 +1416,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
         </div>
 
         <div className="flex flex-wrap items-center space-x-2 gap-y-2 shrink-0">
-          <button
-            onClick={handleDownloadDisputeCsv}
-            disabled={filteredOrders.length === 0}
-            className="py-2.5 px-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-medium text-xs sm:text-sm border border-slate-200 shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-            title={isEn ? "Export filtered claim records to CSV" : "Unduh seluruh berkas klaim terfilter ke format CSV / Excel"}
-          >
-            <Download className="w-4 h-4 text-rose-600" />
-            <span>{isEn ? 'Export Dispute Records' : 'Ekspor Berkas Klaim'} ({filteredOrders.length} Order)</span>
-          </button>
+
 
           <button
             onClick={onNavigateToReports}
@@ -1508,14 +1484,14 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
             {formatRupiah(stats.totalSettlementReceived)}
           </div>
           <div className="text-[10px] text-emerald-700 font-medium mt-0.5">
-            {isEn ? 'Approved payout from courier' : 'Uang cair disetujui kurir'}
+            {isEn ? 'Recorded marketplace payout' : 'Realisasi dari marketplace'}
           </div>
         </div>
 
         {/* Card 5: Selisih Kerugian (Beban Toko) */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50/90 to-red-50/60 border border-rose-200/90 shadow-sm">
           <div className="flex items-center justify-between text-rose-700 text-xs font-bold">
-            <span>{isEn ? 'Net Store Loss' : 'Selisih Beban Rugi Toko'}</span>
+            <span>{isEn ? 'Net Store Loss' : 'Sisa nilai yang belum terganti'}</span>
             <DollarSign className="w-4 h-4 text-rose-600" />
           </div>
           <div className="text-lg sm:text-xl font-extrabold text-rose-950 font-mono mt-1 truncate" title={formatRupiah(stats.totalUncoveredLoss)}>
@@ -1527,61 +1503,8 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
         </div>
       </div>
 
-      {/* ======================================================================= */}
-      {/* 2B. BANNER ATURAN BAKU PENGURANGAN ANGKA NAVIGATION BAR                 */}
-      {/* ======================================================================= */}
-      <div className="rounded-2xl p-4 bg-gradient-to-r from-violet-50/90 via-indigo-50/80 to-teal-50/70 border border-indigo-200/90 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-indigo-950 flex items-center space-x-1.5">
-                <span>Aturan Baku Pengurangan Angka Badge di Navigation Bar</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                  Resmi CS & RMA
-                </span>
-              </h3>
-              <p className="text-[11px] text-slate-600">
-                Angka badge merah pada tab <strong>Klaim CS</strong> menunjukkan jumlah produk rusak yang <strong>masih aktif memerlukan tindakan CS</strong>.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 pt-3 border-t border-indigo-100 grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
-          <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200 flex items-start space-x-2 shadow-2xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-emerald-900 block text-[11px]">1. Status Disetujui (Approved / Partial)</span>
-              <p className="text-[10px] text-emerald-700 leading-relaxed mt-0.5">
-                Angka badge <strong>otomatis berkurang</strong> karena dana ganti rugi telah disepakati dan dicairkan oleh ekspedisi/marketplace.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-white/90 border border-rose-200 flex items-start space-x-2 shadow-2xs">
-            <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-rose-900 block text-[11px]">2. Status Ditolak (Rejected)</span>
-              <p className="text-[10px] text-rose-700 leading-relaxed mt-0.5">
-                Angka badge <strong>otomatis berkurang</strong> karena tiket klaim ditolak final oleh ekspedisi (kasus ditutup / selesai).
-              </p>
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-white/90 border border-indigo-200 flex items-start space-x-2 shadow-2xs">
-            <Truck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-indigo-900 block text-[11px]">3. Dialihkan ke RMA Logistik</span>
-              <p className="text-[10px] text-indigo-700 leading-relaxed mt-0.5">
-                Angka badge CS <strong>berkurang & berpindah</strong> ke tab <strong>RMA Claim</strong> untuk diproses investigasi oleh Tim RMA.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <button type="button" onClick={() => setFilterStatus('PAYMENT_PENDING')} aria-pressed={filterStatus === 'PAYMENT_PENDING'} className="px-3 py-2 border rounded-xl text-sm text-teal-800 bg-white">Pembayaran marketplace belum lunas</button>
+      <p className="text-xs text-slate-600">Angka menu menghitung order aktif, bukan jumlah SKU. Penolakan marketplace tetap perlu ditindaklanjuti CS sampai diteruskan ke RMA.</p>
 
       {/* ======================================================================= */}
       {/* 3. TOOLBAR FILTER & PENCARIAN KLAIM                                     */}
@@ -1621,7 +1544,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Tampilkan hanya Order ID yang memiliki produk rusak / diajukan aju banding"
+                title="Tampilkan hanya Order ID yang memiliki produk rusak / diajukan pengajuan banding"
               >
                 Order Damage ({orderGroups.filter((o) => o.damageCount > 0).length})
               </button>
@@ -1663,7 +1586,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
               className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1 cursor-pointer disabled:opacity-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Unduh CSV ({filteredOrders.length} Order)</span>
+              <span>Unduh klaim ({filteredOrders.length} order)</span>
             </button>
           </div>
         </div>
@@ -1673,7 +1596,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
           {/* Filter Status Klaim */}
           <div>
             <label className="text-[11px] font-bold text-slate-700 block mb-1">
-              Status Aju Banding:
+              Status pengajuan banding:
             </label>
             <div className="flex flex-wrap gap-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200">
               <button
@@ -1686,7 +1609,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 }`}
                 title="Tampilkan seluruh order aktif yang membutuhkan penanganan CS"
               >
-                Semua Aktif ({stats.activeOrdersCount})
+                Semua kasus CS ({stats.activeOrdersCount})
               </button>
               <button
                 type="button"
@@ -1697,7 +1620,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Draft ({stats.pendingCount})
+                Draf ({stats.pendingCount} barang)
               </button>
               <button
                 type="button"
@@ -1708,7 +1631,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Diajukan ({stats.submittedCount})
+                Diajukan ({stats.submittedCount} barang)
               </button>
               <button
                 type="button"
@@ -1719,7 +1642,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Disetujui ({stats.approvedCount})
+                Disetujui ({stats.approvedCount} barang)
               </button>
               <button
                 type="button"
@@ -1730,7 +1653,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Ditolak ({stats.rejectedCount})
+                Ditolak ({stats.rejectedCount} barang)
               </button>
               <button
                 type="button"
@@ -1770,14 +1693,14 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
           {/* Filter Channel */}
           <div>
             <label className="text-[11px] font-bold text-slate-700 block mb-1">
-              Target Channel (Marketplace / Logistik):
+              Marketplace:
             </label>
             <select
               value={filterChannel}
               onChange={(e) => setFilterChannel(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 cursor-pointer"
             >
-              <option value="ALL">Semua Channel (Marketplace & Logistik)</option>
+              <option value="ALL">Semua Marketplace</option>
               <option value="Shopee">Shopee</option>
               <option value="TikTok Shop">TikTok Shop</option>
               <option value="Tokopedia">Tokopedia</option>
@@ -1857,22 +1780,9 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
             </div>
 
             <div className="flex items-center space-x-2">
-              {/* Expand / Collapse All Controls */}
-              <button
-                type="button"
-                onClick={handleExpandAll}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-              >
-                Buka Semua
+              <button type="button" className="warehouse-button" aria-expanded={paginatedOrders.length > 0 && paginatedOrders.every(order => expandedOrderIds.has(order.orderId))} onClick={() => paginatedOrders.every(order => expandedOrderIds.has(order.orderId)) ? handleCollapseAll() : handleExpandAll()}>
+                {paginatedOrders.length > 0 && paginatedOrders.every(order => expandedOrderIds.has(order.orderId)) ? 'Tutup semua rincian' : 'Buka semua rincian'}
               </button>
-              <button
-                type="button"
-                onClick={handleCollapseAll}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-              >
-                Tutup Semua
-              </button>
-
               {/* Pagination Page Switcher */}
               {totalPages > 1 && (
                 <div className="flex items-center space-x-1 pl-2 border-l border-slate-200">
@@ -1956,7 +1866,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
               return (
                 <div
                   key={order.orderId}
-                  className={`rounded-2xl border-2 transition-all duration-200 bg-white shadow-xs hover:shadow-md overflow-hidden ${
+                  className={`rounded-2xl border-2 transition-all duration-200 bg-white shadow-xs hover:shadow-md overflow-visible ${
                     isExpanded
                       ? 'border-teal-500 ring-2 ring-teal-500/15 shadow-md'
                       : order.damageCount > 0
@@ -1966,14 +1876,13 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 >
                   {/* Order Card Header: Clickable to expand/collapse */}
                   <div
-                    className={`p-4 sm:p-4.5 cursor-pointer transition-colors ${
+                    className={`p-4 sm:p-4.5 rounded-2xl transition-colors ${
                       isExpanded
                         ? 'bg-gradient-to-r from-teal-50/60 via-slate-50/50 to-white'
                         : order.damageCount > 0
                         ? 'hover:bg-rose-50/20'
                         : 'hover:bg-slate-50/60'
                     }`}
-                    onClick={() => toggleOrderExpand(order.orderId)}
                   >
                     {/* ROW 1: PRIMARY IDENTITY & STATUS ACTIONS (Sesuai Referensi Gambar) */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -2046,19 +1955,13 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                             type="button"
                             onClick={() => handleOpenOrderClaimModal(order)}
                             className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#0F766E] hover:bg-[#115E59] text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
-                            title="Buka formulir klaim / hasil aju banding order ini"
+                            title="Buka formulir klaim / hasil pengajuan banding order ini"
                           >
                             <ShieldAlert className="w-3.5 h-3.5 text-teal-200" />
-                            <span>Klaim</span>
+                            <span>Catat banding marketplace</span>
                           </button>
                         ) : (
-                          <span
-                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 select-none cursor-default"
-                            title="Kasus order ini telah dialihkan ke Tim RMA"
-                          >
-                            <Lock className="w-3 h-3 text-slate-400" />
-                            <span>Klaim di RMA</span>
-                          </span>
+                          <button type="button" onClick={() => handleOpenOrderClaimModal(order)} className="px-3 py-2 rounded-xl border border-teal-300 text-teal-800 text-xs font-bold">Catat pembayaran marketplace</button>
                         )}
 
                         {/* Tombol Pindahkan ke RMA */}
@@ -2067,7 +1970,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                             type="button"
                             onClick={() => onNavigateToRma && onNavigateToRma()}
                             className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-xs transition-colors cursor-pointer"
-                            title="Kasus telah dialihkan ke Tim RMA. Klik untuk lihat di menu RMA Claim"
+                            title="Kasus telah dialihkan ke Tim RMA. Klik untuk lihat di menu Klaim RMA"
                           >
                             <Truck className="w-3.5 h-3.5 text-indigo-600" />
                             <span>Di Tim RMA</span>
@@ -2076,18 +1979,19 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           <button
                             type="button"
                             onClick={() => handleOpenForwardModal(order)}
-                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
-                            title="Pindahkan kasus klaim ini ke Tim RMA Logistik"
+                            disabled={Boolean(getEscalationError(order.damageItems))}
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={getEscalationError(order.damageItems) || "Teruskan barang yang ditolak marketplace ke RMA Logistik"}
                           >
                             <Truck className="w-3.5 h-3.5 text-indigo-200" />
-                            <span>Pindahkan ke RMA</span>
+                            <span>Teruskan ke RMA Logistik</span>
                           </button>
                         )}
 
                         {/* Tombol Tutup Rincian / Buka Rincian */}
                         <button
                           type="button"
-                          onClick={() => toggleOrderExpand(order.orderId)}
+                          aria-expanded={isExpanded} onClick={() => toggleOrderExpand(order.orderId)}
                           className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
                             isExpanded
                               ? 'bg-[#0F766E] text-white'
@@ -2105,14 +2009,12 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
 
                         {/* Tombol Hapus (Super Admin) */}
                         {canDelete && onDeleteOrder && (
-                          <button
-                            type="button"
-                            onClick={() => setOrderToDelete(order.orderId)}
-                            className="p-1.5 rounded-xl text-rose-500 hover:text-white hover:bg-rose-600 border border-rose-200 transition-colors cursor-pointer"
-                            title="Hapus Data Return Order ID (Khusus Super Admin)"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <details className="warehouse-action-menu">
+                            <summary aria-label={`Tindakan lainnya untuk order ${order.orderId}`}>⋯ Lainnya</summary>
+                            <div className="warehouse-menu-panel">
+                              <button type="button" className="warehouse-danger" onClick={e => {setOrderToDelete(order.orderId); e.currentTarget.closest('details')?.removeAttribute('open');}}>Hapus retur…</button>
+                            </div>
+                          </details>
                         )}
                       </div>
                     </div>
@@ -2125,7 +2027,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           <Package className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Total Qty Unit</div>
+                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Jumlah barang (unit)</div>
                           <div className="flex items-center space-x-1.5">
                             <span className="font-mono font-black text-slate-900 text-xs sm:text-sm">
                               {order.totalItemsCount} Unit
@@ -2297,22 +2199,12 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                           type="button"
                                           onClick={() => onNavigateToRma && onNavigateToRma()}
                                           className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold transition-all shadow-2xs flex items-center space-x-1 cursor-pointer"
-                                          title="Kasus telah dialihkan ke Tim RMA. Buka status di tab RMA Claim"
+                                          title="Kasus telah dialihkan ke Tim RMA. Buka status di tab Klaim RMA"
                                         >
                                           <Truck className="w-3.5 h-3.5 text-indigo-600" />
-                                          <span>Lihat di RMA Claim ({RMA_STAGE_LABELS[forwardedRmaMap.get(order.orderId)!.stageStatus]?.labelId || 'RMA'})</span>
+                                          <span>Lihat di Klaim RMA ({RMA_STAGE_LABELS[forwardedRmaMap.get(order.orderId)!.stageStatus]?.labelId || 'RMA'})</span>
                                         </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenForwardModal(order)}
-                                          className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
-                                          title="Teruskan kasus yang tidak dapat diselesaikan CS ke Tim RMA Logistik"
-                                        >
-                                          <Share2 className="w-3.5 h-3.5" />
-                                          <span>Forward ke RMA Logistik</span>
-                                        </button>
-                                      )}
+                                      ) : null}
                                     </>
                                   )}
 
@@ -2342,7 +2234,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                               </div>
                               <div>
                                 <h4 className="text-xs font-extrabold text-rose-950 uppercase tracking-wider">
-                                  Barang Rusak untuk Aju Banding & Ganti Rugi ({order.damageCount} SKU)
+                                  Barang bermasalah dalam pengajuan banding ({order.damageCount} SKU)
                                 </h4>
                                 <p className="text-[11px] text-rose-700">
                                   Hanya barang rusak berikut yang diajukan klaim penggantian dana ke ekspedisi/marketplace.
@@ -2367,7 +2259,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                   <th className="py-2.5 px-2.5 w-28">Nilai Diajukan</th>
                                   <th className="py-2.5 px-2.5 w-36 bg-amber-50/60">
                                     <span className="flex items-center space-x-1 text-amber-900 font-extrabold">
-                                      <span>Realisasi Ekspedisi</span>
+                                      <span>Dana diterima dari marketplace</span>
                                       <span className="text-[9px] bg-amber-200 text-amber-900 px-1 py-0.2 rounded font-normal">Manual</span>
                                     </span>
                                   </th>
@@ -2462,12 +2354,12 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                         <div className="text-[10px] text-slate-400">Tuntutan</div>
                                       </td>
 
-                                      {/* Realisasi Ekspedisi (Manual Inline Edit / Terkunci jika dialihkan ke RMA) */}
+                                      {/* Dana diterima dari marketplace (Manual Inline Edit / Terkunci jika dialihkan ke RMA) */}
                                       <td className="py-3 px-2.5 bg-amber-50/40 border-x border-amber-100/80">
                                         {forwardedRmaMap.has(order.orderId) ? (
                                           <div
                                             className="p-1.5 rounded-xl bg-indigo-50/80 border border-indigo-200/90 flex flex-col items-start gap-1 cursor-default select-none shadow-2xs"
-                                            title="Kasus order ini telah dialihkan ke Tim RMA. Nominal refund dan ganti rugi dikelola langsung oleh Tim RMA melalui menu RMA Claim."
+                                            title="Kasus order ini telah dialihkan ke Tim RMA. Nilai pengembalian dana dan ganti rugi dikelola langsung oleh Tim RMA melalui menu Klaim RMA."
                                           >
                                             <div className="font-mono font-bold text-xs text-indigo-950">
                                               {actualCompensation > 0 ? formatRupiah(actualCompensation) : "Belum Ditentukan"}
@@ -2477,57 +2369,8 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                               <span>Dikelola Tim RMA</span>
                                             </span>
                                           </div>
-                                        ) : isInlineEditing ? (
-                                          <div className="space-y-1 p-1 bg-white rounded-xl border border-amber-300 shadow-md">
-                                            <div className="flex items-center space-x-1">
-                                              <span className="text-[10px] font-bold text-slate-400">Rp</span>
-                                              <input
-                                                type="text"
-                                                autoFocus
-                                                value={inlineSettlementInput}
-                                                onChange={(e) => setInlineSettlementInput(e.target.value.replace(/[^0-9]/g, ''))}
-                                                onKeyDown={(e) => {
-                                                  if (e.key === 'Enter') handleSaveInlineEdit(key, row, claimAmount);
-                                                  if (e.key === 'Escape') handleCancelInlineEdit();
-                                                }}
-                                                className="w-full text-xs font-mono font-bold text-slate-900 bg-amber-50/50 px-1.5 py-0.5 rounded border border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                              />
-                                            </div>
-                                            <div className="flex items-center justify-end space-x-1">
-                                              <button
-                                                type="button"
-                                                onClick={handleCancelInlineEdit}
-                                                className="p-1 rounded text-slate-400 hover:text-slate-600 cursor-pointer"
-                                                title="Batal"
-                                              >
-                                                <X className="w-3 h-3" />
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => handleSaveInlineEdit(key, row, claimAmount)}
-                                                className="p-1 rounded bg-amber-500 text-white hover:bg-amber-600 cursor-pointer"
-                                                title="Simpan"
-                                              >
-                                                <Check className="w-3 h-3" />
-                                              </button>
-                                            </div>
-                                          </div>
                                         ) : (
-                                          <div
-                                            onClick={() => handleStartInlineEdit(key, settlementAmount, claimAmount)}
-                                            className="group cursor-pointer hover:bg-amber-100/50 p-1.5 rounded-xl transition-colors flex items-center justify-between"
-                                            title="Klik untuk input cepat nilai ganti rugi aktual dari ekspedisi"
-                                          >
-                                            <div>
-                                              <div className="font-mono font-bold text-xs text-amber-950">
-                                                {formatRupiah(actualCompensation)}
-                                              </div>
-                                              <div className="text-[10px] text-amber-700">
-                                                {settlementAmount !== undefined ? 'Sudah Diinput' : 'Belum Ditentukan'}
-                                              </div>
-                                            </div>
-                                            <Edit3 className="w-3.5 h-3.5 text-amber-600 opacity-60 group-hover:opacity-100" />
-                                          </div>
+                                          <div className="p-1.5"><div className="font-mono font-bold text-xs">{formatRupiah(actualCompensation)}</div><div className="text-[10px] text-slate-500">{settlementAmount !== undefined ? 'Hasil marketplace tercatat' : 'Belum ada realisasi'}</div></div>
                                         )}
                                       </td>
 
@@ -2542,33 +2385,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                       {/* Aksi CS */}
                                       <td className="py-3 px-2 text-center">
                                         <div className="flex items-center justify-center space-x-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              if (isOrderForwarded) {
-                                                handleOpenEditModal(item);
-                                              } else {
-                                                handleOpenOrderClaimModal(order);
-                                              }
-                                            }}
-                                            className={`px-2 py-1 rounded-lg text-white font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer ${
-                                              isOrderForwarded
-                                                ? "bg-indigo-600 hover:bg-indigo-700"
-                                                : "bg-[#0F766E] hover:bg-[#115E59]"
-                                            }`}
-                                            title={
-                                              isOrderForwarded
-                                                ? "Lihat rincian bukti klaim (Terkunci - Dikelola Tim RMA)"
-                                                : "Kelola status klaim & nominal aju banding order"
-                                            }
-                                          >
-                                            {isOrderForwarded ? (
-                                              <Eye className="w-3 h-3" />
-                                            ) : (
-                                              <ShieldAlert className="w-3 h-3" />
-                                            )}
-                                            <span>{isOrderForwarded ? "Lihat" : "Klaim"}</span>
-                                          </button>
+
 
                                           <button
                                             type="button"
@@ -2784,7 +2601,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     <ShieldAlert className="w-4 h-4" />
                   </div>
                   <h3 className="font-extrabold text-slate-900 text-base">
-                    Formulir Aju Banding Klaim Kerusakan
+                    Formulir banding atas kerusakan barang
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
@@ -2854,7 +2671,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           </span>
                         </div>
                         <p className="text-[11px] text-indigo-700 leading-relaxed">
-                          Penetapan nominal refund dan penyelesaian klaim logistik dikelola langsung oleh Tim RMA melalui menu <strong>RMA Claim</strong>. Formulir di menu CS Claim ini ditampilkan dalam mode baca saja (read-only).
+                          Penetapan nominal refund dan penyelesaian klaim logistik dikelola langsung oleh Tim RMA melalui menu <strong>Klaim RMA</strong>. Formulir di menu Klaim CS ini ditampilkan dalam mode baca saja (read-only).
                         </p>
                       </div>
                     </div>
@@ -2878,7 +2695,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="font-bold text-slate-700 block mb-1">
-                        Channel Tujuan Aju Banding:
+                        Marketplace Tujuan Banding:
                       </label>
                       <select
                         value={formChannel}
@@ -2904,7 +2721,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           const newStatus = e.target.value as ClaimStatus;
                           setFormStatus(newStatus);
                           if (newStatus === 'APPROVED' && (!formSettlementAmount || formSettlementAmount === '0')) {
-                            setFormSettlementAmount(formClaimAmount || '150000');
+                            setFormSettlementAmount(formClaimAmount || '0');
                           } else if (newStatus === 'REJECTED') {
                             setFormSettlementAmount('0');
                           }
@@ -2913,7 +2730,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-bold cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                       >
                         <option value="PENDING">🟡 Pending (Draft Belum Diajukan)</option>
-                        <option value="SUBMITTED">🔵 Diajukan ke Marketplace (Proses Investigasi)</option>
+                        <option value="WAITING">Menunggu keputusan marketplace</option><option value="SUBMITTED">🔵 Diajukan ke Marketplace (Proses Investigasi)</option>
                         <option value="APPROVED">🟢 Klaim Disetujui (Pencairan Ganti Rugi Cair)</option>
                         <option value="REJECTED">🔴 Klaim Ditolak oleh Marketplace</option>
                       </select>
@@ -2944,7 +2761,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       </label>
                       <input
                         type="number"
-                        placeholder="Contoh: 150000"
+                        placeholder="Contoh: 0"
                         value={formClaimAmount}
                         onChange={(e) => setFormClaimAmount(e.target.value)}
                         disabled={selectedDispute && forwardedRmaMap.has(selectedDispute.row.Order_ID)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono font-bold disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
@@ -2973,10 +2790,10 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-xs font-bold text-slate-800">
-                        Template Surat Sanggahan / Aju Banding Resmi
+                        Draf surat pengajuan banding
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        Salin teks ini dan tempelkan langsung ke formulir sengketa Shopee / TikTok Shop / tiket CS Ekspedisi:
+                        Salin teks ini dan tempelkan langsung ke formulir sengketa Shopee / TikTok Shop / tiket CS Marketplace:
                       </p>
                     </div>
 
@@ -2987,7 +2804,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           selectedDispute.row,
                           formChannel,
                           formTicketNumber,
-                          parseInt(formClaimAmount, 10) || 150000
+                          parseInt(formClaimAmount, 10) || 0
                         )
                       }
                       className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
@@ -3011,7 +2828,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       selectedDispute.row,
                       formChannel,
                       formTicketNumber,
-                      parseInt(formClaimAmount, 10) || 150000
+                      parseInt(formClaimAmount, 10) || 0
                     )}
                   </div>
                 </div>
@@ -3139,7 +2956,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     )}
                   </div>
                   <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
-                    Formulir Klaim & Hasil Aju Banding Marketplace
+                    Formulir banding dan keputusan marketplace
                   </h3>
                 </div>
               </div>
@@ -3164,7 +2981,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>1. Hasil Aju Banding Order</span>
+                <span>1. Status dan keputusan banding</span>
               </button>
               <button
                 type="button"
@@ -3189,7 +3006,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     <PackageCheck className="w-4 h-4 text-[#0F766E] shrink-0 mt-0.5" />
                     <div className="text-[11px] leading-relaxed">
                       <span className="font-bold text-[#0F766E]">Pencatatan Hasil Banding 1 Order:</span>
-                      {' '}Pilih produk dalam order yang berhasil disetujui platform di bawah, lalu masukkan total nominal pencairan klaim yang cair dari marketplace. CS tidak dapat menolak klaim unboxing secara sepihak; jika banding ditolak platform, catat sebagai <em>Klaim Ditolak</em> atau teruskan ke Tim RMA.
+                      {' '}Pilih produk dalam order yang berhasil disetujui platform di bawah, lalu masukkan total nominal pencairan klaim yang cair dari marketplace. CS tidak dapat menolak klaim unboxing secara sepihak; jika banding ditolak platform, catat sebagai <em>Klaim Ditolak</em> kemudian simpan sebelum meneruskan ke Tim RMA.
                     </div>
                   </div>
 
@@ -3197,10 +3014,11 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="font-bold text-slate-700 block mb-1">
-                        Channel Tujuan Aju Banding:
+                        Marketplace Tujuan Banding:
                       </label>
                       <select
                         value={claimModalChannel}
+                        disabled={!!claimModalOrder && forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase())}
                         onChange={(e) => setClaimModalChannel(e.target.value as ClaimChannel)}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold cursor-pointer"
                       >
@@ -3218,15 +3036,11 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       </label>
                       <select
                         value={claimModalStatus}
+                        disabled={!!claimModalOrder && forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase())}
                         onChange={(e) => {
                           const nextSt = e.target.value as ClaimStatus;
                           setClaimModalStatus(nextSt);
-                          if (nextSt === 'APPROVED') {
-                            if (!claimModalTotalSettlement || claimModalTotalSettlement === '0') {
-                              const est = claimModalOrder.totalClaimAmount > 0 ? claimModalOrder.totalClaimAmount : 150000;
-                              setClaimModalTotalSettlement(String(est));
-                            }
-                          } else if (nextSt === 'REJECTED') {
+                          if (nextSt === 'REJECTED') {
                             // Tidak ada pencairan jika ditolak marketplace
                             setClaimModalTotalSettlement('0');
                           }
@@ -3234,9 +3048,9 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold cursor-pointer"
                       >
                         <option value="PENDING">🟡 Pending (Draft Klaim Belum Diajukan)</option>
-                        <option value="SUBMITTED">🔵 Diajukan ke Marketplace (Proses Investigasi)</option>
+                        <option value="WAITING">Menunggu keputusan marketplace</option><option value="SUBMITTED">🔵 Diajukan ke Marketplace (Proses Investigasi)</option>
                         <option value="APPROVED">🟢 Klaim Disetujui (Pencairan Ganti Rugi Cair)</option>
-                        <option value="REJECTED">🔴 Klaim Ditolak (Ditolak oleh Marketplace / Ekspedisi)</option>
+                        <option value="REJECTED">🔴 Klaim Ditolak (Ditolak oleh Marketplace)</option>
                       </select>
                     </div>
                   </div>
@@ -3255,7 +3069,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     />
                   </div>
 
-                  {/* Checklist Produk yang Berhasil Lolos Aju Banding */}
+                  {/* Checklist Produk yang Berhasil Lolos Pengajuan banding */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
@@ -3305,6 +3119,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                               <tr
                                 key={item.key}
                                 onClick={() => {
+                                  if (claimModalStatus !== 'APPROVED' || forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase())) return;
                                   setSelectedSuccessSkuKeys((prev) => {
                                     const next = new Set(prev);
                                     if (next.has(item.key)) next.delete(item.key);
@@ -3320,6 +3135,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                   <input
                                     type="checkbox"
                                     checked={isChecked}
+                                    disabled={claimModalStatus !== 'APPROVED' || forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase())}
                                     onChange={(e) => {
                                       const checked = e.target.checked;
                                       setSelectedSuccessSkuKeys((prev) => {
@@ -3342,10 +3158,10 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                   {getDamageBadge(item.row.Kondisi)}
                                 </td>
                                 <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800">
-                                  {formatRupiah(item.claimAmount || item.masterPrice || item.basePrice || 150000)}
+                                  {formatRupiah(item.claimAmount || item.masterPrice || item.basePrice || 0)}
                                 </td>
                                 <td className="py-2.5 px-3 text-center">
-                                  {isChecked ? (
+                                  {claimModalStatus === 'APPROVED' && isChecked ? (
                                     <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
                                       <Check className="w-3 h-3 text-emerald-600" />
                                       <span>Lolos Banding</span>
@@ -3353,7 +3169,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                                   ) : (
                                     <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
                                       <X className="w-3 h-3 text-rose-500" />
-                                      <span>Ditolak / Belum</span>
+                                      <span>{claimModalStatus === 'REJECTED' || claimModalStatus === 'APPROVED' ? 'Ditolak marketplace' : 'Belum ada keputusan'}</span>
                                     </span>
                                   )}
                                 </td>
@@ -3370,10 +3186,10 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
                         <label className="font-extrabold text-amber-950 text-xs block">
-                          Total Nominal Pencairan Ganti Rugi Disetujui (1 Order):
+                          Nominal disetujui marketplace (1 order):
                         </label>
                         <p className="text-[11px] text-amber-800/90">
-                          Masukkan total nilai transfer / refund kompensasi dari marketplace untuk seluruh order ini:
+                          Isi nilai keputusan marketplace. Dana yang benar-benar masuk dicatat terpisah di bawah.
                         </p>
                       </div>
                       <div className="relative min-w-[220px]">
@@ -3383,22 +3199,25 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           value={claimModalTotalSettlement}
                           onChange={(e) => setClaimModalTotalSettlement(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="Contoh: 350000"
-                          disabled={claimModalStatus === 'REJECTED'}
+                          disabled={claimModalStatus !== 'APPROVED' || forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase())}
                           className="w-full pl-9 pr-3 py-2 bg-white border border-amber-300 rounded-xl font-mono font-black text-amber-950 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
                         />
                       </div>
                     </div>
 
-                    {/* Rangkuman Finansial Order */}
+                      <label className="block font-bold">Dana marketplace sudah diterima (Rp)<input aria-label="Dana marketplace diterima" inputMode="numeric" value={marketplaceReceived} onChange={e => setMarketplaceReceived(e.target.value.replace(/[^0-9]/g,''))} className="w-full p-2 border rounded-lg bg-white" /></label>
+                    <label className="block">Referensi pembayaran marketplace<input aria-label="Referensi pembayaran marketplace" value={marketplacePaymentRef} onChange={e => setMarketplacePaymentRef(e.target.value)} className="w-full p-2 border rounded-lg bg-white" /></label>
+                    <p className="text-xs">Disetujui belum berarti uang masuk. Isi dana diterima 0 sampai pembayaran benar-benar diterima.</p>
+                  {/* Rangkuman Finansial Order */}
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-200/60 text-[11px] font-mono">
                       <div>
                         <span className="text-amber-800 text-[10px] block">Tuntutan Awal:</span>
                         <strong className="text-slate-800">
-                          {formatRupiah(claimModalOrder.totalClaimAmount || 150000)}
+                          {formatRupiah(claimModalOrder.totalClaimAmount || 0)}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-emerald-800 text-[10px] block">Pencairan Cair:</span>
+                        <span className="text-emerald-800 text-[10px] block">Nilai disetujui:</span>
                         <strong className="text-emerald-700">
                           {formatRupiah(parseInt(claimModalTotalSettlement.replace(/[^0-9]/g, ''), 10) || 0)}
                         </strong>
@@ -3409,7 +3228,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           {formatRupiah(
                             Math.max(
                               0,
-                              (claimModalOrder.totalClaimAmount || 150000) -
+                              (claimModalOrder.totalClaimAmount || 0) -
                                 (parseInt(claimModalTotalSettlement.replace(/[^0-9]/g, ''), 10) || 0)
                             )
                           )}
@@ -3418,32 +3237,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                     </div>
                   </div>
 
-                  {/* Notice if REJECTED -> Button forward to RMA */}
-                  {claimModalStatus === 'REJECTED' && (
-                    <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-xs flex items-center space-x-1.5 text-rose-800">
-                          <ShieldAlert className="w-4 h-4 text-rose-600" />
-                          <span>Aju Banding Ditolak oleh Marketplace?</span>
-                        </div>
-                        <p className="text-[11px] text-rose-700">
-                          Anda dapat melimpahkan kasus klaim ini ke Tim RMA Logistik untuk investigasi fisik gudang & koordinasi ganti rugi ekspedisi.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const orderToFwd = claimModalOrder;
-                          setClaimModalOrder(null);
-                          handleOpenForwardModal(orderToFwd);
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer active:scale-95"
-                      >
-                        <Truck className="w-3.5 h-3.5 text-indigo-200" />
-                        <span>Pindahkan ke RMA Sekarang</span>
-                      </button>
-                    </div>
-                  )}
+                  {claimModalStatus === 'REJECTED' && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">Simpan hasil penolakan marketplace dan alasannya. Setelah tersimpan, pilih Teruskan ke RMA Logistik pada order ini.</p>}
 
                   {/* Catatan CS */}
                   <div>
@@ -3454,6 +3248,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                       rows={2}
                       placeholder="Tuliskan perkembangan respon agen CS marketplace, janji SLA investigasi, atau alasan jika ditolak..."
                       value={claimModalCsNotes}
+                      disabled={!!claimModalOrder && forwardedRmaMap.has(claimModalOrder.orderId.trim().toUpperCase())}
                       onChange={(e) => setClaimModalCsNotes(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none"
                     />
@@ -3627,7 +3422,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
             <div className="space-y-3.5 text-xs">
               <div className="p-3 rounded-2xl bg-indigo-50/60 border border-indigo-200 text-indigo-900 space-y-1">
                 <p className="font-semibold">
-                  Tanggung jawab penanganan kasus klaim ini akan dialihkan dari Customer Service ke Tim RMA Logistik.
+                  Marketplace telah menolak barang berikut. Tim RMA akan melanjutkan banding ke logistik; barang yang disetujui marketplace tidak diteruskan.
                 </p>
                 <p className="text-[11px] text-indigo-700">
                   Tim RMA akan memproses investigasi fisik gudang dan bukti rekaman video unboxing untuk berkoordinasi langsung dengan pihak ekspedisi.
@@ -3638,12 +3433,12 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="font-bold text-slate-700">
-                    Daftar Seluruh Barang dalam Paket ({forwardingOrder.allItems.length} Produk):
+                    Barang yang ditolak marketplace ({forwardingOrder.allItems.length} Produk):
                   </label>
                   <span className="text-[10px] font-semibold text-slate-500">
                     <span className="text-rose-600 font-bold">{forwardingOrder.damageItems.length} Rusak</span>
                     {' · '}
-                    <span className="text-emerald-600 font-bold">{forwardingOrder.goodItems.length} Baik</span>
+
                   </span>
                 </div>
                 <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 p-2 space-y-1 bg-slate-50">
@@ -3659,33 +3454,19 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
                           {d.row.Kondisi}
                         </span>
                         <span className="font-mono text-slate-900 font-bold">
-                          {formatRupiah(d.claimAmount || d.masterPrice || d.basePrice || 150000)}
+                          {formatRupiah(d.claimAmount || d.masterPrice || d.basePrice || 0)}
                         </span>
                       </div>
                     </div>
                   ))}
 
-                  {/* Barang Kondisi Baik */}
-                  {forwardingOrder.goodItems.map((g, i) => (
-                    <div key={`good-${i}`} className="flex items-center justify-between text-[11px] py-1.5 px-2 bg-white rounded-lg border border-emerald-200">
-                      <div className="min-w-0 pr-2">
-                        <span className="font-mono font-bold text-slate-600">{g.SKU_ID}</span>
-                        <span className="text-slate-600 ml-1.5 font-medium truncate">{g.Nama_Barang}</span>
-                      </div>
-                      <div className="text-right shrink-0 flex items-center space-x-2">
-                        <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-bold text-[10px]">
-                          Kondisi Baik
-                        </span>
-                        <span className="font-mono text-slate-400 font-medium text-[10px]">
-                          Rp 0 (Restock)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+
                 </div>
               </div>
 
-              {/* Form Input: Estimasi Nilai Ganti Rugi Barang */}
+              <label className="block font-bold">Referensi keputusan marketplace *<input aria-label="Referensi keputusan marketplace" value={forwardDecisionEvidence} onChange={e=>setForwardDecisionEvidence(e.target.value)} placeholder="Nomor tiket, link keputusan, atau referensi dokumen penolakan" className="w-full border rounded-lg p-2" /></label>
+              <div><label htmlFor="rma-logistics" className="font-bold text-slate-800 block mb-1">Logistik tujuan banding *</label><input id="rma-logistics" value={forwardLogistics} onChange={(event) => setForwardLogistics(event.target.value)} placeholder="Contoh: J&T Express" className="w-full p-2 border border-slate-300 rounded-xl" /></div>
+              {/* Nilai tuntutan logistik diisi operator, bukan nominal pencairan. */}
               <div>
                 <label className="font-bold text-slate-800 block mb-1">
                   Estimasi Nilai Ganti Rugi Barang (IDR) <span className="text-rose-600">*</span>:
@@ -3721,7 +3502,7 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
 
               <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
                 <span>Pelimpah: <strong className="text-slate-700">{currentUser?.fullName || 'CS Specialist'}</strong></span>
-                <span>Ekspedisi: <strong className="text-slate-700">{forwardingOrder.damageItems[0]?.channel || 'Ekspedisi'}</strong></span>
+                <span>Ekspedisi: <strong className="text-slate-700">{forwardLogistics || 'Belum diisi'}</strong></span>
               </div>
             </div>
 
@@ -3736,10 +3517,11 @@ PT. Tirta Kumala Sari — Warehouse Otwoo Cosmetics Indonesia`;
               <button
                 type="button"
                 onClick={handleConfirmForwardToRma}
+                  disabled={isForwarding}
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Konfirmasi Forward ke RMA</span>
+                <span>Teruskan ke RMA</span>
               </button>
             </div>
           </div>

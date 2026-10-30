@@ -1,3 +1,4 @@
+import { googleAuthErrorMessage } from '../utils/googleAuthErrors';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Cloud,
@@ -258,16 +259,7 @@ export const LoginGateModal: React.FC<LoginGateModalProps> = ({
       setTimeout(() => setDriveSaveSuccess(false), 3000);
     } catch (err: any) {
       console.warn('Google Sign In error:', err);
-      const msg = err?.message || '';
-      if (msg.includes('unauthorized-domain') || msg.includes('auth/unauthorized-domain')) {
-        setErrorMessage(
-          'Domain aplikasi ini belum didaftarkan di Firebase Authorized Domains. Gunakan login ID Operator & PIN Anda di atas. Google Drive dapat dihubungkan manual via alamat email di bawah.'
-        );
-      } else if (msg.includes('popup-closed-by-user') || msg.includes('popup-blocked')) {
-        setErrorMessage('Popup Google ditutup atau diblokir peramban. Anda tetap bisa login menggunakan ID Operator & PIN di atas.');
-      } else {
-        setErrorMessage(msg || 'Gagal menghubungkan Google Sign-In.');
-      }
+      setErrorMessage(googleAuthErrorMessage(err, window.location.hostname));
     } finally {
       setIsSigningInGoogle(false);
     }

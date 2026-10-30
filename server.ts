@@ -1,3 +1,5 @@
+import { validateReturnRows } from './src/utils/backendValidation.ts';
+import { validateClaimPayload } from './src/utils/claimWorkflow.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
@@ -7,15 +9,44 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { processUnboxingReport } from './src/processor.ts';
 import type { UnboxingSessionInput, StandardKondisi } from './src/processor.ts';
 import { WarehouseStore } from './src/serverDataStore.ts';
+import { localDatabase } from './src/db/index.ts';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isProd = process.env.NODE_ENV === 'production';
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '127.0.0.1';
 
 const app = express();
+if (process.env.LOCAL_TRIAL === 'true') {
+  app.get('/api/local/backup', async (req, res) => {
+    if (!localDatabase || !process.env.LOCAL_STOP_TOKEN || req.headers['x-local-stop-token'] !== process.env.LOCAL_STOP_TOKEN) {
+      res.sendStatus(403);
+      return;
+    }
+    try {
+      const archive = await localDatabase.dumpDataDir('gzip');
+      res.setHeader('Content-Type', 'application/gzip');
+      res.send(Buffer.from(await archive.arrayBuffer()));
+    } catch (error) {
+      console.error('Local backup failed:', error);
+      res.sendStatus(500);
+    }
+  });
+  app.post('/api/local/stop', (req, res) => {
+    if (!process.env.LOCAL_STOP_TOKEN || req.headers['x-local-stop-token'] !== process.env.LOCAL_STOP_TOKEN) {
+      res.sendStatus(403);
+      return;
+    }
+    res.json({ success: true });
+    setTimeout(async () => {
+      await localDatabase?.close();
+      process.exit(0);
+    }, 300);
+  });
+}
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -43,6 +74,7 @@ if (apiKey) {
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
+    localTrial: process.env.LOCAL_TRIAL === 'true',
     service: 'Backend Logic Processor - Sistem Aplikasi Retur Gudang e-Commerce',
     geminiEnabled: Boolean(aiClient),
     timestamp: new Date().toISOString()
@@ -142,15 +174,14 @@ Berikan catatan tambahan yang jelas dan faktual berdasarkan ucapan operator.`;
     const processedRows = processUnboxingReport(payload);
 
     // Otomatis sinkronkan hasil unboxing ke database bersama Cloud SQL (Web & Mobile)
+    const orderId = payload.Order_ID || payload.order_id;
     try {
-      const orderId = payload.Order_ID || payload.order_id;
-      WarehouseStore.saveReturns(processedRows, orderId);
-      dbSaveReturns(processedRows, orderId).catch((dbErr) => {
-        console.warn('Gagal async save return ke PostgreSQL Cloud SQL:', dbErr);
-      });
-    } catch (saveErr) {
-      console.warn('Gagal sinkron otomatis return ke WarehouseStore:', saveErr);
+      await dbSaveReturns(processedRows, orderId);
+    } catch (saveError) {
+      console.error('Failed to persist processed returns:', saveError);
+      res.status(503).json({error:'Hasil pemeriksaan belum tersimpan di database. Coba lagi.'});return;
     }
+    WarehouseStore.saveReturns(processedRows, orderId);
 
 
     // KEMBALIKAN FORMAT OUTPUT WAJIB: JSON ARRAY murni
@@ -160,7 +191,7 @@ Berikan catatan tambahan yang jelas dan faktual berdasarkan ucapan operator.`;
     console.error('Error processing unboxing payload:', error);
     res.status(500).json({
       error: 'Gagal memproses sesi unboxing',
-      detail: error instanceof Error ? error.message : String(error)
+      detail: 'Periksa data masukan atau coba lagi.'
     });
   }
 });
@@ -183,11 +214,6 @@ import {
   ensureDatabaseSeeded
 } from './src/db/warehouseDb.ts';
 
-// Inisialisasi seeding database di background
-ensureDatabaseSeeded().catch((err) => {
-  console.warn('Database seeding check deferred:', err);
-});
-
 /**
  * =========================================================================
  * ENDPOINTS SINKRONISASI DATA MULTI-PERANGKAT (WEB BROWSER & MOBILE BROWSER)
@@ -202,12 +228,7 @@ app.get('/api/sync', async (_req: Request, res: Response) => {
     res.json(data);
   } catch (error) {
     console.warn('Fallback to in-memory store for /api/sync:', error);
-    try {
-      const fallbackData = WarehouseStore.getAll();
-      res.json(fallbackData);
-    } catch (fbErr) {
-      res.status(500).json({ error: 'Gagal membaca data sinkronisasi server' });
-    }
+    res.status(503).json({error: 'Database belum dapat dibaca. Coba lagi.'});
   }
 });
 
@@ -219,6 +240,8 @@ app.post('/api/sync/returns', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'rows harus berupa array data return' });
       return;
     }
+    const invalidRows=validateReturnRows(rows,orderId);
+    if(invalidRows){res.status(400).json({error:invalidRows});return;}
     // Simpan ke PostgreSQL Cloud SQL
     const result = await dbSaveReturns(rows, orderId);
     // Simpan juga ke in-memory cache
@@ -226,13 +249,7 @@ app.post('/api/sync/returns', async (req: Request, res: Response) => {
     res.json({ success: true, count: result.count, lastUpdated: result.lastUpdated });
   } catch (error) {
     console.error('Error saving returns to database, fallback in-memory:', error);
-    try {
-      const { rows, orderId } = req.body;
-      const updated = WarehouseStore.saveReturns(rows, orderId);
-      res.json({ success: true, count: updated.returns.length, lastUpdated: updated.lastUpdated });
-    } catch (fbErr) {
-      res.status(500).json({ error: 'Gagal sinkron data return' });
-    }
+    res.status(503).json({error: 'Data retur belum tersimpan di database. Coba lagi.'});
   }
 });
 
@@ -244,18 +261,14 @@ app.post('/api/sync/replace-returns', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'rows harus berupa array' });
       return;
     }
+    const invalidRows = rows.map((row:any)=>validateReturnRows([row])).find(Boolean);
+    if(invalidRows){res.status(400).json({error:invalidRows});return;}
     const result = await dbSetAllReturns(rows);
     WarehouseStore.setAllReturns(rows);
     res.json({ success: true, count: result.count, lastUpdated: result.lastUpdated });
   } catch (error) {
     console.error('Error replacing returns:', error);
-    try {
-      const { rows } = req.body;
-      const updated = WarehouseStore.setAllReturns(rows);
-      res.json({ success: true, count: updated.returns.length, lastUpdated: updated.lastUpdated });
-    } catch (fbErr) {
-      res.status(500).json({ error: 'Gagal sinkron full returns' });
-    }
+    res.status(503).json({error: 'Penggantian data retur gagal. Data belum tersimpan.'});
   }
 });
 
@@ -272,12 +285,7 @@ app.post('/api/sync/delete-order', async (req: Request, res: Response) => {
     res.json({ success: true, count });
   } catch (error) {
     console.error('Error deleting order:', error);
-    try {
-      const updated = WarehouseStore.deleteOrder(req.body.orderId);
-      res.json({ success: true, count: updated.returns.length });
-    } catch (fbErr) {
-      res.status(500).json({ error: 'Gagal menghapus order dari server' });
-    }
+    res.status(503).json({error: 'Penghapusan pesanan belum berhasil di database.'});
   }
 });
 
@@ -294,12 +302,7 @@ app.post('/api/sync/delete-row', async (req: Request, res: Response) => {
     res.json({ success: true, count });
   } catch (error) {
     console.error('Error deleting row:', error);
-    try {
-      const updated = WarehouseStore.deleteRow(req.body.orderId, req.body.skuId);
-      res.json({ success: true, count: updated.returns.length });
-    } catch (fbErr) {
-      res.status(500).json({ error: 'Gagal menghapus baris dari server' });
-    }
+    res.status(503).json({error: 'Penghapusan barang belum berhasil di database.'});
   }
 });
 
@@ -329,15 +332,20 @@ app.post('/api/sync/bulk-delete', async (req: Request, res: Response) => {
 app.post('/api/sync/disputes', async (req: Request, res: Response) => {
   try {
     const { disputes } = req.body;
-    if (!disputes || typeof disputes !== 'object') {
+    if (!disputes || typeof disputes !== 'object' || Array.isArray(disputes)) {
       res.status(400).json({ error: 'disputes harus berupa object' });
       return;
     }
     let lastUpdated: string | null = null;
     try {
+      const current = await getWarehouseData();
+      const workflowError = validateClaimPayload(current.disputes, disputes);
+      if (workflowError) { res.status(409).json({error: workflowError}); return; }
       lastUpdated = await dbSaveDisputes(disputes);
     } catch (dbErr) {
-      console.warn('Database save warning (disputes), falling back to WarehouseStore:', dbErr);
+      console.warn('Database save warning (disputes):', dbErr);
+      res.status(503).json({error: 'Klaim belum tersimpan di database. Coba lagi.'});
+      return;
     }
     const updated = WarehouseStore.saveDisputes(disputes);
     res.json({ success: true, lastUpdated: lastUpdated || updated.lastUpdated });
@@ -360,6 +368,7 @@ app.post('/api/sync/master-db', async (req: Request, res: Response) => {
       count = await dbSaveMasterDatabase(masterDatabase);
     } catch (dbErr) {
       console.warn('Database save warning (master-db), falling back to WarehouseStore:', dbErr);
+      throw dbErr;
     }
     const updated = WarehouseStore.saveMasterDatabase(masterDatabase);
     res.json({
@@ -386,6 +395,7 @@ app.post('/api/sync/users', async (req: Request, res: Response) => {
       count = await dbSaveUsers(users);
     } catch (dbErr) {
       console.warn('Database save warning (users), falling back to WarehouseStore:', dbErr);
+      throw dbErr;
     }
     const updated = WarehouseStore.saveUsers(users);
     res.json({
@@ -419,6 +429,7 @@ app.post('/api/sync/delete-user', async (req: Request, res: Response) => {
       await dbDeleteUser(clean);
     } catch (dbErr) {
       console.warn('Database delete warning (user), falling back to in-memory:', dbErr);
+      throw dbErr;
     }
 
     const updated = WarehouseStore.deleteUser(clean);
@@ -441,6 +452,7 @@ app.post('/api/sync/clean-demo-users', async (_req: Request, res: Response) => {
       count = await dbCleanDemoAccounts();
     } catch (dbErr) {
       console.warn('dbCleanDemoAccounts warning, falling back to in-memory:', dbErr);
+      throw dbErr;
     }
     const updated = WarehouseStore.saveUsers([
       {
@@ -484,6 +496,7 @@ app.post('/api/sync/awb-prefix', async (req: Request, res: Response) => {
       learned = await dbSaveLearnedPrefix(cleanPrefix, String(marketplace || 'Lainnya'), String(logistics || 'Lainnya'));
     } catch (dbErr) {
       console.warn('Database save warning (awb-prefix), falling back to in-memory:', dbErr);
+      throw dbErr;
     }
 
     const updated = WarehouseStore.saveLearnedPrefix(cleanPrefix, String(marketplace || 'Lainnya'), String(logistics || 'Lainnya'));
@@ -501,8 +514,15 @@ app.post('/api/sync/awb-prefix', async (req: Request, res: Response) => {
 
 
 
+app.use('/api', (_req, res) => {res.status(404).json({error:'Endpoint API tidak ditemukan.'});});
+app.use((error: any, _req: Request, res: Response, _next: any) => {
+  const status=error?.type==='entity.too.large' ? 413 : error instanceof SyntaxError ? 400 : 500;
+  res.status(status).json({error:status===413?'Ukuran data melebihi batas.':status===400?'Format JSON tidak valid.':'Terjadi kesalahan pada server.'});
+});
+
 // Setup Vite atau Static File serving
 async function initServer() {
+  await ensureDatabaseSeeded();
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -517,8 +537,11 @@ async function initServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Backend Logic Processor Server running at http://0.0.0.0:${PORT}`);
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`Backend Logic Processor Server running at http://${HOST}:${PORT}`);resolve();
+    });
+    server.once('error', reject);
   });
 }
 

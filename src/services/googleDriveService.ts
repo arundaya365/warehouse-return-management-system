@@ -5,13 +5,27 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
-  User
+  type User,
+  type Auth
 } from 'firebase/auth';
 import firebaseConfig from '@/firebase-applet-config.json';
+import { googleAuthErrorMessage } from '../utils/googleAuthErrors';
 
-// Inisialisasi Firebase App
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const auth = getAuth(app);
+// Firebase Auth is optional for local warehouse work; initialize only when needed.
+export let auth: Auth | null = null;
+const getGoogleAuth = (): Auth => {
+  if (auth) return auth;
+  const config = {
+    ...firebaseConfig,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+  };
+  const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+  auth = getAuth(app);
+  return auth;
+};
 
 // Scope Google Drive file
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
@@ -45,7 +59,12 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
-  return onAuthStateChanged(auth, async (user: User | null) => {
+  if (import.meta.env.VITE_LOCAL_TRIAL === 'true' && !getCachedAccessTokenSync()) {
+    onAuthFailure?.();
+    return () => {};
+  }
+  try {
+    return onAuthStateChanged(getGoogleAuth(), async (user: User | null) => {
     const token = getCachedAccessTokenSync();
     if (user && token) {
       if (onAuthSuccess) onAuthSuccess(user, token);
@@ -60,13 +79,17 @@ export const initAuth = (
         if (onAuthFailure) onAuthFailure();
       }
     }
-  });
+    }, () => { onAuthFailure?.(); });
+  } catch {
+    onAuthFailure?.();
+    return () => {};
+  }
 };
 
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string }> => {
   try {
     isSigningIn = true;
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(getGoogleAuth(), provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
       throw new Error('Gagal mendapatkan token akses dari Google.');
@@ -78,8 +101,8 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     } catch {}
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
-    console.error('Google Sign In Error:', error);
-    throw error;
+    const message = googleAuthErrorMessage(error, window.location.hostname);
+    throw Object.assign(new Error(message), { code: error?.code, cause: error });
   } finally {
     isSigningIn = false;
   }
@@ -98,7 +121,7 @@ export async function verifyGoogleDriveToken(): Promise<{
   error?: string;
 }> {
   const token = getCachedAccessTokenSync();
-  const currentUser = auth.currentUser;
+  const currentUser = auth?.currentUser;
 
   if (!token) {
     return {
@@ -138,29 +161,15 @@ export async function verifyGoogleDriveToken(): Promise<{
         error: 'Sesi otorisasi Google telah kedaluwarsa (401). Silakan relogin.'
       };
     } else {
-      // Respons non-401 (misal network quirk)
-      return {
-        valid: true,
-        email: currentUser?.email || undefined
-      };
+      return {valid: false, error: 'Google Drive belum dapat diverifikasi. Periksa koneksi lalu coba lagi.'};
     }
   } catch {
-    // Jika timeout atau offline, jika token tersimpan di cache, kita anggap token tersedia
-    if (token) {
-      return {
-        valid: true,
-        email: currentUser?.email || undefined
-      };
-    }
-    return {
-      valid: false,
-      error: 'Gagal memvalidasi token Google Drive'
-    };
+    return {valid: false, error: 'Koneksi ke Google Drive gagal. Periksa internet lalu coba lagi.'};
   }
 }
 
 export const logoutGoogle = async () => {
-  await signOut(auth);
+  if (auth) await signOut(auth);
   cachedAccessToken = null;
   try {
     sessionStorage.removeItem(STORAGE_ACCESS_TOKEN_KEY);

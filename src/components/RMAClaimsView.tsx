@@ -1,3 +1,6 @@
+import { RMA_TRANSITIONS, rmaActionLabel, rmaQueue } from '../utils/claimWorkflow';
+import { ClaimFlowNotice } from './ClaimFlowNotice';
+import { validateRmaResolution, validateRmaWorkflow, paymentStatus, isRmaClosed, rmaCashReceived } from '../utils/claimWorkflow';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Truck,
@@ -36,7 +39,7 @@ import { syncService } from '../services/dataSyncService';
 
 interface RMAClaimsViewProps {
   rmaClaims: RmaClaimRecord[];
-  onUpdateRmaClaim: (updatedClaim: RmaClaimRecord) => void;
+  onUpdateRmaClaim: (updatedClaim: RmaClaimRecord) => Promise<boolean>;
   onReturnToCs?: (orderId: string, reason: string) => void;
   onNavigateToDisputes: () => void;
   masterDatabase?: MasterSKUItem[];
@@ -54,6 +57,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterQueue, setFilterQueue] = useState('ALL');
   const [filterStage, setFilterStage] = useState<'ALL' | RmaStageStatus>('ALL');
   const [filterChannel, setFilterChannel] = useState<string>('ALL');
   const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
@@ -62,13 +66,20 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  // Modal Update Status Investigasi RMA
+  // Modal Catat hasil banding logistik
   const [editingClaim, setEditingClaim] = useState<RmaClaimRecord | null>(null);
   const [modalStage, setModalStage] = useState<RmaStageStatus>('INVESTIGASI');
   const [modalInvestigator, setModalInvestigator] = useState('');
   const [modalNotes, setModalNotes] = useState('');
   const [modalApprovedAmount, setModalApprovedAmount] = useState('');
   const [modalResolutionNote, setModalResolutionNote] = useState('');
+  const [modalDecisionAmount, setModalDecisionAmount] = useState('');
+  const [modalOutcome, setModalOutcome] = useState<RmaClaimRecord['logisticsOutcome']>();
+  const [modalEligibilityReason, setModalEligibilityReason] = useState('');
+  const [modalEvidence, setModalEvidence] = useState('');
+  const [modalTicket, setModalTicket] = useState('');
+  const [modalPaymentReference, setModalPaymentReference] = useState('');
+  const [modalClosureReason, setModalClosureReason] = useState('');
 
   // Modal Rollback / Kembalikan Kasus ke Tim CS
   const [returnTarget, setReturnTarget] = useState<RmaClaimRecord | null>(null);
@@ -95,11 +106,11 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
     const totalCount = rmaClaims.length;
     const receivedCsCount = rmaClaims.filter((c) => c.stageStatus === 'DITERIMA_CS').length;
     const transferredCount = rmaClaims.filter((c) => c.stageStatus === 'DIALIHKAN_KE_RMA').length;
-    const investigationCount = rmaClaims.filter((c) => c.stageStatus === 'INVESTIGASI').length;
-    const completedCount = rmaClaims.filter((c) => c.stageStatus === 'SELESAI').length;
+    const investigationCount = rmaClaims.filter((c) => !['DITERIMA_CS','DIALIHKAN_KE_RMA','SELESAI','TIDAK_LAYAK'].includes(c.stageStatus)).length;
+    const completedCount = rmaClaims.filter((c) => isRmaClosed(c.stageStatus)).length;
 
     const totalEstimatedValue = rmaClaims.reduce((sum, c) => sum + (c.estimatedCompensation || 0), 0);
-    const totalApprovedValue = rmaClaims.reduce((sum, c) => sum + (c.approvedCompensation || 0), 0);
+    const totalApprovedValue = rmaClaims.reduce((sum, c) => sum + rmaCashReceived(c), 0);
 
     return {
       totalCount,
@@ -125,6 +136,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
   const filteredClaims = useMemo(() => {
     return rmaClaims.filter((claim) => {
       // 1. Filter Tahap
+      if (filterQueue !== 'ALL' && rmaQueue(claim.stageStatus) !== filterQueue) return false;
       if (filterStage !== 'ALL' && claim.stageStatus !== filterStage) {
         return false;
       }
@@ -149,7 +161,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
       }
       return true;
     });
-  }, [rmaClaims, filterStage, filterChannel, searchQuery]);
+  }, [rmaClaims, filterQueue, filterStage, filterChannel, searchQuery]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredClaims.length / itemsPerPage) || 1;
@@ -170,16 +182,26 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
 
   const handleOpenEditModal = (claim: RmaClaimRecord) => {
     setEditingClaim(claim);
-    setModalStage(claim.stageStatus);
+    setModalDecisionAmount(String(claim.approvedAmount ?? claim.approvedCompensation ?? 0));
+    setModalOutcome(claim.logisticsOutcome || (isRmaClosed(claim.stageStatus) ? ((claim.approvedCompensation || 0) > 0 ? ((claim.approvedCompensation || 0) < claim.estimatedCompensation ? 'PARTIAL' : 'APPROVED') : 'REJECTED') : undefined));
+    setModalEligibilityReason(claim.eligibilityReason || '');
+    setModalEvidence(claim.evidenceReference || claim.linkVideo || '');
+    setModalTicket(claim.logisticsTicket || '');
+    setModalPaymentReference(claim.paymentReference || '');
+    setModalClosureReason(claim.closureReason || '');
+    setModalStage((['DITERIMA_RMA','HASIL_LOGISTIK'].includes(claim.stageStatus) ? claim.stageStatus : RMA_TRANSITIONS[claim.stageStatus]?.[0] || claim.stageStatus) as RmaStageStatus);
     setModalInvestigator(claim.rmaInvestigator || currentUser?.fullName || '');
     setModalNotes(claim.investigationNotes || '');
-    setModalApprovedAmount(claim.approvedCompensation !== undefined ? String(claim.approvedCompensation) : String(claim.estimatedCompensation || ''));
+    setModalApprovedAmount(claim.approvedCompensation !== undefined ? String(claim.approvedCompensation) : '');
     setModalResolutionNote(claim.resolutionNote || '');
   };
 
-  const handleSaveModal = () => {
-    if (!editingClaim) return;
+  const [isSavingRma, setIsSavingRma] = useState(false);
+  const handleSaveModal = async () => {
+    if (!editingClaim || isSavingRma) return;
+    if (editingClaim.stageStatus === 'SELESAI' && modalStage !== 'SELESAI') { showToast('Kasus selesai tidak dapat dikembalikan ke antrean aktif.'); return; }
 
+    if (!modalInvestigator.trim()) { showToast('Isi penanggung jawab RMA.'); return; }
     const approvedAmt = parseInt(modalApprovedAmount.replace(/[^0-9]/g, ''), 10) || 0;
     const nowIso = new Date().toISOString();
 
@@ -188,13 +210,26 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
       stageStatus: modalStage,
       rmaInvestigator: modalInvestigator.trim(),
       investigationNotes: modalNotes.trim(),
-      approvedCompensation: modalStage === 'SELESAI' ? approvedAmt : editingClaim.approvedCompensation,
-      resolutionNote: modalStage === 'SELESAI' ? modalResolutionNote.trim() : editingClaim.resolutionNote,
+      approvedCompensation: ['HASIL_LOGISTIK','SELESAI'].includes(modalStage) ? approvedAmt : editingClaim.approvedCompensation,
+      approvedAmount: ['HASIL_LOGISTIK','SELESAI'].includes(modalStage) ? Number(modalDecisionAmount) : editingClaim.approvedAmount,
+      logisticsOutcome: modalOutcome,
+      eligibility: modalStage === 'LAYAK_LOGISTIK' ? 'ELIGIBLE' : modalStage === 'TIDAK_LAYAK' ? 'INELIGIBLE' : modalStage === 'BUKTI_KURANG' ? 'NEEDS_EVIDENCE' : editingClaim.eligibility || 'PENDING',
+      eligibilityReason: modalEligibilityReason.trim(), evidenceReference: modalEvidence.trim(),
+      logisticsTicket: modalTicket.trim(), paymentReference: modalPaymentReference.trim(), closureReason: modalClosureReason.trim(),
+      acceptedAt: modalStage === 'DITERIMA_RMA' ? (editingClaim.acceptedAt || nowIso) : editingClaim.acceptedAt,
+      paymentStatus: paymentStatus(Number(modalDecisionAmount), approvedAmt),
+      history: [...(editingClaim.history || []), {at:nowIso, by:modalInvestigator.trim(), from:editingClaim.stageStatus, to:modalStage, note:`${modalNotes.trim()} | Disetujui ${modalDecisionAmount}; diterima ${approvedAmt}; ${modalResolutionNote.trim()}`}],
+      resolutionNote: modalResolutionNote.trim(),
       resolutionDate: modalStage === 'SELESAI' ? (editingClaim.resolutionDate || nowIso) : undefined,
       updatedAt: nowIso
     };
 
-    onUpdateRmaClaim(updated);
+    const workflowError = validateRmaWorkflow(editingClaim, updated);
+    if (workflowError) { showToast(workflowError); return; }
+    setIsSavingRma(true);
+    const saved = await onUpdateRmaClaim(updated);
+    setIsSavingRma(false);
+    if (!saved) { showToast('Gagal menyimpan hasil logistik ke server. Data formulir tetap tersedia; coba lagi.'); return; }
     setEditingClaim(null);
     showToast(`✓ Status klaim RMA Order ${editingClaim.orderId} diperbarui ke "${RMA_STAGE_LABELS[modalStage].labelId}"`);
   };
@@ -260,6 +295,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
         </div>
       )}
 
+<ClaimFlowNotice stage="logistics" />
       {/* 1. Header & Summary Statistics Cards */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -269,13 +305,13 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center space-x-2">
-                <span>RMA Claim & Klaim Logistik</span>
+                <span>Klaim RMA · Logistik</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                   Eskalasi CS
                 </span>
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Peralihan tanggung jawab klaim ekspedisi & logistik yang tidak dapat diselesaikan oleh Customer Service.
+                Banding ke logistik untuk barang yang ditolak marketplace. Hasil banding marketplace tetap tersimpan sebagai riwayat.
               </p>
             </div>
           </div>
@@ -287,7 +323,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
             onClick={onNavigateToDisputes}
             className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer"
           >
-            <span>← Kembali ke CS Claim</span>
+            <span>Kembali ke Klaim CS</span>
           </button>
           <button
             type="button"
@@ -302,7 +338,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
       </div>
 
       {/* 2. Top Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {/* Total Kasus */}
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Kasus RMA</div>
@@ -310,13 +346,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
           <div className="text-[10px] text-slate-400 mt-0.5 font-medium">Diteruskan dari CS</div>
         </div>
 
-        {/* Diterima CS */}
-        <div className="p-3.5 rounded-2xl bg-white border border-amber-200 shadow-2xs">
-          <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Diterima CS</div>
-          <div className="text-xl font-extrabold text-amber-900 mt-1 font-mono">{stats.receivedCsCount}</div>
-          <div className="text-[10px] text-amber-600 mt-0.5 font-medium">Tahap awal pencatatan</div>
-        </div>
-
+        {stats.receivedCsCount > 0 && <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200"><div className="text-xs font-bold">Data lama — perlu ditinjau</div><strong>{stats.receivedCsCount}</strong><p className="text-xs">Periksa hasil marketplace sebelum banding ke logistik.</p></div>}
         {/* Dialihkan ke RMA */}
         <div className="p-3.5 rounded-2xl bg-white border border-indigo-200 shadow-2xs">
           <div className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Dialihkan ke RMA</div>
@@ -326,9 +356,9 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
 
         {/* Dalam Investigasi */}
         <div className="p-3.5 rounded-2xl bg-white border border-blue-200 shadow-2xs">
-          <div className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Investigasi</div>
+          <div className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Banding logistik</div>
           <div className="text-xl font-extrabold text-blue-900 mt-1 font-mono">{stats.investigationCount}</div>
-          <div className="text-[10px] text-blue-600 mt-0.5 font-medium">Verifikasi fisik & logistik</div>
+          <div className="text-[10px] text-blue-600 mt-0.5 font-medium">Pemeriksaan bukti dan banding ke kurir</div>
         </div>
 
         {/* Selesai & Realisasi */}
@@ -391,81 +421,9 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
           )}
         </div>
 
-        {/* Segmented Status Tabs (Diterima CS -> Dialihkan ke Team RMA -> Investigasi -> Selesai) */}
-        <div>
-          <div className="text-[11px] font-bold text-slate-700 mb-1.5">Tahapan Pemrosesan RMA:</div>
-          <div className="flex flex-wrap gap-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => {
-                setFilterStage('ALL');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                filterStage === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Semua Kasus ({rmaClaims.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterStage('DITERIMA_CS');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                filterStage === 'DITERIMA_CS'
-                  ? 'bg-amber-500 text-white shadow-xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Diterima CS ({stats.receivedCsCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterStage('DIALIHKAN_KE_RMA');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                filterStage === 'DIALIHKAN_KE_RMA'
-                  ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Case Dialihkan ke Team RMA ({stats.transferredCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterStage('INVESTIGASI');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                filterStage === 'INVESTIGASI'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Investigasi ({stats.investigationCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterStage('SELESAI');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                filterStage === 'SELESAI'
-                  ? 'bg-emerald-600 text-white shadow-xs font-bold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Selesai ({stats.completedCount})
-            </button>
-          </div>
+        <div className="flex flex-wrap gap-2" aria-label="Filter tahap RMA">
+          {[['ALL','Semua'],['RECEIVE','Perlu diterima'],['ACTIVE','Dalam penanganan'],['WAITING','Menunggu tindak lanjut'],['CLOSED','Selesai']].map(([value,label]) => <button type="button" key={value} className="warehouse-button" aria-pressed={filterQueue===value} onClick={()=>{setFilterQueue(value);setFilterStage('ALL');setCurrentPage(1);}}>{label} ({rmaClaims.filter(claim=>value==='ALL'||rmaQueue(claim.stageStatus)===value).length})</button>)}
+          <label className="text-xs">Status rinci <select aria-label="Filter status rinci RMA" value={filterStage} onChange={e=>{setFilterStage(e.target.value as RmaStageStatus|'ALL');setFilterQueue('ALL');setCurrentPage(1);}} className="rounded-lg border p-2"><option value="ALL">Semua status</option>{Object.entries(RMA_STAGE_LABELS).filter(([stage])=>rmaClaims.some(claim=>claim.stageStatus===stage)).map(([stage,info])=><option key={stage} value={stage}>{info.labelId}</option>)}</select></label>
         </div>
       </div>
 
@@ -479,16 +437,16 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
             <h3 className="text-sm font-bold text-slate-800">Belum Ada Klaim di Tahap Ini</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
               {rmaClaims.length === 0
-                ? 'Belum ada klaim yang diteruskan oleh Customer Service dari tab CS Claim.'
+                ? 'Belum ada klaim yang diteruskan oleh Customer Service dari tab Klaim CS.'
                 : 'Tidak ada data yang cocok dengan kriteria filter atau pencarian Anda.'}
             </p>
             {rmaClaims.length === 0 && (
               <button
                 type="button"
                 onClick={onNavigateToDisputes}
-                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer inline-flex items-center space-x-1.5"
+                className="mt-4 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer inline-flex items-center space-x-1.5"
               >
-                <span>Buka CS Claim List untuk Meneruskan Kasus</span>
+                <span>Buka Klaim CS</span>
               </button>
             )}
           </div>
@@ -502,7 +460,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                   <th className="py-2.5 px-3 w-40">Pelimpahan CS</th>
                   <th className="py-2.5 px-3 min-w-[160px]">Barang & Kerusakan</th>
                   <th className="py-2.5 px-3 w-36">Estimasi Ganti Rugi</th>
-                  <th className="py-2.5 px-3 w-36">Realisasi Logistik</th>
+                  <th className="py-2.5 px-3 w-36">Dana diterima dari logistik</th>
                   <th className="py-2.5 px-3 w-36 text-center">Status Tahap</th>
                   <th className="py-2.5 px-3 w-28 text-center">Aksi RMA</th>
                 </tr>
@@ -516,8 +474,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                   return (
                     <React.Fragment key={claim.id}>
                       <tr
-                        onClick={() => toggleOrderExpand(claim.id)}
-                        className={`hover:bg-slate-50/70 transition-colors cursor-pointer ${
+                        className={`hover:bg-slate-50/70 transition-colors ${
                           isExpanded ? 'bg-indigo-50/20' : ''
                         }`}
                       >
@@ -605,14 +562,14 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                           <div className="text-[10px] text-slate-400">Tuntutan Awal</div>
                         </td>
 
-                        {/* Realisasi Logistik */}
+                        {/* Dana diterima dari logistik */}
                         <td className="py-3 px-3 font-mono">
-                          {claim.stageStatus === 'SELESAI' ? (
+                          {['HASIL_LOGISTIK','SELESAI'].includes(claim.stageStatus) ? (
                             <div>
                               <div className="font-extrabold text-xs text-emerald-700">
                                 {formatRupiah(claim.approvedCompensation || 0)}
                               </div>
-                              <div className="text-[10px] text-emerald-600 font-medium">Disetujui Ekspedisi</div>
+                              <div className="text-[10px] text-emerald-600 font-medium">Disetujui: {formatRupiah(claim.approvedAmount ?? claim.approvedCompensation ?? 0)} · {(claim.approvedCompensation || 0) < (claim.approvedAmount ?? claim.approvedCompensation ?? 0) ? 'Belum lunas' : 'Pembayaran tuntas / tidak berlaku'}</div>
                             </div>
                           ) : (
                             <span className="text-[11px] text-slate-400 italic">Menunggu Hasil</span>
@@ -634,11 +591,11 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => handleOpenEditModal(claim)}
-                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-[11px] shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
                               title="Update status investigasi & hasil klaim logistik"
                             >
                               <Edit3 className="w-3 h-3" />
-                              <span>Update</span>
+                              <span>{claim.stageStatus==='DITERIMA_RMA' ? 'Periksa kelayakan' : claim.stageStatus==='HASIL_LOGISTIK' ? 'Catat pembayaran' : isRmaClosed(claim.stageStatus) ? 'Lihat / koreksi catatan' : rmaActionLabel(RMA_TRANSITIONS[claim.stageStatus]?.[0] || claim.stageStatus)}</span>
                             </button>
                             {onReturnToCs && claim.stageStatus !== 'SELESAI' && (
                               <button
@@ -651,14 +608,14 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                 title="Kembalikan kasus ke antrean Klaim CS jika bukan kendala logistik"
                               >
                                 <Undo2 className="w-3 h-3 text-amber-700" />
-                                <span className="hidden xl:inline">Ke CS</span>
+                                <span className="hidden xl:inline">Koreksi pelimpahan</span>
                               </button>
                             )}
                             <button
                               type="button"
-                              onClick={() => toggleOrderExpand(claim.id)}
+                              aria-expanded={isExpanded} onClick={() => toggleOrderExpand(claim.id)}
                               className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-                              title="Buka / tutup rincian"
+                              aria-label={`Rincian kasus ${claim.orderId}`} title="Buka / tutup rincian"
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </button>
@@ -699,7 +656,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                         title="Kembalikan kasus ke antrean aktif Klaim CS jika terjadi salah pelimpahan"
                                       >
                                         <Undo2 className="w-3.5 h-3.5 text-amber-700" />
-                                        <span>Kembalikan ke CS</span>
+                                        <span>Koreksi pelimpahan ke CS</span>
                                       </button>
                                     )}
                                     {claim.linkVideo && (
@@ -780,7 +737,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                             {damageItems.length} Rusak / Hilang (Dituntut)
                                           </span>
                                           <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
-                                            {goodItems.length} Kondisi Baik (Restock)
+                                            {goodItems.length} Kondisi Baik (Dikembalikan ke stok)
                                           </span>
                                         </div>
                                       </div>
@@ -811,7 +768,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                                 {isGood ? (
                                                   <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px] border border-emerald-200">
                                                     <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                                    <span>Kondisi Baik (Restock)</span>
+                                                    <span>Kondisi Baik (Dikembalikan ke stok)</span>
                                                   </span>
                                                 ) : (
                                                   <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 font-bold text-[10px] border border-rose-200">
@@ -823,7 +780,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                                               <td className="py-2 px-2.5 text-right font-mono text-slate-600">{formatRupiah(it.hargaSatuan)}</td>
                                               <td className="py-2 px-2.5 text-right font-mono font-bold">
                                                 {isGood ? (
-                                                  <span className="text-slate-400 font-normal text-[11px]">Rp 0 (Restock)</span>
+                                                  <span className="text-slate-400 font-normal text-[11px]">Rp 0 (Dikembalikan ke stok)</span>
                                                 ) : (
                                                   <span className="text-rose-700">{formatRupiah(it.subtotalEstimasi)}</span>
                                                 )}
@@ -911,20 +868,20 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
       {/* 5. MODAL UPDATE STATUS INVESTIGASI RMA */}
       {editingClaim && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
                   <Truck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">Update Status Investigasi RMA</h3>
+                  <h3 className="text-sm font-extrabold text-slate-900">Catat hasil banding logistik</h3>
                   <p className="text-[11px] text-slate-500 font-mono">Order ID: {editingClaim.orderId}</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setEditingClaim(null)}
+                aria-label="Tutup formulir RMA" onClick={() => setEditingClaim(null)}
                 className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -934,25 +891,28 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
             <div className="space-y-3 text-xs">
               {/* Pilihan 4 Tahapan Status RMA */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Tahap Status Klaim RMA:</label>
+                <label className="font-bold text-slate-700 block mb-1">Tindakan untuk kasus ini:</label>
                 <select
                   value={modalStage}
                   onChange={(e) => setModalStage(e.target.value as RmaStageStatus)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
-                  <option value="DITERIMA_CS">1. Diterima CS (Tahap Awal Pencatatan)</option>
-                  <option value="DIALIHKAN_KE_RMA">2. Case Dialihkan ke Team RMA</option>
-                  <option value="INVESTIGASI">3. Investigasi (Pemeriksaan Fisik & Logistik)</option>
-                  <option value="SELESAI">4. Selesai (Penetapan Realisasi Klaim)</option>
+                  {Object.entries(RMA_STAGE_LABELS).filter(([stage]) => stage === editingClaim.stageStatus || RMA_TRANSITIONS[editingClaim.stageStatus]?.includes(stage)).map(([stage, info]) => <option key={stage} value={stage}>{stage===editingClaim.stageStatus ? `Simpan catatan · ${info.labelId}` : rmaActionLabel(stage)}</option>)}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1">
                   {RMA_STAGE_LABELS[modalStage].description}
                 </p>
               </div>
 
+              <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+                <label className="block">Dasar kelayakan / bukti yang masih kurang<textarea aria-label="Dasar kelayakan RMA" value={modalEligibilityReason} onChange={e => setModalEligibilityReason(e.target.value)} className="w-full border rounded-lg p-2 resize-none" rows={3} /></label>
+                <label className="block">Referensi bukti yang diperiksa<input aria-label="Referensi bukti RMA" value={modalEvidence} onChange={e => setModalEvidence(e.target.value)} placeholder="Link video, foto, nomor dokumen, atau referensi berkas" className="w-full border rounded-lg p-2" /></label>
+                <label className="block">Nomor tiket / referensi banding logistik<input aria-label="Nomor tiket logistik" value={modalTicket} onChange={e => setModalTicket(e.target.value)} className="w-full border rounded-lg p-2" /></label>
+                <p className="text-slate-500">Penolakan marketplace bukan bukti kesalahan kurir. Pilih Pemeriksaan bukti RMA sebelum menetapkan kelayakan. Kasus bukti kurang tetap berada di RMA.</p>
+              </div>
               {/* Petugas Investigasi */}
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Nama Petugas Penanggung Jawab RMA:</label>
+                <label className="font-bold text-slate-700 block mb-1">Nama Petugas Penanggung jawab RMA:</label>
                 <input
                   type="text"
                   value={modalInvestigator}
@@ -974,28 +934,40 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                 />
               </div>
 
+              {!!editingClaim.history?.length && <details className="rounded-xl border border-slate-200 p-3">
+                <summary className="cursor-pointer font-bold">Riwayat penanganan ({editingClaim.history.length})</summary>
+                <ol className="mt-2 space-y-2">{editingClaim.history.map((entry, index) => <li key={`${entry.at}-${index}`} className="border-t border-slate-100 pt-2 text-xs">
+                  <div className="font-semibold">{entry.by} · {new Date(entry.at).toLocaleString('id-ID')}</div>
+                  <div>{RMA_STAGE_LABELS[entry.from as RmaStageStatus]?.labelId || entry.from} → {RMA_STAGE_LABELS[entry.to as RmaStageStatus]?.labelId || entry.to}</div>
+                  <p className="whitespace-pre-wrap text-slate-600">{entry.note}</p>
+                </li>)}</ol>
+              </details>}
               {/* Khusus jika Status SELESAI */}
-              {modalStage === 'SELESAI' && (
+              {['HASIL_LOGISTIK','SELESAI'].includes(modalStage) && (
                 <div className="p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
                   <div className="text-[11px] font-extrabold text-emerald-900 flex items-center space-x-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Resolusi Akhir Klaim Logistik:</span>
                   </div>
+                  <label className="block font-bold">Keputusan logistik<select aria-label="Keputusan logistik" value={modalOutcome || ''} onChange={e => setModalOutcome(e.target.value as RmaClaimRecord['logisticsOutcome'])} className="w-full border rounded-lg p-2"><option value="">Pilih keputusan</option><option value="APPROVED">Disetujui</option><option value="PARTIAL">Disetujui sebagian</option><option value="REJECTED">Ditolak</option></select></label>
+                  <label className="block font-bold">Nominal disetujui logistik (Rp)<input aria-label="Nominal disetujui logistik" inputMode="numeric" value={modalDecisionAmount} onChange={e => setModalDecisionAmount(e.target.value.replace(/[^0-9]/g,''))} className="w-full border rounded-lg p-2" /></label>
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">
-                      Nilai Ganti Rugi Aktual yang Disetujui Logistik (Rp):
+                      Dana sudah diterima (Rp). Isi 0 jika belum cair:
                     </label>
                     <input
                       type="text"
                       value={modalApprovedAmount}
                       onChange={(e) => setModalApprovedAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="Masukkan nominal ganti rugi yang dicairkan ekspedisi..."
+                      aria-label="Dana diterima logistik" placeholder="Nominal yang benar-benar masuk"
                       className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-mono font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                     />
                     <p className="text-[10px] text-slate-500 mt-0.5">
                       Estimasi tuntutan awal: {formatRupiah(editingClaim.estimatedCompensation)}
                     </p>
                   </div>
+                  <label className="block">Referensi pembayaran<input aria-label="Referensi pembayaran logistik" value={modalPaymentReference} onChange={e => setModalPaymentReference(e.target.value)} className="w-full border rounded-lg p-2" /></label>
+                  <label className="block">Alasan penutupan jika dana belum lunas<input aria-label="Alasan penutupan tanpa pelunasan" value={modalClosureReason} onChange={e => setModalClosureReason(e.target.value)} className="w-full border rounded-lg p-2" /></label>
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">Kesimpulan Penyelesaian:</label>
                     <input
@@ -1021,10 +993,11 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
               <button
                 type="button"
                 onClick={handleSaveModal}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                disabled={isSavingRma}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
-                <span>Simpan Perubahan RMA</span>
+                <span>{isSavingRma ? 'Menyimpan…' : modalStage===editingClaim.stageStatus ? 'Simpan perubahan' : rmaActionLabel(modalStage)}</span>
               </button>
             </div>
           </div>
@@ -1140,7 +1113,7 @@ export const RMAClaimsView: React.FC<RMAClaimsViewProps> = ({
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
               >
                 <Undo2 className="w-3.5 h-3.5" />
-                <span>Konfirmasi Kembalikan ke CS</span>
+                <span>Konfirmasi pengembalian kasus ke CS</span>
               </button>
             </div>
           </div>

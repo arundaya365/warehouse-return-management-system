@@ -85,6 +85,9 @@ export interface DeleteTarget {
 }
 
 interface ResultViewerProps {
+  reportViewMode?: 'order_summary' | 'sku_detail' | 'json';
+  hideToolbar?: boolean;
+  valueForRow?: (row: ProcessedReturnRow) => number | undefined;
   rows: ProcessedReturnRow[];
   onNavigateToDisputes?: () => void;
   onDeleteOrder?: (orderId: string) => void;
@@ -94,6 +97,7 @@ interface ResultViewerProps {
 }
 
 export const ResultViewer: React.FC<ResultViewerProps> = ({
+  reportViewMode, hideToolbar = false, valueForRow,
   rows,
   onNavigateToDisputes,
   onDeleteOrder,
@@ -105,7 +109,9 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
   const canDelete = currentUser.role === 'SUPER_ADMIN' || hasPermission('canDeleteReports');
 
   // Mode tampilan: 'order_summary' (Agregasi 1 Order ID: Qty & Variasi SKU) | 'sku_detail' (Detail per baris SKU) | 'json'
-  const [viewMode, setViewMode] = useState<'order_summary' | 'sku_detail' | 'json'>('order_summary');
+  const [localViewMode, setViewMode] = useState<'order_summary' | 'sku_detail' | 'json'>('order_summary');
+  const viewMode = reportViewMode || localViewMode;
+  const money = (value: number | undefined) => value === undefined ? 'Harga belum tersedia' : new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(value);
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
   const [searchTableQuery, setSearchTableQuery] = useState<string>('');
@@ -528,7 +534,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-              Tabel Rekapitulasi Data Laporan
+              Rekap laporan retur
             </h3>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#F0FDFA] text-[#0F766E] border border-teal-200 font-mono font-bold">
               {orderSummaries.length} Order ID
@@ -544,11 +550,12 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Hitung jumlah return per Order ID, jumlah Qty & variasi SKU dikelompokkan ke dalam masing-masing Order ID. Maksimal 100 baris per halaman.
+            Laporan dikelompokkan per nomor pesanan, dengan jumlah barang dan variasi SKU. Setiap halaman memuat maksimal 100 pesanan.
           </p>
         </div>
 
         {/* View Switcher & Export Actions */}
+        {!hideToolbar && (
         <div className="flex flex-wrap items-center gap-2">
           {/* Toggle View Mode: Ringkasan Order ID vs Detail SKU vs JSON */}
           <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center shadow-xs">
@@ -620,6 +627,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             <span>Detail SKU (.CSV)</span>
           </button>
         </div>
+        )}
       </div>
 
       {/* Main View */}
@@ -636,7 +644,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
         <div className="space-y-4">
           {/* Sub-toolbar Order Summary */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
+            {!hideToolbar && (<div className="relative w-full sm:w-80">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -645,7 +653,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                 onChange={(e) => setSearchTableQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-[#0F766E]"
               />
-            </div>
+            </div>)}
 
             <div className="flex items-center space-x-2">
               <button
@@ -847,13 +855,14 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
 
                     {/* ROW 2: DETAILED METRICS STRIP */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 text-xs">
+                      {valueForRow && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3"><div className="text-xs text-slate-600">Nilai barang terdata</div><strong>{money(order.rows.reduce((sum,row)=>sum+(valueForRow(row) ?? 0),0))}</strong>{order.rows.some(row=>valueForRow(row)===undefined) && <div className="text-xs text-amber-800">Sebagian harga belum tersedia</div>}</div>}
                       {/* Metric 1: Total Qty */}
                       <div className="flex items-center space-x-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
                         <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
                           <Package className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Total Qty Unit</div>
+                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Jumlah barang (unit)</div>
                           <span className="font-mono font-black text-slate-900 text-xs sm:text-sm">
                             {order.totalQty} Unit
                           </span>
@@ -979,7 +988,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                                       <th className="py-2.5 px-3">SKU ID</th>
                                       <th className="py-2.5 px-3">Nama Produk / Barang</th>
                                       <th className="py-2.5 px-3">Kondisi Fisik</th>
-                                      <th className="py-2.5 px-3">Catatan Tambahan</th>
+                                      {valueForRow && <th className="py-2.5 px-3">Nilai barang (Rp)</th>}<th className="py-2.5 px-3">Catatan Tambahan</th>
                                       <th className="py-2.5 px-3">Waktu Scan</th>
                                       {canDelete && onDeleteRow && (
                                         <th className="py-2.5 px-3 w-16 text-center">Aksi</th>
@@ -1001,7 +1010,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                                         <td className="py-2.5 px-3 whitespace-nowrap">
                                           {getConditionBadge(rowItem.Kondisi)}
                                         </td>
-                                        <td className="py-2.5 px-3 text-slate-600">
+                                        {valueForRow && <td className="py-2.5 px-3 whitespace-nowrap">{money(valueForRow(rowItem))}</td>}<td className="py-2.5 px-3 text-slate-600">
                                           {rowItem.Catatan_Tambahan || <span className="text-slate-400 italic">-</span>}
                                         </td>
                                         <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">
@@ -1175,7 +1184,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
         <div className="space-y-4">
           {/* Quick Table Sub-search & Status bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
+            {!hideToolbar && (<div className="relative w-full sm:w-80">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -1184,7 +1193,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                 onChange={(e) => setSearchTableQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E]"
               />
-            </div>
+            </div>)}
 
             {/* Pagination Quick Status Badge */}
             <div className="text-xs text-slate-600 font-medium flex items-center space-x-2">
@@ -1228,7 +1237,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                   <th className="py-2.5 px-3 w-36">Order ID & Operator</th>
                   <th className="py-2.5 px-3 min-w-[150px]">SKU ID & Nama Barang</th>
                   <th className="py-2.5 px-3 w-32">Kondisi</th>
-                  <th className="py-2.5 px-3">Catatan Tambahan</th>
+                  {valueForRow && <th className="py-2.5 px-3">Nilai barang (Rp)</th>}<th className="py-2.5 px-3">Catatan Tambahan</th>
                   <th className="py-2.5 px-3 w-36">Video & Drive</th>
                   {canDelete && <th className="py-2.5 px-2 w-14 text-center">Aksi</th>}
                 </tr>
@@ -1297,7 +1306,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                       <td className="py-2.5 px-3">
                         {getConditionBadge(row.Kondisi)}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600 max-w-xs break-words text-[11px]">
+                      {valueForRow && <td className="py-2.5 px-3 whitespace-nowrap">{money(valueForRow(row))}</td>}<td className="py-2.5 px-3 text-slate-600 max-w-xs break-words text-[11px]">
                         {row.Catatan_Tambahan || <span className="text-slate-400 italic">-</span>}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-[11px]">
@@ -1525,7 +1534,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                 className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Buka Formulir Aju Banding CS ({problemItems.length} Kasus Kerusakan)</span>
+                <span>Buka Formulir Pengajuan banding CS ({problemItems.length} Kasus Kerusakan)</span>
               </button>
             </div>
           )}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   FileText,
   Video,
@@ -28,11 +28,12 @@ import {
 } from 'lucide-react';
 import { ProcessedReturnRow } from '../processor';
 import { ResultViewer } from './ResultViewer';
-import { ExportFilteredModal } from './ExportFilteredModal';
+import { rowValue, summarizeValues } from '../utils/reportValue';
 import { useLanguage } from '../context/LanguageContext';
 import { detectMarketplaceAndLogistics, STANDARD_MARKETPLACES, STANDARD_LOGISTICS } from '../utils/awbDetection';
 
 interface ReportsViewProps {
+  masterDatabase?: {SKU_ID: string; BARCODE?: string; HARGA?: number}[];
   rows: ProcessedReturnRow[];
   onNavigateToStation: () => void;
   onNavigateToDisputes?: () => void;
@@ -107,6 +108,7 @@ export const STANDARD_CONDITIONS: ConditionOption[] = [
 ];
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
+  masterDatabase = [],
   rows,
   onNavigateToStation,
   onNavigateToDisputes,
@@ -213,7 +215,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   }, [rows, filterStartDate, filterEndDate, filterOrderId, filterOperator, filterSkuId]);
 
   // Modal Download dengan Filter Multi-Kriteria
-  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = filterDialogRef.current;
+    if (!dialog) return;
+    if (!isFilterOpen) { if (dialog.open) dialog.close(); return; }
+    if (!dialog.open) dialog.showModal();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {document.body.style.overflow = previousOverflow; if(dialog.open) dialog.close();};
+  }, [isFilterOpen]);
+  const [reportViewMode, setReportViewMode] = useState<'order_summary'|'sku_detail'|'json'>('order_summary');
 
   // Extract distinct items untuk autocomplete / datalist suggestions
   const distinctOrderIds = useMemo(() => {
@@ -382,6 +395,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // =========================================================================
   // STATS CALCULATION: HITUNG JUMLAH RETURN BERDASARKAN ORDER ID, JUMLAH QTY, DAN VARIASI SKU
   // =========================================================================
+  const valueForRow = (row: ProcessedReturnRow) => rowValue(row, masterDatabase);
+  const values = summarizeValues(filteredRows, masterDatabase);
+  const formatValue = (value: number) => new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR',maximumFractionDigits:0}).format(value);
   const totalItems = filteredRows.length; // Total Qty / Unit barang
 
   const distinctFilteredOrderIds = useMemo(() => {
@@ -450,6 +466,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       'Order_ID',
       'Operator_ID',
       'Waktu_Proses',
+      'Value_Terdata_Rp',
+      'Barang_Belum_Ada_Harga',
       'Total_Qty_Return',
       'Jumlah_Variasi_SKU',
       'Rincian_Variasi_SKU',
@@ -470,6 +488,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           `"${s.orderId.replace(/"/g, '""')}"`,
           `"${s.operatorId.replace(/"/g, '""')}"`,
           `"${s.waktuProses.replace(/"/g, '""')}"`,
+          summarizeValues(filteredRows.filter(row=>(row.Order_ID || 'UNKNOWN')===s.orderId),masterDatabase).total,
+          summarizeValues(filteredRows.filter(row=>(row.Order_ID || 'UNKNOWN')===s.orderId),masterDatabase).missing,
           s.totalQty,
           s.skuMap.size,
           `"${skuStr.replace(/"/g, '""')}"`,
@@ -502,13 +522,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // Unduh cepat data yang sedang terfilter ke file Excel (.CSV) dengan UTF-8 BOM (Rincian per baris)
   const handleDownloadCurrentFilteredCsv = () => {
     if (filteredRows.length === 0) return;
-    const headers = Object.keys(filteredRows[0]) as (keyof ProcessedReturnRow)[];
+    const valueRows = filteredRows.map(row=>({...row, Value_Rp: valueForRow(row) ?? '', Status_Harga: valueForRow(row) === undefined ? 'Belum tersedia' : 'Master SKU'}));
+    const headers = Object.keys(valueRows[0]) as (keyof typeof valueRows[number])[];
     const csvContent = [
       headers.join(','),
-      ...filteredRows.map((row) =>
+      ...valueRows.map((row) =>
         headers
           .map((header) => {
-            const val = String(row[header] || '').replace(/"/g, '""');
+            const val = String(row[header] ?? '').replace(/"/g, '""');
             return `"${val}"`;
           })
           .join(',')
@@ -581,29 +602,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <button
               onClick={onNavigateToDisputes}
               className="py-2.5 px-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs sm:text-sm border border-rose-200 shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
-              title={isEn ? "Open CS Dispute Claims for damaged return items" : "Buka halaman Aju Banding CS untuk klaim barang rusak ke Marketplace/Logistik"}
+              title={isEn ? "Open CS Dispute Claims for damaged return items" : "Buka halaman Pengajuan banding CS untuk klaim barang rusak ke Marketplace/Logistik"}
             >
               <ShieldAlert className="w-4 h-4 text-rose-600" />
-              <span>{isEn ? 'Dispute Claims' : 'Aju Banding'} ({damageProductCount + damagePackagingCount + missingCount + unexpectedCount})</span>
+              <span>{isEn ? 'Dispute Claims' : 'Pengajuan banding'} ({damageProductCount + damagePackagingCount + missingCount + unexpectedCount})</span>
             </button>
           )}
 
           {/* Tombol Download Terfilter */}
-          <button
-            onClick={() => setIsExportModalOpen(true)}
-            className="py-2.5 px-3.5 rounded-2xl bg-white hover:bg-[#F0FDFA] text-[#0F766E] font-semibold text-xs sm:text-sm border border-slate-200 shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
-            title={isEn ? "Download reports with custom filters" : "Download file laporan dengan filter kustom"}
-          >
-            <Download className="w-4 h-4 text-[#0F766E]" />
-            <span>{isEn ? 'Filtered Download' : 'Unduh Terfilter'} ({filteredRows.length})</span>
-          </button>
+
 
           <button
             onClick={onNavigateToStation}
             className="py-2.5 px-4 rounded-2xl bg-[#0F766E] hover:bg-[#115E59] text-white font-semibold text-xs sm:text-sm shadow-sm transition-all flex items-center space-x-2 active:scale-95 cursor-pointer shrink-0"
           >
             <Video className="w-4 h-4" />
-            <span>{isEn ? '+ Open Unboxing Station' : '+ Buka Stasiun Unboxing'}</span>
+            <span>{isEn ? '+ Open Unboxing Station' : 'Buka stasiun unboxing'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -612,51 +626,46 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* ======================================================================= */}
       {/* 2. PANEL FILTER MULTI-PARAMETER (TANGGAL, ORDER ID, OPERATOR, SKU ID)   */}
       {/* ======================================================================= */}
-      <div className="glass-card rounded-3xl p-5 shadow-sm border border-slate-200 space-y-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" className="warehouse-button" aria-haspopup="dialog" aria-expanded={isFilterOpen} onClick={()=>setIsFilterOpen(true)}><Filter size={16}/>{isEn ? 'Filter reports' : 'Filter laporan'}{activeFilterCount > 0 && <span>({activeFilterCount})</span>}</button>
+          <span className="text-xs text-slate-600" role="status">{filteredRows.length} {isEn ? 'rows' : 'baris'} · {totalReturnOrdersCount} order{activeFilterCount > 0 ? ` · ${activeFilterCount} ${isEn ? 'active filters' : 'filter aktif'}` : ''}</span><span className="text-xs font-semibold text-teal-800">Nilai barang terdata: {formatValue(values.total)}</span>{values.missing > 0 && <span className="text-xs text-amber-800">{values.missing} barang belum memiliki harga</span>}
+          {activeFilterCount > 0 && <button type="button" className="warehouse-button" onClick={handleResetFilters}>{isEn ? 'Reset filters' : 'Reset filter'}</button>}
+        </div>
+        <details className="warehouse-action-menu">
+              <summary>Unduh laporan</summary>
+              <div className="warehouse-menu-panel">
+                <button type="button" disabled={!filteredRows.length} onClick={e => {handleDownloadFilteredOrderSummaryCsv(); e.currentTarget.closest('details')?.removeAttribute('open');}}>Rekap per order ({totalReturnOrdersCount})</button>
+                <button type="button" disabled={!filteredRows.length} onClick={e => {handleDownloadCurrentFilteredCsv(); e.currentTarget.closest('details')?.removeAttribute('open');}}>Rincian per SKU ({filteredRows.length})</button>
+
+              </div>
+            </details>
+      </div>
+      <dialog ref={filterDialogRef} aria-labelledby="report-filter-title" className="warehouse-filter-dialog" onCancel={event=>{event.preventDefault();setIsFilterOpen(false);}}>
+        <div className="warehouse-filter-body">
+          <button autoFocus type="button" className="warehouse-filter-close warehouse-button" aria-label={isEn ? 'Close report filters' : 'Tutup filter laporan'} onClick={()=>setIsFilterOpen(false)}><X size={18}/></button>
+      <div className="space-y-4">
         <div className="flex items-center justify-between pb-1 border-b border-slate-100">
           <div className="flex items-center space-x-2">
             <div className="w-7 h-7 rounded-lg bg-teal-50 text-[#0F766E] flex items-center justify-center border border-teal-100">
               <Filter className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-800">
+              <h2 id="report-filter-title" className="text-lg font-bold text-slate-800">
                 Filter Data Laporan
               </h2>
               <p className="text-[11px] text-slate-500">
-                Saring data laporan berdasarkan parameter spesifik
+                Perubahan filter langsung memperbarui hasil laporan.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleDownloadFilteredOrderSummaryCsv}
-              disabled={filteredRows.length === 0}
-              className="text-xs font-semibold text-[#0F766E] hover:text-[#115E59] bg-[#F0FDFA] hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1 cursor-pointer disabled:opacity-50"
-              title="Unduh rekapitulasi data per Order ID (Total Qty & Variasi SKU) ke file Excel (.CSV)"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-[#0F766E]" />
-              <span>Rekap Order ID ({totalReturnOrdersCount})</span>
-            </button>
 
-            <button
-              onClick={handleDownloadCurrentFilteredCsv}
-              disabled={filteredRows.length === 0}
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1 cursor-pointer disabled:opacity-50"
-              title="Unduh rincian detail seluruh baris ke file Excel (.CSV)"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Detail SKU ({filteredRows.length})</span>
-            </button>
 
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1 cursor-pointer"
-              title="Buka dialog filter kustom untuk unduhan file"
-            >
-              <Filter className="w-3.5 h-3.5 text-[#0F766E]" />
-              <span>Filter & Unduh...</span>
-            </button>
+
+
+
 
             {activeFilterCount > 0 && (
               <button
@@ -670,10 +679,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
+<label className="mb-4 block text-sm font-semibold">Tampilan laporan<select aria-label="Tampilan laporan" className="ml-3 rounded-lg border p-2" value={reportViewMode} onChange={e=>setReportViewMode(e.target.value as typeof reportViewMode)}><option value="order_summary">Rekap per order</option><option value="sku_detail">Detail per SKU</option><option value="json">JSON</option></select></label>
         {/* ROW 1: PARAMETER PENCARIAN (TANGGAL, ORDER ID, OPERATOR, SKU, MARKETPLACE, LOGISTIK) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3.5">
           {/* FILTER 1: TANGGAL PROSES (DARI TANGGAL KE TANGGAL) */}
-          <div className="md:col-span-2 lg:col-span-1 xl:col-span-2 space-y-1.5 p-3 rounded-2xl bg-teal-50/50 border border-teal-100 shadow-2xs">
+          <div className="md:col-span-2 lg:col-span-1  space-y-1.5 p-3 rounded-2xl bg-teal-50/50 border border-teal-100 shadow-2xs">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold text-slate-800 flex items-center space-x-1.5">
                 <Calendar className="w-3.5 h-3.5 text-[#0F766E]" />
@@ -1191,21 +1201,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 </span>
               )}
 
-              {filteredRows.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadCurrentFilteredCsv}
-                  className="sm:ml-auto px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
-                  title="Unduh seluruh baris yang cocok dengan filter di atas ke file Excel (.CSV)"
-                >
-                  <Download className="w-3 h-3" />
-                  <span>Unduh Hasil Filter Ini ({filteredRows.length} Baris)</span>
-                </button>
-              )}
+
             </div>
           )}
         </div>
       </div>
+
+
+        </div>
+        <div className="warehouse-filter-footer">
+          <span className="text-xs text-slate-600" role="status">{filteredRows.length} {isEn ? 'matching rows' : 'baris sesuai filter'}</span>
+          <button type="button" className="warehouse-button" onClick={()=>setIsFilterOpen(false)}>{isEn ? 'Show results' : 'Tampilkan hasil'}</button>
+        </div>
+      </dialog>
 
       {/* ======================================================================= */}
       {/* 3. KARTU STATISTIK RINGKASAN TERFILTER (6 KARTU)                        */}
@@ -1225,10 +1233,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
-        {/* Card 2: Total Qty Return */}
+        {/* Card 2: Jumlah barang retur */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/90 to-blue-50/60 border border-indigo-200/90 shadow-sm">
           <div className="flex items-center justify-between text-indigo-700 text-xs font-bold">
-            <span>Total Qty Return</span>
+            <span>Jumlah barang retur</span>
             <Boxes className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-extrabold text-indigo-950 font-mono mt-1">
@@ -1309,7 +1317,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               Belum Ada Laporan Unboxing
             </h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Silakan lakukan sesi unboxing di Stasiun Unboxing. Setelah klik Selesai & Upload ke Drive, laporan akan otomatis tersimpan di sini.
+              Lakukan pemeriksaan di Stasiun Unboxing, lalu simpan laporan untuk menampilkannya di sini.
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 pt-2">
@@ -1327,10 +1335,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <CheckSquare className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-slate-800">
-            Tidak Ada Status Kondisi yang Dipilih
+            Belum ada kondisi barang yang dipilih
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Semua checklist kondisi di atas dalam keadaan tidak tercentang. Silakan centang minimal satu kondisi (Good, Damage, Missing, atau Unexpected) untuk melihat tabel data.
+            Pilih minimal satu kondisi barang pada filter untuk menampilkan laporan.
           </p>
           <div className="pt-1">
             <button
@@ -1346,6 +1354,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         <div className="glass-card rounded-3xl p-6 sm:p-7 shadow-sm border border-slate-200">
           <ResultViewer
             rows={filteredRows}
+            hideToolbar
+            reportViewMode={reportViewMode}
+            valueForRow={valueForRow}
             onNavigateToDisputes={onNavigateToDisputes}
             onDeleteOrder={onDeleteOrder}
             onDeleteRow={onDeleteRow}
@@ -1356,19 +1367,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       )}
 
       {/* MODAL EKSPOR / DOWNLOAD TERFILTER MULTI-KRITERIA */}
-      <ExportFilteredModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        rows={rows}
-        activePageFilter={{
-          startDate: filterStartDate,
-          endDate: filterEndDate,
-          orderId: filterOrderId,
-          operator: filterOperator,
-          skuId: filterSkuId,
-          conditions: Array.from(selectedConditions)
-        }}
-      />
+
     </div>
   );
 };

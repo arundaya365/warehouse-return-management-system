@@ -1,6 +1,11 @@
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema.ts';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle as embeddedDrizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
+import path from 'node:path';
 
 // Add global connection pool caching to persist across hot-reloads
 declare global {
@@ -12,6 +17,7 @@ export const createPool = () => {
   if (!global._postgresPool) {
     global._postgresPool = new Pool({
       host: process.env.SQL_HOST,
+      port: Number(process.env.SQL_PORT || 5432),
       user: process.env.SQL_USER,
       password: process.env.SQL_PASSWORD,
       database: process.env.SQL_DB_NAME,
@@ -39,7 +45,11 @@ export const createPool = () => {
 };
 
 // Create or retrieve the pool instance.
-const pool = createPool();
-
-// Initialize Drizzle with the pool and schema.
-export const db = drizzle(pool, { schema });
+export const localDatabase = process.env.SQL_DRIVER === 'pglite'
+  ? new PGlite(path.resolve(process.env.PGLITE_DATA_DIR || '../local-database'))
+  : null;
+const embeddedDb = localDatabase ? embeddedDrizzle(localDatabase, { schema }) : null;
+if (embeddedDb) {
+  await migrate(embeddedDb, { migrationsFolder: path.resolve('drizzle') });
+}
+export const db = embeddedDb || drizzle(createPool(), { schema });

@@ -1,3 +1,6 @@
+import {dashboardPreview} from './data/dashboardPreview';
+import type { SyncState } from './services/dataSyncService';
+import { isRmaClosed } from './utils/claimWorkflow';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -12,7 +15,6 @@ import { MasterDatabaseView } from './components/MasterDatabaseView';
 import { DisputeClaimsView } from './components/DisputeClaimsView';
 import { RMAClaimsView } from './components/RMAClaimsView';
 import { AccountManagementView } from './components/AccountManagementView';
-import { BackgroundFloating3D } from './components/BackgroundFloating3D';
 import { SAMPLE_SCENARIOS } from './data/sampleScenarios';
 import { HISTORICAL_RETURN_ROWS } from './data/historicalReturns';
 import { RmaClaimRecord } from './types/rma';
@@ -39,7 +41,8 @@ import { syncService } from './services/dataSyncService';
 const STORAGE_PROCESSED_RETURNS_KEY = 'unboxin_processed_returns_v1';
 
 function AppContent() {
-  const { t } = useLanguage();
+  const localTrial = import.meta.env.VITE_LOCAL_TRIAL === 'true';
+  const { t, isEn } = useLanguage();
   const { currentUser, isLoginModalOpen, setIsLoginModalOpen, hasPermission, hasLoggedIn } = useAccount();
   const [activeTab, setActiveTab] = useState<AppNavTab>('dashboard');
 
@@ -98,6 +101,17 @@ function AppContent() {
     return {};
   });
   const [, setCurrentInput] = useState<UnboxingSessionInput | null>(null);
+  const [previewMode] = useState(()=>new URLSearchParams(window.location.search).get('dashboard-demo')==='1');
+  const [previewState,setPreviewState] = useState<SyncState>(()=>{
+    const state=new URLSearchParams(window.location.search).get('dashboard-state');
+    return state==='loading'||state==='updating'?'syncing':state==='error'?'error':state==='offline'?'offline':'synced';
+  });
+  const [previewInitial] = useState(()=>new URLSearchParams(window.location.search).get('dashboard-state')||'success');
+  const preview = useMemo(()=>previewMode?dashboardPreview():null,[previewMode]);
+  const [previewUpdatedAt] = useState(()=>new Date());
+  const [dashboardSyncState,setDashboardSyncState]=useState<SyncState>('idle');
+  const [dashboardUpdatedAt,setDashboardUpdatedAt]=useState<Date|null>(null);
+  useEffect(()=>syncService.subscribeStatus((state,time)=>{setDashboardSyncState(state);if(time)setDashboardUpdatedAt(time);}),[]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Master Database SKU & Orders (Excel / CSV) - Inisialisasi awal langsung dari penyimpanan lokal browser
@@ -181,36 +195,32 @@ function AppContent() {
     };
   }, []);
 
-  const handleSaveRmaClaims = (newClaims: RmaClaimRecord[]) => {
-    setRmaClaims(newClaims);
+  const handleSaveRmaClaims = async (newClaims: RmaClaimRecord[]): Promise<boolean> => {
     try {
+      const saved = localStorage.getItem('rma_cs_dispute_claims_v1');
+      const parsed = saved ? JSON.parse(saved) : {};
+      const payload = { ...parsed, _rma_claims_list_: newClaims };
+      if (!(await syncService.pushDisputes(payload))) return false;
+      setRmaClaims(newClaims);
+      setDisputeRecords(payload);
       localStorage.setItem(STORAGE_RMA_CLAIMS_KEY, JSON.stringify(newClaims));
-      const savedDisputes = localStorage.getItem('rma_cs_dispute_claims_v1');
-      const parsed = savedDisputes ? JSON.parse(savedDisputes) : {};
-      parsed['_rma_claims_list_'] = newClaims;
-      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(parsed));
-      syncService.pushDisputes(parsed);
-    } catch (err) {
-      console.error('Error saving RMA claims:', err);
+      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload));
+      return true;
+    } catch (error) {
+      console.error('Error saving RMA claims:', error);
+      return false;
     }
   };
 
+  // CS has already saved the combined dispute/RMA payload once.
   const handleForwardToRma = (claim: RmaClaimRecord) => {
-    setRmaClaims((prev) => {
-      const cleanOrderId = String(claim.orderId || '').trim();
-      const filtered = prev.filter((c) => String(c.orderId || '').trim().toUpperCase() !== cleanOrderId.toUpperCase());
-      const next = [claim, ...filtered];
-      handleSaveRmaClaims(next);
-      return next;
-    });
+    setRmaClaims((previous) => previous.some((item) => item.orderId.trim().toUpperCase() === claim.orderId.trim().toUpperCase())
+      ? previous : [claim, ...previous]);
   };
 
-  const handleUpdateRmaClaim = (updatedClaim: RmaClaimRecord) => {
-    setRmaClaims((prev) => {
-      const next = prev.map((c) => (c.id === updatedClaim.id ? updatedClaim : c));
-      handleSaveRmaClaims(next);
-      return next;
-    });
+  const handleUpdateRmaClaim = async (updatedClaim: RmaClaimRecord): Promise<boolean> => {
+    const next = rmaClaims.map((claim) => claim.id === updatedClaim.id ? updatedClaim : claim);
+    return await handleSaveRmaClaims(next);
   };
 
   // Rollback / Kembalikan kasus dari Tim RMA ke Tim Customer Service
@@ -220,7 +230,7 @@ function AppContent() {
     const nextRmaClaims = (rmaClaims || []).filter(
       (c) => String(c.orderId || '').trim().toUpperCase() !== cleanOrderId.toUpperCase()
     );
-    handleSaveRmaClaims(nextRmaClaims);
+    setRmaClaims(nextRmaClaims);
 
     // 2. Perbarui status dispute records agar kembali aktif di antrean CS dengan audit catatan pengembalian
     setDisputeRecords((prev) => {
@@ -233,15 +243,16 @@ function AppContent() {
             updated[key] = {
               ...item,
               isForwardedToRma: false, // Reset flag agar order aktif kembali di CS
-              claimStatus: 'SUBMITTED', // Aktifkan kembali sebagai klaim investigasi CS
-              csNotes: `[DIKEMBALIKAN DARI RMA: ${reason}] ${item.csNotes || ''}`.trim(),
+              claimStatus: item.claimStatus || 'REJECTED', // Preserve the marketplace decision.
+              csNotes: `[DIKEMBALIKAN DARI RMA: ${reason}] ${String(item.csNotes || '').replaceAll('[DIALIHKAN KE RMA]', '')}`.trim(),
               updatedAt: nowIso
             };
           }
         }
       });
       try {
-        const payload = { ...updated, _rma_claims_list_: nextRmaClaims };
+        const history = [...(Array.isArray(prev._rma_return_history_) ? prev._rma_return_history_ : []), { orderId: cleanOrderId, reason, returnedAt: nowIso, previousRma: rmaClaims.filter((claim) => claim.orderId.trim().toUpperCase() === cleanOrderId.toUpperCase()) }];
+        const payload = { ...updated, _rma_claims_list_: nextRmaClaims, _rma_return_history_: history };
         localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload));
         localStorage.setItem(STORAGE_RMA_CLAIMS_KEY, JSON.stringify(nextRmaClaims));
         syncService.pushDisputes(payload);
@@ -605,10 +616,7 @@ function AppContent() {
             k.startsWith(`${orderId}_${r.SKU_ID}`)
           )?.[1];
 
-        const defaultStatus =
-          r.Kondisi === 'Totally Damage' || r.Kondisi === 'Missing Item' || r.Kondisi === 'Missing'
-            ? 'SUBMITTED'
-            : 'PENDING';
+        const defaultStatus = 'PENDING';
 
         const status = matchedRecord?.claimStatus || defaultStatus;
 
@@ -616,7 +624,7 @@ function AppContent() {
           orderAllRejected = false;
         } else if (status === 'REJECTED') {
           orderAllApproved = false;
-        } else if (status === 'SUBMITTED') {
+        } else if ((status === 'SUBMITTED' || status === 'WAITING')) {
           orderHasSubmitted = true;
           orderAllApproved = false;
           orderAllRejected = false;
@@ -637,6 +645,9 @@ function AppContent() {
         approvedOrderCount += 1;
       } else if (orderAllRejected) {
         rejectedOrderCount += 1;
+        activeOrderCount += 1;
+      } else {
+        activeOrderCount += 1; // Mixed/partial results still need a CS decision or RMA handover.
       }
     });
 
@@ -655,7 +666,7 @@ function AppContent() {
   // 3. Aturan baku angka badge RMA Claim:
   // - Kasus klaim logistik RMA yang masih aktif (stageStatus belum SELESAI)
   const activeRmaCount = useMemo(() => {
-    return (rmaClaims || []).filter((c) => c.stageStatus !== 'SELESAI').length;
+    return (rmaClaims || []).filter((c) => !isRmaClosed(c.stageStatus)).length;
   }, [rmaClaims]);
 
   // 4. Aturan baku angka badge Halaman Laporan:
@@ -674,9 +685,8 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden flex flex-col font-sans text-slate-800">
+    <div className="warehouse-app min-h-screen relative flex flex-col font-sans text-slate-800">
       {/* 1. Vibrant Purple & Violet Background with 3D Minimalist Floating Objects */}
-      <BackgroundFloating3D />
 
       {/* 2. Soft Glassmorphism Navigation Bar */}
       <Navbar
@@ -692,17 +702,23 @@ function AppContent() {
       />
 
       {/* 3. Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 py-4 sm:py-5 space-y-6 relative z-10">
+      <main id="warehouse-content" className={`warehouse-content ${activeTab==='dashboard'?'dashboard-content':''} flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 py-4 sm:py-5 space-y-6 relative z-10`}>
+        {localTrial && activeTab!=='dashboard' && <details className="warehouse-trial-note"><summary>{isEn ? 'Local trial · storage information' : 'Trial lokal · informasi penyimpanan'}</summary><p>{isEn ? 'Returns, master SKUs, accounts and CS disputes are stored on this laptop. Firestore sync is disabled. CS and RMA claims are synced to the laptop database. Save videos separately. Initial records are sample data.' : 'Retur, master SKU, akun, dan klaim CS tersimpan di laptop ini. Sinkronisasi Firestore dimatikan. Klaim CS dan RMA ikut disinkronkan ke database laptop. Simpan video secara terpisah. Data awal merupakan contoh.'}</p></details>}
         {/* TAB 0: Dashboard Analisis & Tren Retur (Harian & Bulanan) */}
         {activeTab === 'dashboard' && (
           <DashboardView
-            rows={processedRows}
-            masterDatabase={masterDatabase}
+            rows={preview ? (previewInitial==='empty'||previewInitial==='loading'&&previewState==='syncing'?[]:preview.rows) : processedRows}
+            disputes={preview?.disputes||disputeRecords}
+            syncState={preview ? previewState : dashboardSyncState}
+            lastUpdated={preview ? (previewInitial==='loading'&&previewState==='syncing'?null:previewUpdatedAt) : dashboardUpdatedAt}
+            onRetry={preview ? async()=>{setPreviewState('syncing');await new Promise(resolve=>setTimeout(resolve,300));setPreviewState('synced');return true;} : ()=>syncService.syncPull()}
+            dataDemo={previewMode}
+            masterDatabase={preview?.master||masterDatabase}
             onNavigateToStation={() => setActiveTab('station')}
             onNavigateToReports={() => setActiveTab('reports')}
             onNavigateToDisputes={() => setActiveTab('disputes')}
             onNavigateToRma={() => setActiveTab('rma')}
-            rmaClaims={rmaClaims}
+            rmaClaims={preview?[]:rmaClaims}
           />
         )}
 
@@ -726,6 +742,7 @@ function AppContent() {
         {/* TAB 2: Halaman Laporan Unboxing */}
         {activeTab === 'reports' && (
           <ReportsView
+            masterDatabase={masterDatabase}
             rows={processedRows}
             onNavigateToStation={() => setActiveTab('station')}
             onNavigateToDisputes={() => setActiveTab('disputes')}
@@ -756,7 +773,6 @@ function AppContent() {
           <RMAClaimsView
             rmaClaims={rmaClaims}
             onUpdateRmaClaim={handleUpdateRmaClaim}
-            onReturnToCs={handleReturnToCs}
             onNavigateToDisputes={() => setActiveTab('disputes')}
             masterDatabase={masterDatabase}
           />
@@ -783,7 +799,7 @@ function AppContent() {
       </main>
 
       {/* 4. Keterangan PT Tirta & Copyright Satu Baris Ringkas di Bagian Paling Bawah Aplikasi */}
-      <footer className="mt-auto bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 text-xs text-slate-500 relative z-10">
+      {activeTab==='dashboard' ? <footer className="saas-dashboard-footer">unboxin.id · Ringkasan operasional gudang. Data awal aplikasi dapat berisi contoh.</footer> : <footer className="mt-auto bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 text-xs text-slate-500 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-center sm:text-left">
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-2 gap-y-1">
             <span className="font-extrabold text-[#0F766E] tracking-tight">unboxin.id</span>
@@ -795,15 +811,15 @@ function AppContent() {
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-2.5 text-slate-400">
             <span className="inline-flex items-center space-x-1.5 text-slate-600">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>Sistem Stabil</span>
+              <span>{isEn ? 'Warehouse workspace' : 'Ruang kerja gudang'}</span>
             </span>
             <span className="text-slate-300" aria-hidden="true">·</span>
-            <span className="text-teal-700 font-medium">{t('footer_drive_ready')}</span>
+            <span className="text-teal-700 font-medium">{localTrial ? 'Database di laptop' : t('footer_drive_ready')}</span>
             <span className="text-slate-300" aria-hidden="true">·</span>
             <span>All Rights Reserved</span>
           </div>
         </div>
-      </footer>
+      </footer>}
 
       {/* MODAL OTORISASI LOGIN & GOOGLE DRIVE */}
       <LoginGateModal

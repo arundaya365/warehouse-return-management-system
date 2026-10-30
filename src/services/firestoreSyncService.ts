@@ -34,7 +34,7 @@ export interface FirestoreWarehouseState {
 }
 
 export type FirestoreSyncListener = (state: FirestoreWarehouseState) => void;
-export type FirestoreStatus = 'connected' | 'connecting' | 'error' | 'offline' | 'quota_exceeded';
+export type FirestoreStatus = 'disabled' | 'connected' | 'connecting' | 'error' | 'offline' | 'quota_exceeded';
 export type FirestoreStatusListener = (status: FirestoreStatus, lastTime: Date | null) => void;
 
 /**
@@ -100,6 +100,7 @@ class FirestoreSyncService {
   }
 
   private initFirestore() {
+    if (import.meta.env.VITE_LOCAL_TRIAL === 'true') return;
     try {
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
       this.db = firebaseConfig.firestoreDatabaseId
@@ -214,7 +215,7 @@ class FirestoreSyncService {
 
   public subscribeStatus(listener: FirestoreStatusListener): () => void {
     this.statusListeners.add(listener);
-    listener(this.isQuotaExceeded ? 'quota_exceeded' : (this.isConnected ? 'connected' : 'connecting'), this.lastSyncTime);
+    listener(import.meta.env.VITE_LOCAL_TRIAL === 'true' ? 'disabled' : (this.isQuotaExceeded ? 'quota_exceeded' : (this.isConnected ? 'connected' : 'connecting')), this.lastSyncTime);
     return () => this.statusListeners.delete(listener);
   }
 

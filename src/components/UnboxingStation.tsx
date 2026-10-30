@@ -410,25 +410,24 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
   const currentVideoBlobRef = useRef<Blob | null>(null);
 
   // Google Drive State
-  const [localGoogleUser, setLocalGoogleUser] = useState<User | null>(() => auth.currentUser);
+  const [localGoogleUser, setLocalGoogleUser] = useState<User | null>(() => auth?.currentUser || null);
   const activeGoogleUser = externalGoogleUser !== undefined ? externalGoogleUser : localGoogleUser;
   // Validasi login Google Drive wajib sebelum scan & unboxing
-  const isDriveLoggedIn = Boolean(
-    activeGoogleUser || (googleDriveEmail && googleDriveEmail.trim().length > 0 && googleDriveEmail.includes('@'))
-  );
+  const isDriveAuthenticated = Boolean(activeGoogleUser);
   const activeDriveAccount = activeGoogleUser?.email || googleDriveEmail || null;
   const [isLoggingInGoogle, setIsLoggingInGoogle] = useState(false);
   const [autoUploadToDrive, setAutoUploadToDrive] = useState(true);
   const [isUploadingToDrive, setIsUploadingToDrive] = useState(false);
   const [uploadedDriveResult, setUploadedDriveResult] = useState<UploadDriveResult | null>(null);
   const [driveUploadError, setDriveUploadError] = useState<string | null>(null);
-  const [isDriveRequiredModalOpen, setIsDriveRequiredModalOpen] = useState<boolean>(!isDriveLoggedIn);
+  const [isDriveRequiredModalOpen, setIsDriveRequiredModalOpen] = useState<boolean>(!isDriveAuthenticated);
   const [manualDriveInput, setManualDriveInput] = useState(googleDriveEmail || '');
 
   // Status Verifikasi Token Google Drive (Real-time Probe & Health)
   const [isCheckingDriveToken, setIsCheckingDriveToken] = useState<boolean>(false);
   const [driveTokenStatus, setDriveTokenStatus] = useState<'checking' | 'valid' | 'expired' | 'unauthenticated'>('checking');
   const [lastTokenCheckTime, setLastTokenCheckTime] = useState<string>('');
+  const isDriveLoggedIn = isDriveAuthenticated && driveTokenStatus === 'valid';
 
   const checkDriveTokenHealth = async (showFeedback = false) => {
     setIsCheckingDriveToken(true);
@@ -448,7 +447,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
         setDriveTokenStatus(activeGoogleUser ? 'expired' : 'unauthenticated');
         if (showFeedback) {
           playBeep(440, 'triangle', 0.15);
-          setSkuFeedbackToast(`⚠️ ${result.error || 'Sesi Google Drive kedaluwarsa. Silakan Relogin Akun Google.'}`);
+          setSkuFeedbackToast(`⚠️ ${result.error || 'Sesi Google Drive kedaluwarsa. Silakan Sambungkan kembali.'}`);
           setTimeout(() => setSkuFeedbackToast(null), 4000);
         }
       }
@@ -460,12 +459,12 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
   };
 
   useEffect(() => {
-    if (isDriveLoggedIn) {
+    if (isDriveAuthenticated) {
       checkDriveTokenHealth(false);
     } else {
       setDriveTokenStatus('unauthenticated');
     }
-  }, [isDriveLoggedIn, activeGoogleUser]);
+  }, [isDriveAuthenticated, activeGoogleUser]);
 
   // Google Drive Pre-Flight Gatekeeper: Wajibkan login di awal sebelum membuka stasiun & scan
   useEffect(() => {
@@ -1252,12 +1251,12 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
         const result = await googleSignIn();
         setLocalGoogleUser(result.user);
       }
+      const verified = await verifyGoogleDriveToken();
+      if (!verified.valid) {setDriveTokenStatus('expired'); throw new Error(verified.error || 'Google Drive belum dapat diverifikasi.');}
+      setDriveTokenStatus('valid');
       playBeep(1200, 'sine', 0.15);
-      setSkuFeedbackToast('✓ Akun Google Drive berhasil terhubung! Stasiun unboxing terbuka.');
+      setSkuFeedbackToast('Sesi Google Drive terverifikasi. Siap merekam.');
       setIsDriveRequiredModalOpen(false);
-      setTimeout(() => {
-        setIsAwbModalOpen(true);
-      }, 350);
     } catch (err: any) {
       console.error('Google sign-in error:', err);
       setDriveUploadError(err.message || 'Gagal menghubungkan Google Drive');
@@ -1617,15 +1616,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                 <span>30 FPS Anti-Lag</span>
               </span>
 
-              <button
-                type="button"
-                onClick={() => setIsCameraSettingsOpen(true)}
-                className="text-[11px] font-semibold text-[#0F766E] bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1.5 rounded-lg flex items-center space-x-1 shadow-xs transition-all cursor-pointer"
-                title="Buka pengaturan kamera"
-              >
-                <Settings className="w-3.5 h-3.5 text-[#0F766E]" />
-                <span className="hidden sm:inline">Pengaturan Kamera</span>
-              </button>
+
 
               <button
                 onClick={() => setIsAwbModalOpen(true)}
@@ -1667,7 +1658,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                   </div>
                   <div>
                     <h3 className="text-xs sm:text-sm font-black text-amber-950 flex items-center space-x-1.5">
-                      <span>Stasiun Terkunci: Wajib Login Google Drive Sebelum Scan</span>
+                      <span>Hubungkan Google Drive sebelum memindai resi</span>
                       <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 text-amber-900 font-extrabold uppercase tracking-wide border border-amber-300">
                         SOP Wajib di Awal
                       </span>
@@ -1695,7 +1686,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     type="email"
                     value={manualDriveInput}
                     onChange={(e) => setManualDriveInput(e.target.value)}
-                    placeholder="Atau ketik email Gmail gudang (misal: gudang.otwoo@gmail.com)..."
+                    aria-label="Email tujuan gudang, bukan login Google" placeholder="Email tujuan gudang (tidak memberikan akses Drive)"
                     className="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-[#0F766E]"
                   />
                 </div>
@@ -1710,7 +1701,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     }
                     setGoogleDriveEmail(clean);
                     playBeep(1200, 'sine', 0.15);
-                    setSkuFeedbackToast(`✓ Akun Google Drive ${clean} berhasil terhubung! Stasiun unboxing terbuka.`);
+                    setSkuFeedbackToast('Email tujuan tersimpan. Hubungkan Google Drive untuk mulai merekam.');
                     setTimeout(() => setSkuFeedbackToast(null), 3500);
                   }}
                   className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
@@ -1728,16 +1719,16 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-emerald-950 flex items-center space-x-2">
-                    <span>Google Drive Terhubung:</span>
+                    <span>Google Drive · sesi aktif:</span>
                     <span className="font-mono text-emerald-800 font-extrabold truncate max-w-[280px]" title={activeDriveAccount || ''}>
                       {activeDriveAccount}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                      Auto-Upload Cloud Aktif
+                      Sesi Google terverifikasi
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-700">
-                    Video rekaman unboxing akan otomatis tersimpan langsung ke folder Google Drive resmi gudang.
+                    Status unggahan video ditampilkan setelah perekaman selesai.
                   </p>
                 </div>
               </div>
@@ -1885,9 +1876,8 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
             {/* ACTIVE CAMERA BADGE (TOP LEFT UNDER REC DOT) */}
             <div className="absolute top-11 left-3 z-20">
               <div
-                onClick={() => setIsCameraSettingsOpen(true)}
-                className="flex items-center space-x-1.5 bg-slate-950/80 backdrop-blur-md px-2 py-0.5 rounded-lg border border-slate-700/80 text-[10px] font-mono text-slate-300 shadow-md cursor-pointer hover:border-teal-400/50 transition-colors"
-                title="Klik untuk membuka pengaturan kamera"
+                className="flex items-center space-x-1.5 bg-slate-950/80 backdrop-blur-md px-2 py-0.5 rounded-lg border border-slate-700/80 text-[10px] font-mono text-slate-300 shadow-md"
+                title="Kamera yang digunakan"
               >
                 {activeCameraMeta.isExternal ? (
                   <Camera className="w-3 h-3 text-cyan-400" />
@@ -2567,13 +2557,13 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              {isEn 
+              {isEn
                 ? 'After scanning AWB, live webcam unboxing video starts recording automatically (30 FPS lag-free). Point scanner at AWB barcode or type below:'
-                : 'Setelah scan No. AWB, video unboxing langsung merekam via webcam secara otomatis (30 FPS anti-lemot). Arahkan barcode scanner ke no AWB atau ketik di bawah:'}
+                : 'Pindai atau masukkan nomor resi (AWB) untuk memulai perekaman video secara otomatis.'}
             </p>
 
             {/* WAJIB LOGIN GOOGLE DRIVE SEBELUM MEREKAM - INTERACTIVE AUTH HEALTH CARD */}
-            {isDriveLoggedIn ? (
+            {isDriveAuthenticated ? (
               <div
                 className={`p-3.5 rounded-2xl border transition-all shadow-2xs space-y-2.5 ${
                   driveTokenStatus === 'valid'
@@ -2605,7 +2595,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1.5">
                         <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider">
-                          Google Drive Terhubung
+                          Google Drive · verifikasi sesi
                         </span>
                         {isCheckingDriveToken && (
                           <span className="text-[9px] text-teal-600 font-medium animate-pulse">
@@ -2627,12 +2617,12 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     {driveTokenStatus === 'valid' ? (
                       <span className="inline-flex items-center space-x-1 text-[10px] font-extrabold bg-emerald-200/90 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-full shadow-2xs">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                        <span>✓ Token Aktif • Siap Rekam</span>
+                        <span>✓ Sesi aktif • Siap rekam</span>
                       </span>
                     ) : driveTokenStatus === 'checking' ? (
                       <span className="inline-flex items-center space-x-1 text-[10px] font-bold bg-teal-100 text-teal-900 border border-teal-200 px-2.5 py-1 rounded-full">
                         <Loader2 className="w-3 h-3 animate-spin text-teal-700" />
-                        <span>Cek Token...</span>
+                        <span>Memeriksa sesi…</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center space-x-1 text-[10px] font-extrabold bg-amber-200 text-amber-950 border border-amber-400 px-2.5 py-1 rounded-full shadow-2xs">
@@ -2646,14 +2636,14 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                 {/* Warning box jika token expired */}
                 {driveTokenStatus === 'expired' && (
                   <p className="text-[11px] text-amber-900 bg-amber-100/90 p-2 rounded-xl border border-amber-300 leading-tight">
-                    Sesi token Google Drive belum aktif atau kedaluwarsa. Klik <strong>Relogin Akun Google</strong> di bawah agar video tidak gagal tersimpan.
+                    Sesi token Google Drive belum aktif atau kedaluwarsa. Klik <strong>Sambungkan kembali</strong> di bawah agar video tidak gagal tersimpan.
                   </p>
                 )}
 
-                {/* Bar Tombol Aksi: Cek Token Aktif & Relogin Akun Google */}
+                {/* Bar Tombol Aksi: Periksa koneksi & Sambungkan kembali */}
                 <div className="pt-1.5 border-t border-emerald-200/70 flex items-center justify-between gap-2">
                   <div className="flex items-center space-x-2">
-                    <button
+                    <details className="warehouse-action-menu"><summary>Diagnostik</summary><div className="warehouse-menu-panel"><button
                       type="button"
                       onClick={() => checkDriveTokenHealth(true)}
                       disabled={isCheckingDriveToken}
@@ -2661,8 +2651,8 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                       title="Periksa masa berlaku token otorisasi Google Drive"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isCheckingDriveToken ? 'animate-spin' : ''}`} />
-                      <span>{isCheckingDriveToken ? 'Mengecek...' : 'Cek Token Aktif'}</span>
-                    </button>
+                      <span>{isCheckingDriveToken ? 'Mengecek...' : 'Periksa koneksi'}</span>
+                    </button></div></details>
 
                     <button
                       type="button"
@@ -2671,12 +2661,12 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                       className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-2xs flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 ${
                         driveTokenStatus === 'expired'
                           ? 'bg-amber-600 hover:bg-amber-700 text-white animate-bounce-subtle'
-                          : 'bg-[#0F766E] hover:bg-[#115E59] text-white'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300'
                       }`}
                       title="Buka popup Google untuk login ulang atau ganti akun"
                     >
                       <HardDrive className="w-3.5 h-3.5" />
-                      <span>{isLoggingInGoogle ? 'Menghubungkan...' : 'Relogin Akun Google'}</span>
+                      <span>{isLoggingInGoogle ? 'Menghubungkan…' : driveTokenStatus === 'valid' ? 'Ganti akun Google' : 'Sambungkan kembali'}</span>
                     </button>
                   </div>
 
@@ -2692,14 +2682,14 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2 font-extrabold text-xs text-amber-950">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Google Drive Wajib Login Sebelum Menyalakan Stasiun</span>
+                    <span>Hubungkan Google Drive sebelum mulai merekam</span>
                   </div>
                   <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
                     Wajib Terhubung
                   </span>
                 </div>
                 <p className="text-[11px] text-amber-900/90 leading-relaxed">
-                  Sebelum menyalakan stasiun dan memulai perekaman bukti unboxing, pastikan akun Google Drive gudang sudah login dan terhubung. Masukkan akun Gmail gudang secara manual:
+                  Sebelum menyalakan stasiun dan memulai perekaman bukti unboxing, pastikan akun Google Drive gudang sudah login dan terhubung. Gunakan login Google untuk memberikan akses ke Drive. Alamat email tujuan saja tidak memberikan akses:
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
@@ -2707,7 +2697,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                       type="email"
                       value={manualDriveInput}
                       onChange={(e) => setManualDriveInput(e.target.value)}
-                      placeholder="Contoh: whs.otwoo@gmail.com"
+                      aria-label="Email tujuan gudang" placeholder="Contoh: gudang@gmail.com"
                       className="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-[#0F766E]"
                     />
                     <button
@@ -2720,13 +2710,13 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                           return;
                         }
                         setGoogleDriveEmail(clean);
-                        setSkuFeedbackToast(`✓ Akun Google Drive ${clean} berhasil terhubung!`);
+                        setSkuFeedbackToast('Email tujuan tersimpan; akses Google Drive belum diberikan.');
                         setTimeout(() => setSkuFeedbackToast(null), 3500);
                       }}
                       className="px-3.5 py-2 bg-[#0F766E] hover:bg-[#115E59] text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer shadow-xs shrink-0"
                     >
                       <Save className="w-3.5 h-3.5" />
-                      <span>Simpan & Hubungkan</span>
+                      <span>Simpan email tujuan</span>
                     </button>
                   </div>
                   <button
@@ -2736,7 +2726,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
                   >
                     <HardDrive className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Atau Hubungkan Lewat Login Google Popup</span>
+                    <span>Hubungkan Google Drive</span>
                   </button>
                 </div>
               </div>
@@ -2860,7 +2850,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     className="flex-1 py-3 px-4 bg-[#0F766E] hover:bg-[#115E59] text-white rounded-xl font-semibold text-sm shadow-sm flex items-center justify-center space-x-2 transition-all cursor-pointer"
                   >
                     <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
-                    <span>{isEn ? 'Scan & Start Recording (30 FPS)' : 'Scan & Rekam Otomatis (30 FPS)'}</span>
+                    <span>{isEn ? 'Scan & Start Recording (30 FPS)' : 'Pindai resi dan mulai merekam (30 FPS)'}</span>
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </button>
                 ) : (
@@ -2918,22 +2908,17 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
             <div className="space-y-3 pt-1">
               <button
                 type="button"
-                onClick={async () => {
-                  await handleLoginGoogle();
-                  if (activeGoogleUser) {
-                    setIsDriveRequiredModalOpen(false);
-                  }
-                }}
+                onClick={handleLoginGoogle}
                 disabled={isLoggingInGoogle}
                 className="w-full py-2.5 px-4 bg-[#0F766E] hover:bg-[#115E59] active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
               >
                 <HardDrive className="w-4 h-4" />
-                <span>{isLoggingInGoogle ? 'Menghubungkan Akun Google...' : 'Hubungkan Akun Google Popup'}</span>
+                <span>{isLoggingInGoogle ? 'Menghubungkan Akun Google...' : 'Hubungkan Google Drive'}</span>
               </button>
 
               <div className="flex items-center space-x-2 text-[10px] text-slate-400">
                 <div className="flex-1 h-px bg-slate-200"></div>
-                <span>ATAU HUBUNGKAN EMAIL GDRIVE SECARA LANGSUNG</span>
+                <span>EMAIL TUJUAN GUDANG (BUKAN LOGIN GOOGLE)</span>
                 <div className="flex-1 h-px bg-slate-200"></div>
               </div>
 
@@ -2942,7 +2927,7 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                   type="email"
                   value={manualDriveInput}
                   onChange={(e) => setManualDriveInput(e.target.value)}
-                  placeholder="Contoh: whs.otwoo@gmail.com"
+                  aria-label="Email tujuan gudang" placeholder="Contoh: gudang@gmail.com"
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-[#0F766E]"
                 />
                 <button
@@ -2955,16 +2940,13 @@ export const UnboxingStation: React.FC<UnboxingStationProps> = ({
                     }
                     setGoogleDriveEmail(cleanEmail);
                     playBeep(1200, 'sine', 0.15);
-                    setSkuFeedbackToast(`✓ Akun Google Drive ${cleanEmail} berhasil dihubungkan! Stasiun unboxing terbuka.`);
+                    setSkuFeedbackToast('Email tujuan tersimpan. Ini belum memberikan akses Google Drive.');
                     setTimeout(() => setSkuFeedbackToast(null), 3500);
-                    setIsDriveRequiredModalOpen(false);
-                    setTimeout(() => {
-                      setIsAwbModalOpen(true);
-                    }, 350);
+
                   }}
                   className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs transition-colors cursor-pointer"
                 >
-                  Simpan & Hubungkan Akun Google Drive Ini
+                  Simpan email tujuan
                 </button>
               </div>
             </div>
