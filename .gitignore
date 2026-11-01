@@ -13,4 +13,11 @@ local-database/
 launcher-build/
 backups/
 data/warehouse_sync_store.json
+.tmp-sync.json
+
+# Local QA helper scripts and verification snapshots
+tests/cleanup-review.mjs
+tests/restart-backend-local.mjs
+tests/review.integration.mjs
+verify-cleanup-claims.mjs
 *.tar.gz
