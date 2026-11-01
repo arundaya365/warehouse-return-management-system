@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+const base='http://127.0.0.1:3001';
+const config=dotenv.parse(fs.readFileSync('.env'));
+const get=async route=>{const response=await fetch(base+route,{signal:AbortSignal.timeout(120000)});if(!response.ok)throw Error(route+' HTTP '+response.status);return response;};
+const health=await (await get('/api/health')).json();
+if(!health.localTrial || health.service!=='Backend Logic Processor - Sistem Aplikasi Retur Gudang e-Commerce')throw Error('Target bukan server trial Unboxin.');
+const state=await (await get('/api/sync')).json();
+const counts={returns:state.returns.length,users:state.users.length,master:state.masterDatabase.length,rma:(state.disputes._rma_claims_list_||[]).length};
+const headers={'x-local-stop-token':config.LOCAL_STOP_TOKEN};
+const response=await fetch(base+'/api/local/backup',{headers,signal:AbortSignal.timeout(120000)});if(!response.ok)throw Error('Backup HTTP '+response.status);
+const bytes=Buffer.from(await response.arrayBuffer());if(bytes.length<10)throw Error('Backup kosong.');
+const out=path.resolve('../../outputs');fs.mkdirSync(path.join(out,'backups'),{recursive:true});
+const backup=path.join(out,'backups','before-backend-fix-'+new Date().toISOString().replace(/[:.]/g,'-')+'.tar.gz');fs.writeFileSync(backup,bytes,{flag:'wx'});
+fs.writeFileSync(path.join(out,'backend-before-counts.json'),JSON.stringify(counts));
+const stopped=await fetch(base+'/api/local/stop',{method:'POST',headers,signal:AbortSignal.timeout(10000)});if(!stopped.ok)throw Error('Stop HTTP '+stopped.status);
+console.log('Backup tersimpan: '+backup);console.log('Baseline: '+JSON.stringify(counts));

@@ -1,0 +1,2765 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-11-01T03:55:07.716Z",
+  "returns": [
+    {
+      "Waktu_Proses": "2026-11-01 10:20:51",
+      "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+      "Order_ID": "JX12345",
+      "SKU_ID": "9981",
+      "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Status: Good Condition. Waktu scan: 10.20.03",
+      "Video_Timestamp": "2026-11-01 10:20:44",
+      "Nama_File_Video": "JX12345.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 10:20:51",
+      "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+      "Order_ID": "JX12345",
+      "SKU_ID": "9981",
+      "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Status: Damage Packaging. Waktu scan: 10.20.08",
+      "Video_Timestamp": "2026-11-01 10:20:44",
+      "Nama_File_Video": "JX12345.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 10:20:51",
+      "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+      "Order_ID": "JX12345",
+      "SKU_ID": "9981",
+      "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Status: Damage Products. Waktu scan: 10.20.14",
+      "Video_Timestamp": "2026-11-01 10:20:44",
+      "Nama_File_Video": "JX12345.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+    },
+    {
+      "Waktu_Proses": "2026-05-10 10:15:00",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9008192",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus rusak transit",
+      "Video_Timestamp": "2026-05-10 10:15:00",
+      "Nama_File_Video": "SHP-9008192",
+      "Link_Video": "https://drive.google.com/file/d/evidence-may-2/view"
+    },
+    {
+      "Waktu_Proses": "2026-05-20 13:30:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-8331902",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus sesuai pesanan",
+      "Video_Timestamp": "2026-05-20 13:30:00",
+      "Nama_File_Video": "TKP-8331902",
+      "Link_Video": "https://drive.google.com/file/d/evidence-may-1/view"
+    },
+    {
+      "Waktu_Proses": "2026-06-14 15:00:00",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "TTK-7221092",
+      "SKU_ID": "SKU-SHOES-001",
+      "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Sol sepatu lepas",
+      "Video_Timestamp": "2026-06-14 15:00:00",
+      "Nama_File_Video": "TTK-7221092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jun-2/view"
+    },
+    {
+      "Waktu_Proses": "2026-06-25 11:20:00",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9119204",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur komplit",
+      "Video_Timestamp": "2026-06-25 11:20:00",
+      "Nama_File_Video": "SHP-9119204",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jun-1/view"
+    },
+    {
+      "Waktu_Proses": "2026-07-08 16:10:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "LZD-4221092",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur normal",
+      "Video_Timestamp": "2026-07-08 16:10:00",
+      "Nama_File_Video": "LZD-4221092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jul-3/view"
+    },
+    {
+      "Waktu_Proses": "2026-07-16 10:30:15",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "TKP-8441029",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Barang aman",
+      "Video_Timestamp": "2026-07-16 10:30:15",
+      "Nama_File_Video": "TKP-8441029",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jul-2/view"
+    },
+    {
+      "Waktu_Proses": "2026-07-29 14:50:00",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9220194",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus pecah tertindih ekspedisi",
+      "Video_Timestamp": "2026-07-29 14:50:00",
+      "Nama_File_Video": "SHP-9220194",
+      "Link_Video": "https://drive.google.com/file/d/evidence-jul-1/view"
+    },
+    {
+      "Waktu_Proses": "2026-08-04 09:15:30",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "BLI-2113094",
+      "SKU_ID": "SKU-ACC-002",
+      "Nama_Barang": "Adaptor Charger Magnetic Original",
+      "Kondisi": "Missing",
+      "Catatan_Tambahan": "Kotak kosong",
+      "Video_Timestamp": "2026-08-04 09:15:30",
+      "Nama_File_Video": "BLI-2113094",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-4/view"
+    },
+    {
+      "Waktu_Proses": "2026-08-11 11:00:20",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "TTK-7331902",
+      "SKU_ID": "SKU-BAG-001",
+      "Nama_Barang": "Canvas Urban Backpack Waterproof Grey",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Kondisi prima",
+      "Video_Timestamp": "2026-08-11 11:00:20",
+      "Nama_File_Video": "TTK-7331902",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-3/view"
+    },
+    {
+      "Waktu_Proses": "2026-08-20 15:40:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-8552019",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Sensor scroll macet",
+      "Video_Timestamp": "2026-08-20 15:40:00",
+      "Nama_File_Video": "TKP-8552019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-2/view"
+    },
+    {
+      "Waktu_Proses": "2026-08-27 13:10:00",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9331019",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur mulus",
+      "Video_Timestamp": "2026-08-27 13:10:00",
+      "Nama_File_Video": "SHP-9331019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-aug-1/view"
+    },
+    {
+      "Waktu_Proses": "2026-09-05 10:20:00",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9442010",
+      "SKU_ID": "SKU-SHOES-001",
+      "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Kondisi bagus",
+      "Video_Timestamp": "2026-09-05 10:20:00",
+      "Nama_File_Video": "SHP-9442010",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-5/view"
+    },
+    {
+      "Waktu_Proses": "2026-09-12 16:30:45",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "LZD-4332019",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus penyok",
+      "Video_Timestamp": "2026-09-12 16:30:45",
+      "Nama_File_Video": "LZD-4332019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-4/view"
+    },
+    {
+      "Waktu_Proses": "2026-09-18 09:45:10",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TTK-7443029",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Sesuai pesanan",
+      "Video_Timestamp": "2026-09-18 09:45:10",
+      "Nama_File_Video": "TTK-7443029",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-3/view"
+    },
+    {
+      "Waktu_Proses": "2026-09-22 14:00:22",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "TKP-8664018",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Kabel terkelupas putus",
+      "Video_Timestamp": "2026-09-22 14:00:22",
+      "Nama_File_Video": "TKP-8664018",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-2/view"
+    },
+    {
+      "Waktu_Proses": "2026-09-28 11:15:00",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9554019",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Retur pembeli",
+      "Video_Timestamp": "2026-09-28 11:15:00",
+      "Nama_File_Video": "SHP-9554019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-sep-1/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-03 15:10:40",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "TTK-7554910",
+      "SKU_ID": "SKU-BAG-001",
+      "Nama_Barang": "Canvas Urban Backpack Waterproof Grey",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kemasan plastik packing koyak",
+      "Video_Timestamp": "2026-10-03 15:10:40",
+      "Nama_File_Video": "TTK-7554910",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7554910/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-04 09:30:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "SHP-9661840",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Unexpected",
+      "Catatan_Tambahan": "Diterima barang tidak sesuai daftar manifest retur",
+      "Video_Timestamp": "2026-10-04 09:30:00",
+      "Nama_File_Video": "SHP-9661840",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9661840/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-04 09:30:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "SHP-9661840",
+      "SKU_ID": "SKU-BEAUTY-002",
+      "Nama_Barang": "Hydrating Rose Water Toner 150ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus aman",
+      "Video_Timestamp": "2026-10-04 09:30:00",
+      "Nama_File_Video": "SHP-9661840",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9661840/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-05 13:50:20",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "TKP-8761029",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Pembeli minta tukar ukuran XL",
+      "Video_Timestamp": "2026-10-05 13:50:20",
+      "Nama_File_Video": "TKP-8761029",
+      "Link_Video": "https://drive.google.com/file/d/evidence-tkp-8761029/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-05 10:10:15",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "BLI-2294104",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Kaca layar retak parah saat tiba di gudang",
+      "Video_Timestamp": "2026-10-05 10:10:15",
+      "Nama_File_Video": "BLI-2294104",
+      "Link_Video": "https://drive.google.com/file/d/evidence-bli-2294104/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-06 14:45:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TTK-7651092",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kotak serum basah tertekan barang lain",
+      "Video_Timestamp": "2026-10-06 14:45:00",
+      "Nama_File_Video": "TTK-7651092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7651092/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-06 14:45:00",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TTK-7651092",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus lengkap receiver dongle",
+      "Video_Timestamp": "2026-10-06 14:45:00",
+      "Nama_File_Video": "TTK-7651092",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7651092/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-06 11:20:30",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9771024",
+      "SKU_ID": "SKU-BAG-001",
+      "Nama_Barang": "Canvas Urban Backpack Waterproof Grey",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Barang normal",
+      "Video_Timestamp": "2026-10-06 11:20:30",
+      "Nama_File_Video": "SHP-9771024",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9771024/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-07 16:05:12",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "LZD-4418290",
+      "SKU_ID": "SKU-SHOES-001",
+      "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Salah ukuran pembeli retur",
+      "Video_Timestamp": "2026-10-07 16:05:12",
+      "Nama_File_Video": "LZD-4418290",
+      "Link_Video": "https://drive.google.com/file/d/evidence-lzd-4418290/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-07 09:12:44",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-88492019",
+      "SKU_ID": "SKU-ACC-002",
+      "Nama_Barang": "Adaptor Charger Magnetic Original",
+      "Kondisi": "Missing",
+      "Catatan_Tambahan": "Charger tidak ada di dalam kotak saat di-unboxing",
+      "Video_Timestamp": "2026-10-07 09:12:44",
+      "Nama_File_Video": "TKP-88492019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-07 09:12:44",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-88492019",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Produk jam tangan normal mulus",
+      "Video_Timestamp": "2026-10-07 09:12:44",
+      "Nama_File_Video": "TKP-88492019",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-08 15:30:10",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "ORD-992-JKT",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Plastik sobek terkena lakban SiCepat",
+      "Video_Timestamp": "2026-10-08 15:30:10",
+      "Nama_File_Video": "ORD-992-JKT",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ord-992/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-08 15:30:10",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "ORD-992-JKT",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Barang mulus, segel utuh",
+      "Video_Timestamp": "2026-10-08 15:30:10",
+      "Nama_File_Video": "ORD-992-JKT",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ord-992/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-08 14:20:15",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9823441",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Tombol klik retak & sensor mati",
+      "Video_Timestamp": "2026-10-08 14:20:15",
+      "Nama_File_Video": "SHP-9823441",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-08 14:20:15",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9823441",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus penyok hancur tertindih ekspedisi saat transit",
+      "Video_Timestamp": "2026-10-08 14:20:15",
+      "Nama_File_Video": "SHP-9823441",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-09 13:22:45",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "TTK-7749210",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus luar sobek remuk tertimpa logistik J&T",
+      "Video_Timestamp": "2026-10-09 13:22:45",
+      "Nama_File_Video": "TTK-7749210",
+      "Link_Video": "https://drive.google.com/file/d/evidence-ttk-7749210/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-09 11:40:10",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "TKP-8819204",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Mikrofon patah dan earcup sobek",
+      "Video_Timestamp": "2026-10-09 11:40:10",
+      "Nama_File_Video": "TKP-8819204",
+      "Link_Video": "https://drive.google.com/file/d/evidence-tkp-8819204/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-09 10:15:22",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9948201",
+      "SKU_ID": "SKU-BEAUTY-002",
+      "Nama_Barang": "Hydrating Rose Water Toner 150ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Mulus sesuai pesanan",
+      "Video_Timestamp": "2026-10-09 10:15:22",
+      "Nama_File_Video": "SHP-9948201",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9948201/view"
+    },
+    {
+      "Waktu_Proses": "2026-10-09 10:15:22",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "SHP-9948201",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Segel utuh, pembeli salah pesan varian",
+      "Video_Timestamp": "2026-10-09 10:15:22",
+      "Nama_File_Video": "SHP-9948201",
+      "Link_Video": "https://drive.google.com/file/d/evidence-shp-9948201/view"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 09:41:35",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-88492019",
+      "SKU_ID": "SKU-ACC-002",
+      "Nama_Barang": "Adaptor Charger Magnetic Original",
+      "Kondisi": "Missing",
+      "Catatan_Tambahan": "Barang tidak di-scan saat sesi unboxing (Missing).",
+      "Video_Timestamp": "2026-10-07 09:12:44",
+      "Nama_File_Video": "TKP-88492019.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 09:41:35",
+      "Operator_ID": "OPR-042",
+      "Order_ID": "TKP-88492019",
+      "SKU_ID": "SKU-WATCH-001",
+      "Nama_Barang": "Smartwatch AMOLED Bluetooth Call",
+      "Kondisi": "Good",
+      "Catatan_Tambahan": "Kondisi fisik dan kemasan baik sesuai standar.",
+      "Video_Timestamp": "2026-10-07 09:12:44",
+      "Nama_File_Video": "TKP-88492019.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-tkp-88492019/view"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 09:41:35",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9823441",
+      "SKU_ID": "SKU-ELEC-003",
+      "Nama_Barang": "Mouse Wireless Ergonomic Silent Click",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Tombol klik retak & sensor mati",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "SHP-9823441.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 09:41:35",
+      "Operator_ID": "OPR-101",
+      "Order_ID": "SHP-9823441",
+      "SKU_ID": "SKU-ELEC-001",
+      "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+      "Kondisi": "Damage Packaging",
+      "Catatan_Tambahan": "Kardus penyok hancur tertindih ekspedisi saat transit",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "SHP-9823441.mp4",
+      "Link_Video": "https://drive.google.com/file/d/evidence-video-shopee-9823441/view"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 09:41:35",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "ORD-992-JKT",
+      "SKU_ID": "SKU-JACKET-02",
+      "Nama_Barang": "Techwear Waterproof Windbreaker Navy - L",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Operator mencatat kerusakan produk: \"...e wireless layarnya retak dan tombol klik patah.\"",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "ORD-992-JKT.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1vA8kL9mNpQrStUvWxYz-demo1/view"
+    },
+    {
+      "Waktu_Proses": "2026-11-01 09:41:35",
+      "Operator_ID": "OPR-992",
+      "Order_ID": "ORD-992-JKT",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "Nama_Barang": "Glow Radiance Vitamin C Serum 30ml",
+      "Kondisi": "Damage Product",
+      "Catatan_Tambahan": "Operator mencatat kerusakan produk: \"...e wireless layarnya retak dan tombol klik patah.\"",
+      "Video_Timestamp": "2026-10-07 14:20:15",
+      "Nama_File_Video": "ORD-992-JKT.mp4",
+      "Link_Video": "https://drive.google.com/file/d/1vA8kL9mNpQrStUvWxYz-demo1/view"
+    }
+  ],
+  "disputes": {
+    "SHP-9220194__SKU-ELEC-001__0": {
+      "id": "SHP-9220194__SKU-ELEC-001__0",
+      "row": {
+        "Waktu_Proses": "2026-07-29 14:50:00",
+        "Operator_ID": "OPR-101",
+        "Order_ID": "SHP-9220194",
+        "SKU_ID": "SKU-ELEC-001",
+        "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+        "Kondisi": "Damage Packaging",
+        "Catatan_Tambahan": "Kardus pecah tertindih ekspedisi",
+        "Video_Timestamp": "2026-07-29 14:50:00",
+        "Nama_File_Video": "SHP-9220194",
+        "Link_Video": "https://drive.google.com/file/d/evidence-jul-1/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PENDING",
+      "ticketNumber": "-",
+      "claimAmount": 320000,
+      "approvedAmount": 0,
+      "isForwardedToRma": true,
+      "csNotes": "[DIALIHKAN KE RMA] ",
+      "updatedAt": "2026-11-01T03:15:24.34Z"
+    },
+    "SHP-9220194_SKU-ELEC-001_0": {
+      "id": "SHP-9220194_SKU-ELEC-001_0",
+      "row": {
+        "Waktu_Proses": "2026-07-29 14:50:00",
+        "Operator_ID": "OPR-101",
+        "Order_ID": "SHP-9220194",
+        "SKU_ID": "SKU-ELEC-001",
+        "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+        "Kondisi": "Damage Packaging",
+        "Catatan_Tambahan": "Kardus pecah tertindih ekspedisi",
+        "Video_Timestamp": "2026-07-29 14:50:00",
+        "Nama_File_Video": "SHP-9220194",
+        "Link_Video": "https://drive.google.com/file/d/evidence-jul-1/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PENDING",
+      "ticketNumber": "-",
+      "claimAmount": 320000,
+      "approvedAmount": 0,
+      "isForwardedToRma": true,
+      "csNotes": "[DIALIHKAN KE RMA] ",
+      "updatedAt": "2026-11-01T03:15:24.34Z"
+    },
+    "_rma_claims_list_": [
+      {
+        "id": "rma_TTK-7221092_1793503007740",
+        "orderId": "TTK-7221092",
+        "awb": "TTK-7221092",
+        "channel": "Lainnya",
+        "logisticsName": "",
+        "marketplaceChannel": "Lainnya",
+        "handoverReason": "Dipindahkan langsung oleh CS",
+        "handoverEvidence": "https://drive.google.com/file/d/evidence-jun-2/view",
+        "marketplaceCashAtHandover": 0,
+        "stageStatus": "HASIL_LOGISTIK",
+        "items": [
+          {
+            "sourceKey": "TTK-7221092__SKU-SHOES-001__0",
+            "skuId": "SKU-SHOES-001",
+            "namaBarang": "Sneakers Sport Running Ultralight White - 42",
+            "qty": 1,
+            "kondisi": "Damage Product",
+            "hargaSatuan": 0,
+            "subtotalEstimasi": 10000,
+            "sourceClaimAmount": 0,
+            "marketplaceReservedAmount": 0,
+            "valuationPending": true
+          }
+        ],
+        "estimatedCompensation": 10000,
+        "csNotes": "Dipindahkan langsung oleh CS",
+        "forwardedBy": "Yaya Sanjaya",
+        "forwardedAt": "2026-11-01T03:16:47.74Z",
+        "videoTimestamp": "2026-06-14 15:00:00",
+        "namaFileVideo": "TTK-7221092",
+        "linkVideo": "https://drive.google.com/file/d/evidence-jun-2/view",
+        "operatorId": "OPR-101",
+        "waktuProses": "2026-06-14 15:00:00",
+        "history": [
+          {
+            "at": "2026-11-01T03:16:47.74Z",
+            "by": "Yaya Sanjaya",
+            "from": "CS",
+            "to": "DIALIHKAN_KE_RMA",
+            "note": "Dipindahkan langsung oleh CS; data pemeriksaan dan bukti yang tersedia ikut terbawa."
+          },
+          {
+            "at": "2026-11-01T03:55:05.088Z",
+            "by": "Yaya Sanjaya",
+            "from": "DIALIHKAN_KE_RMA",
+            "to": "HASIL_LOGISTIK",
+            "note": "Status REJECTED; nilai diajukan 10000; hasil banding 0; dana diterima 0"
+          }
+        ],
+        "updatedAt": "2026-11-01T03:55:05.088Z",
+        "workflowVersion": "SIMPLE",
+        "claimStatus": "REJECTED",
+        "rmaInvestigator": "Yaya Sanjaya",
+        "investigationNotes": "",
+        "approvedAmount": 0,
+        "approvedCompensation": 0,
+        "logisticsOutcome": "REJECTED",
+        "logisticsTicket": "",
+        "paymentStatus": "NOT_APPLICABLE",
+        "resolutionNote": "",
+        "closureReason": "",
+        "acceptedAt": "2026-11-01T03:55:05.088Z"
+      },
+      {
+        "id": "rma_SHP-9008192_1793502968530",
+        "orderId": "SHP-9008192",
+        "awb": "SHP-9008192",
+        "channel": "Lainnya",
+        "logisticsName": "",
+        "marketplaceChannel": "Lainnya",
+        "handoverReason": "Dipindahkan langsung oleh CS",
+        "handoverEvidence": "https://drive.google.com/file/d/evidence-may-2/view",
+        "marketplaceCashAtHandover": 0,
+        "stageStatus": "DIALIHKAN_KE_RMA",
+        "items": [
+          {
+            "sourceKey": "SHP-9008192__SKU-ELEC-001__0",
+            "skuId": "SKU-ELEC-001",
+            "namaBarang": "Headset Gaming 7.1 Surround RGB",
+            "qty": 1,
+            "kondisi": "Damage Packaging",
+            "hargaSatuan": 320000,
+            "subtotalEstimasi": 320000,
+            "sourceClaimAmount": 320000,
+            "marketplaceReservedAmount": 0,
+            "valuationPending": false
+          }
+        ],
+        "estimatedCompensation": 320000,
+        "csNotes": "Dipindahkan langsung oleh CS",
+        "forwardedBy": "Yaya Sanjaya",
+        "forwardedAt": "2026-11-01T03:16:08.53Z",
+        "videoTimestamp": "2026-05-10 10:15:00",
+        "namaFileVideo": "SHP-9008192",
+        "linkVideo": "https://drive.google.com/file/d/evidence-may-2/view",
+        "operatorId": "OPR-992",
+        "waktuProses": "2026-05-10 10:15:00",
+        "history": [
+          {
+            "at": "2026-11-01T03:16:08.53Z",
+            "by": "Yaya Sanjaya",
+            "from": "CS",
+            "to": "DIALIHKAN_KE_RMA",
+            "note": "Dipindahkan langsung oleh CS; data pemeriksaan dan bukti yang tersedia ikut terbawa."
+          }
+        ],
+        "updatedAt": "2026-11-01T03:16:08.53Z"
+      },
+      {
+        "id": "rma_SHP-9220194_1793502924340",
+        "orderId": "SHP-9220194",
+        "awb": "SHP-9220194",
+        "channel": "Lainnya",
+        "logisticsName": "",
+        "marketplaceChannel": "Lainnya",
+        "handoverReason": "Dipindahkan langsung oleh CS",
+        "handoverEvidence": "https://drive.google.com/file/d/evidence-jul-1/view",
+        "marketplaceCashAtHandover": 0,
+        "stageStatus": "DIALIHKAN_KE_RMA",
+        "items": [
+          {
+            "sourceKey": "SHP-9220194__SKU-ELEC-001__0",
+            "skuId": "SKU-ELEC-001",
+            "namaBarang": "Headset Gaming 7.1 Surround RGB",
+            "qty": 1,
+            "kondisi": "Damage Packaging",
+            "hargaSatuan": 320000,
+            "subtotalEstimasi": 320000,
+            "sourceClaimAmount": 320000,
+            "marketplaceReservedAmount": 0,
+            "valuationPending": false
+          }
+        ],
+        "estimatedCompensation": 320000,
+        "csNotes": "Dipindahkan langsung oleh CS",
+        "forwardedBy": "Yaya Sanjaya",
+        "forwardedAt": "2026-11-01T03:15:24.34Z",
+        "videoTimestamp": "2026-07-29 14:50:00",
+        "namaFileVideo": "SHP-9220194",
+        "linkVideo": "https://drive.google.com/file/d/evidence-jul-1/view",
+        "operatorId": "OPR-101",
+        "waktuProses": "2026-07-29 14:50:00",
+        "history": [
+          {
+            "at": "2026-11-01T03:15:24.34Z",
+            "by": "Yaya Sanjaya",
+            "from": "CS",
+            "to": "DIALIHKAN_KE_RMA",
+            "note": "Dipindahkan langsung oleh CS; data pemeriksaan dan bukti yang tersedia ikut terbawa."
+          }
+        ],
+        "updatedAt": "2026-11-01T03:15:24.34Z"
+      }
+    ],
+    "SHP-9008192__SKU-ELEC-001__0": {
+      "id": "SHP-9008192__SKU-ELEC-001__0",
+      "row": {
+        "Waktu_Proses": "2026-05-10 10:15:00",
+        "Operator_ID": "OPR-992",
+        "Order_ID": "SHP-9008192",
+        "SKU_ID": "SKU-ELEC-001",
+        "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+        "Kondisi": "Damage Packaging",
+        "Catatan_Tambahan": "Kardus rusak transit",
+        "Video_Timestamp": "2026-05-10 10:15:00",
+        "Nama_File_Video": "SHP-9008192",
+        "Link_Video": "https://drive.google.com/file/d/evidence-may-2/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PENDING",
+      "ticketNumber": "-",
+      "claimAmount": 320000,
+      "approvedAmount": 0,
+      "isForwardedToRma": true,
+      "csNotes": "[DIALIHKAN KE RMA] ",
+      "updatedAt": "2026-11-01T03:16:08.53Z"
+    },
+    "JX12345__9981__0": {
+      "id": "JX12345__9981__0",
+      "row": {
+        "Waktu_Proses": "2026-11-01 10:20:51",
+        "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+        "Order_ID": "JX12345",
+        "SKU_ID": "9981",
+        "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+        "Kondisi": "Damage Packaging",
+        "Catatan_Tambahan": "Status: Damage Packaging. Waktu scan: 10.20.08",
+        "Video_Timestamp": "2026-11-01 10:20:44",
+        "Nama_File_Video": "JX12345.mp4",
+        "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+      },
+      "channel": "TikTok Shop",
+      "claimStatus": "APPROVED",
+      "ticketNumber": "",
+      "claimAmount": 10000,
+      "approvedAmount": 10000,
+      "paymentStatus": "WAITING",
+      "csNotes": "",
+      "updatedAt": "2026-11-01T03:44:40.141Z",
+      "history": [
+        {
+          "at": "2026-11-01T03:44:40.141Z",
+          "by": "Yaya Sanjaya",
+          "note": "Marketplace APPROVED; disetujui 10000; diterima 0"
+        }
+      ]
+    },
+    "JX12345_9981_0": {
+      "id": "JX12345_9981_0",
+      "row": {
+        "Waktu_Proses": "2026-11-01 10:20:51",
+        "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+        "Order_ID": "JX12345",
+        "SKU_ID": "9981",
+        "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+        "Kondisi": "Damage Packaging",
+        "Catatan_Tambahan": "Status: Damage Packaging. Waktu scan: 10.20.08",
+        "Video_Timestamp": "2026-11-01 10:20:44",
+        "Nama_File_Video": "JX12345.mp4",
+        "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+      },
+      "channel": "TikTok Shop",
+      "claimStatus": "APPROVED",
+      "ticketNumber": "",
+      "claimAmount": 10000,
+      "approvedAmount": 10000,
+      "paymentStatus": "WAITING",
+      "csNotes": "",
+      "updatedAt": "2026-11-01T03:44:40.141Z",
+      "history": [
+        {
+          "at": "2026-11-01T03:44:40.141Z",
+          "by": "Yaya Sanjaya",
+          "note": "Marketplace APPROVED; disetujui 10000; diterima 0"
+        }
+      ]
+    },
+    "TTK-7221092__SKU-SHOES-001__0": {
+      "id": "TTK-7221092__SKU-SHOES-001__0",
+      "row": {
+        "Waktu_Proses": "2026-06-14 15:00:00",
+        "Operator_ID": "OPR-101",
+        "Order_ID": "TTK-7221092",
+        "SKU_ID": "SKU-SHOES-001",
+        "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+        "Kondisi": "Damage Product",
+        "Catatan_Tambahan": "Sol sepatu lepas",
+        "Video_Timestamp": "2026-06-14 15:00:00",
+        "Nama_File_Video": "TTK-7221092",
+        "Link_Video": "https://drive.google.com/file/d/evidence-jun-2/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PENDING",
+      "ticketNumber": "-",
+      "claimAmount": 0,
+      "approvedAmount": 0,
+      "isForwardedToRma": true,
+      "csNotes": "[DIALIHKAN KE RMA] ",
+      "updatedAt": "2026-11-01T03:16:47.74Z"
+    },
+    "TTK-7221092_SKU-SHOES-001_0": {
+      "id": "TTK-7221092_SKU-SHOES-001_0",
+      "row": {
+        "Waktu_Proses": "2026-06-14 15:00:00",
+        "Operator_ID": "OPR-101",
+        "Order_ID": "TTK-7221092",
+        "SKU_ID": "SKU-SHOES-001",
+        "Nama_Barang": "Sneakers Sport Running Ultralight White - 42",
+        "Kondisi": "Damage Product",
+        "Catatan_Tambahan": "Sol sepatu lepas",
+        "Video_Timestamp": "2026-06-14 15:00:00",
+        "Nama_File_Video": "TTK-7221092",
+        "Link_Video": "https://drive.google.com/file/d/evidence-jun-2/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PENDING",
+      "ticketNumber": "-",
+      "claimAmount": 0,
+      "approvedAmount": 0,
+      "isForwardedToRma": true,
+      "csNotes": "[DIALIHKAN KE RMA] ",
+      "updatedAt": "2026-11-01T03:16:47.74Z"
+    },
+    "BLI-2113094__SKU-ACC-002__0": {
+      "id": "BLI-2113094__SKU-ACC-002__0",
+      "row": {
+        "Waktu_Proses": "2026-08-04 09:15:30",
+        "Operator_ID": "OPR-992",
+        "Order_ID": "BLI-2113094",
+        "SKU_ID": "SKU-ACC-002",
+        "Nama_Barang": "Adaptor Charger Magnetic Original",
+        "Kondisi": "Missing",
+        "Catatan_Tambahan": "Kotak kosong",
+        "Video_Timestamp": "2026-08-04 09:15:30",
+        "Nama_File_Video": "BLI-2113094",
+        "Link_Video": "https://drive.google.com/file/d/evidence-aug-4/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PARTIAL",
+      "ticketNumber": "",
+      "claimAmount": 125000,
+      "approvedAmount": 110000,
+      "orderApprovedAmount": 110000,
+      "paymentStatus": "WAITING",
+      "csNotes": "",
+      "updatedAt": "2026-11-01T03:49:06.077Z",
+      "history": [
+        {
+          "at": "2026-11-01T03:49:06.077Z",
+          "by": "Yaya Sanjaya",
+          "note": "Marketplace PARTIAL; disetujui 110000; diterima 0"
+        }
+      ]
+    },
+    "BLI-2113094_SKU-ACC-002_0": {
+      "id": "BLI-2113094_SKU-ACC-002_0",
+      "row": {
+        "Waktu_Proses": "2026-08-04 09:15:30",
+        "Operator_ID": "OPR-992",
+        "Order_ID": "BLI-2113094",
+        "SKU_ID": "SKU-ACC-002",
+        "Nama_Barang": "Adaptor Charger Magnetic Original",
+        "Kondisi": "Missing",
+        "Catatan_Tambahan": "Kotak kosong",
+        "Video_Timestamp": "2026-08-04 09:15:30",
+        "Nama_File_Video": "BLI-2113094",
+        "Link_Video": "https://drive.google.com/file/d/evidence-aug-4/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PARTIAL",
+      "ticketNumber": "",
+      "claimAmount": 125000,
+      "approvedAmount": 110000,
+      "orderApprovedAmount": 110000,
+      "paymentStatus": "WAITING",
+      "csNotes": "",
+      "updatedAt": "2026-11-01T03:49:06.077Z",
+      "history": [
+        {
+          "at": "2026-11-01T03:49:06.077Z",
+          "by": "Yaya Sanjaya",
+          "note": "Marketplace PARTIAL; disetujui 110000; diterima 0"
+        }
+      ]
+    },
+    "SHP-9008192_SKU-ELEC-001_0": {
+      "id": "SHP-9008192_SKU-ELEC-001_0",
+      "row": {
+        "Waktu_Proses": "2026-05-10 10:15:00",
+        "Operator_ID": "OPR-992",
+        "Order_ID": "SHP-9008192",
+        "SKU_ID": "SKU-ELEC-001",
+        "Nama_Barang": "Headset Gaming 7.1 Surround RGB",
+        "Kondisi": "Damage Packaging",
+        "Catatan_Tambahan": "Kardus rusak transit",
+        "Video_Timestamp": "2026-05-10 10:15:00",
+        "Nama_File_Video": "SHP-9008192",
+        "Link_Video": "https://drive.google.com/file/d/evidence-may-2/view"
+      },
+      "channel": "Lainnya",
+      "claimStatus": "PENDING",
+      "ticketNumber": "-",
+      "claimAmount": 320000,
+      "approvedAmount": 0,
+      "isForwardedToRma": true,
+      "csNotes": "[DIALIHKAN KE RMA] ",
+      "updatedAt": "2026-11-01T03:16:08.53Z"
+    },
+    "JX12345__9981__1": {
+      "id": "JX12345__9981__1",
+      "row": {
+        "Waktu_Proses": "2026-11-01 10:20:51",
+        "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+        "Order_ID": "JX12345",
+        "SKU_ID": "9981",
+        "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+        "Kondisi": "Damage Product",
+        "Catatan_Tambahan": "Status: Damage Products. Waktu scan: 10.20.14",
+        "Video_Timestamp": "2026-11-01 10:20:44",
+        "Nama_File_Video": "JX12345.mp4",
+        "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+      },
+      "channel": "TikTok Shop",
+      "claimStatus": "APPROVED",
+      "ticketNumber": "",
+      "claimAmount": 10000,
+      "approvedAmount": 10000,
+      "paymentStatus": "WAITING",
+      "csNotes": "",
+      "updatedAt": "2026-11-01T03:44:40.141Z",
+      "history": [
+        {
+          "at": "2026-11-01T03:44:40.141Z",
+          "by": "Yaya Sanjaya",
+          "note": "Marketplace APPROVED; disetujui 10000; diterima 0"
+        }
+      ]
+    },
+    "JX12345_9981_1": {
+      "id": "JX12345_9981_1",
+      "row": {
+        "Waktu_Proses": "2026-11-01 10:20:51",
+        "Operator_ID": "Yaya Sanjaya (OPR-HQ-01)",
+        "Order_ID": "JX12345",
+        "SKU_ID": "9981",
+        "Nama_Barang": "9981  Instant Oversize Volume Mascara",
+        "Kondisi": "Damage Product",
+        "Catatan_Tambahan": "Status: Damage Products. Waktu scan: 10.20.14",
+        "Video_Timestamp": "2026-11-01 10:20:44",
+        "Nama_File_Video": "JX12345.mp4",
+        "Link_Video": "https://drive.google.com/file/d/1Fs1Sr5-jfkv5PRKFAFqgO0PIvnFBcqFX/view?usp=drivesdk"
+      },
+      "channel": "TikTok Shop",
+      "claimStatus": "APPROVED",
+      "ticketNumber": "",
+      "claimAmount": 10000,
+      "approvedAmount": 10000,
+      "paymentStatus": "WAITING",
+      "csNotes": "",
+      "updatedAt": "2026-11-01T03:44:40.141Z",
+      "history": [
+        {
+          "at": "2026-11-01T03:44:40.141Z",
+          "by": "Yaya Sanjaya",
+          "note": "Marketplace APPROVED; disetujui 10000; diterima 0"
+        }
+      ]
+    }
+  },
+  "masterDatabase": [
+    {
+      "BARCODE": "6973263793726",
+      "SKU_ID": "SC065-02",
+      "SKU_NAME": "SC065-02 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "611885622029",
+      "SKU_ID": "SN019-2",
+      "SKU_NAME": "SN019-2 O.TWO.O Canvas Tote Bag-2",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794372",
+      "SKU_ID": "SN016",
+      "SKU_NAME": "SN016 Water-Oil Dual-Phase Makeup Remover",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797427",
+      "SKU_ID": "SM022",
+      "SKU_NAME": "SM022 高定润透焕颜妆前乳（HC022小样装）6973263797427",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795010",
+      "SKU_ID": "SN017",
+      "SKU_NAME": "SN017 Sunflower 3D eyelash curler",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792637",
+      "SKU_ID": "SN010",
+      "SKU_NAME": "SN010 Eyelash Curler",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "899100100205",
+      "SKU_ID": "SKU-PHONE-X9",
+      "SKU_NAME": "Smartphone Pro Max 256GB Midnight Black",
+      "HARGA": 12999000
+    },
+    {
+      "BARCODE": "6973263794419",
+      "SKU_ID": "SM002",
+      "SKU_NAME": "SM002 Volume and Curling Waterproof Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794402",
+      "SKU_ID": "SM001-7",
+      "SKU_NAME": "SM001-7 Ultra Stay Lolepop Lipstick 07 Pink Rose",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794389",
+      "SKU_ID": "SM001-1",
+      "SKU_NAME": "SM001-1 Ultra Stay Lolepop Lipstick 01 Mist Pink",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791586",
+      "SKU_ID": "SE010-03",
+      "SKU_NAME": "SE010-03  Brow Powder",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791579",
+      "SKU_ID": "SE010-02",
+      "SKU_NAME": "SE010-02  Brow Powder",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791562",
+      "SKU_ID": "SE010-01",
+      "SKU_NAME": "SE010-01  Brow Powder",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792095",
+      "SKU_ID": "SC138-W03",
+      "SKU_NAME": "SC138-W03 Foundation (Moisturizing)",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791630",
+      "SKU_ID": "SC137-W21",
+      "SKU_NAME": "SC137-W21 Air Cushion BB Cream",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794150",
+      "SKU_ID": "SC069-03",
+      "SKU_NAME": "SC069-03 Fluff Shaping Brow Cream 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794143",
+      "SKU_ID": "SC069-02",
+      "SKU_NAME": "SC069-02 Fluff Shaping Brow Cream 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794136",
+      "SKU_ID": "SC069-01",
+      "SKU_NAME": "SC069-01 Fluff Shaping Brow Cream 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794334",
+      "SKU_ID": "SC067-N130",
+      "SKU_NAME": "SC067-N130 All Day Soft Focus Powder & Cushion Cream N130",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794327",
+      "SKU_ID": "SC067-N120",
+      "SKU_NAME": "SC067-N120 All Day Soft Focus Powder & Cushion Cream N120",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794310",
+      "SKU_ID": "SC067-N110",
+      "SKU_NAME": "SC067-N110 All Day Soft Focus Powder & Cushion Cream N110",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793252",
+      "SKU_ID": "SC066-03",
+      "SKU_NAME": "SC066-03 Eyeshadow Palette #03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793245",
+      "SKU_ID": "SC066-01",
+      "SKU_NAME": "SC066-01 Eyeshadow Palette #01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793764",
+      "SKU_ID": "SC065-06",
+      "SKU_NAME": "SC065-06 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793740",
+      "SKU_ID": "SC065-04",
+      "SKU_NAME": "SC065-04 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793733",
+      "SKU_ID": "SC065-03",
+      "SKU_NAME": "SC065-03 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793719",
+      "SKU_ID": "SC065-01",
+      "SKU_NAME": "SC065-01 DOUBLE EFFECT MATTE&GLOSS LIPSTICK 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796581",
+      "SKU_ID": "SC064-N03",
+      "SKU_NAME": "SC064-N03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796574",
+      "SKU_ID": "SC064-N02",
+      "SKU_NAME": "SC064-N02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796567",
+      "SKU_ID": "SC064-N01",
+      "SKU_NAME": "SC064-N01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795164",
+      "SKU_ID": "SC064-M21",
+      "SKU_NAME": "SC064-M21 Misty Kiss Lock Color Matte Lipstick M21",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795157",
+      "SKU_ID": "SC064-M20",
+      "SKU_NAME": "SC064-M20 Misty Kiss Lock Color Matte Lipstick M20",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795140",
+      "SKU_ID": "SC064-M19",
+      "SKU_NAME": "SC064-M19 Misty Kiss Lock Color Matte Lipstick M19",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793887",
+      "SKU_ID": "SC064-M18",
+      "SKU_NAME": "SC064-M18 Misty Kiss Lock Color Matte Lipstick M18",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793870",
+      "SKU_ID": "SC064-M17",
+      "SKU_NAME": "SC064-M17 Misty Kiss Lock Color Matte Lipstick M17",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793863",
+      "SKU_ID": "SC064-M16",
+      "SKU_NAME": "SC064-M16 Misty Kiss Lock Color Matte Lipstick M16",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793856",
+      "SKU_ID": "SC064-M15",
+      "SKU_NAME": "SC064-M15 Misty Kiss Lock Color Matte Lipstick M15",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793849",
+      "SKU_ID": "SC064-M14",
+      "SKU_NAME": "SC064-M14 Misty Kiss Lock Color Matte Lipstick M14",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793832",
+      "SKU_ID": "SC064-M13",
+      "SKU_NAME": "SC064-M13 Misty Kiss Lock Color Matte Lipstick M13",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793825",
+      "SKU_ID": "SC064-M12",
+      "SKU_NAME": "SC064-M12 Misty Kiss Lock Color Matte Lipstick M12",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793818",
+      "SKU_ID": "SC064-M11",
+      "SKU_NAME": "SC064-M11 Misty Kiss Lock Color Matte Lipstick M11",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794204",
+      "SKU_ID": "SC063-E05",
+      "SKU_NAME": "SC063-E05 Powder Mist Liquid Eyeshadow E05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "899100100210",
+      "SKU_ID": "SKU-ACC-002",
+      "SKU_NAME": "Adaptor Charger Magnetic Original",
+      "HARGA": 125000
+    },
+    {
+      "BARCODE": "6973263794198",
+      "SKU_ID": "SC063-E04",
+      "SKU_NAME": "SC063-E04 Powder Mist Liquid Eyeshadow E04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795348",
+      "SKU_ID": "SN020-01",
+      "SKU_NAME": "SN020-01 Fragrant wonderland perfume stick 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794181",
+      "SKU_ID": "SC063-E03",
+      "SKU_NAME": "SC063-E03 Powder Mist Liquid Eyeshadow E03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794228",
+      "SKU_ID": "TZ018",
+      "SKU_NAME": "TZ018 Beautiful Glow Gift Set",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794174",
+      "SKU_ID": "SC063-E02",
+      "SKU_NAME": "SC063-E02 Powder Mist Liquid Eyeshadow E02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794167",
+      "SKU_ID": "SC063-E01",
+      "SKU_NAME": "SC063-E01 Powder Mist Liquid Eyeshadow E01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792835",
+      "SKU_ID": "SC055-02",
+      "SKU_NAME": "SC055-02 Locking Powder 02 Natural Beige",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793139",
+      "SKU_ID": "SC061-04",
+      "SKU_NAME": "SC061-04 Lightweight And Seamless Concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793122",
+      "SKU_ID": "SC061-03",
+      "SKU_NAME": "SC061-03 Lightweight And Seamless Concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "899100100208",
+      "SKU_ID": "SKU-ELEC-003",
+      "SKU_NAME": "Mouse Wireless Ergonomic Silent Click",
+      "HARGA": 175000
+    },
+    {
+      "BARCODE": "6973263793115",
+      "SKU_ID": "SC061-02",
+      "SKU_NAME": "SC061-02 Lightweight And Seamless Concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "899100100202",
+      "SKU_ID": "SKU-JACKET-02",
+      "SKU_NAME": "Techwear Waterproof Windbreaker Navy - L",
+      "HARGA": 389000
+    },
+    {
+      "BARCODE": "899100100201",
+      "SKU_ID": "SKU-SKINCARE-01",
+      "SKU_NAME": "Glow Radiance Vitamin C Serum 30ml",
+      "HARGA": 149000
+    },
+    {
+      "BARCODE": "6973263795355",
+      "SKU_ID": "SN020-02",
+      "SKU_NAME": "SN020-02 Fragrant wonderland perfume stick 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "899100100207",
+      "SKU_ID": "SKU-ELEC-001",
+      "SKU_NAME": "Headset Gaming 7.1 Surround RGB",
+      "HARGA": 320000
+    },
+    {
+      "BARCODE": "899100100209",
+      "SKU_ID": "SKU-WATCH-001",
+      "SKU_NAME": "Smartwatch AMOLED Bluetooth Call",
+      "HARGA": 650000
+    },
+    {
+      "BARCODE": "6973263795379",
+      "SKU_ID": "SN020-04",
+      "SKU_NAME": "SN020-04 Fragrant wonderland perfume stick 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795362",
+      "SKU_ID": "SN020-03",
+      "SKU_NAME": "SN020-03 Fragrant wonderland perfume stick 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "899100100204",
+      "SKU_ID": "SKU-HEADSET-04",
+      "SKU_NAME": "Razer BlackShark V2 Gaming Headset",
+      "HARGA": 899000
+    },
+    {
+      "BARCODE": "899100100206",
+      "SKU_ID": "SKU-APPR-202",
+      "SKU_NAME": "Kaos Polos Cotton Combed 30s Hitam L",
+      "HARGA": 75000
+    },
+    {
+      "BARCODE": "899100100203",
+      "SKU_ID": "SKU-SHOES-03",
+      "SKU_NAME": "Air Cushion Running Shoes Black - 42",
+      "HARGA": 450000
+    },
+    {
+      "BARCODE": "6973263792828",
+      "SKU_ID": "SC055-01",
+      "SKU_NAME": "SC055-01 Locking Powder 01 Natural Ivory",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792811",
+      "SKU_ID": "SC054-120",
+      "SKU_NAME": "SC054-120 Cushion Cream #120 Warm Nude",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792804",
+      "SKU_ID": "SC054-110",
+      "SKU_NAME": "SC054-110 Cushion Cream #110 Nude Beige",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792798",
+      "SKU_ID": "SC053-03",
+      "SKU_NAME": "SC053-03 Three Grid Filter Loose Powder",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792781",
+      "SKU_ID": "SC053-02",
+      "SKU_NAME": "SC053-02 Three Grid Filter Loose Powder",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797267",
+      "SKU_ID": "PR001-04",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792774",
+      "SKU_ID": "SC053-01",
+      "SKU_NAME": "SC053-01 Three Grid Filter Loose Powder",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792569",
+      "SKU_ID": "SC050",
+      "SKU_NAME": "SC050 Eyeliner",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792552",
+      "SKU_ID": "SC049-06",
+      "SKU_NAME": "SC049-06 Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792545",
+      "SKU_ID": "SC049-05",
+      "SKU_NAME": "SC049-05 Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792538",
+      "SKU_ID": "SC049-04",
+      "SKU_NAME": "SC049-04  Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792521",
+      "SKU_ID": "SC049-03",
+      "SKU_NAME": "SC049-03 Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792514",
+      "SKU_ID": "SC049-02",
+      "SKU_NAME": "SC049-02  Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792491",
+      "SKU_ID": "SC048-06",
+      "SKU_NAME": "SC048-06  Lip & Cheek Balm",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792484",
+      "SKU_ID": "SC048-05",
+      "SKU_NAME": "SC048-05  Lip & Cheek Balm",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792477",
+      "SKU_ID": "SC048-04",
+      "SKU_NAME": "SC048-04  Lip & Cheek Balm",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792460",
+      "SKU_ID": "SC048-03",
+      "SKU_NAME": "SC048-03  Lip & Cheek Balm",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792453",
+      "SKU_ID": "SC048-02",
+      "SKU_NAME": "SC048-02 Lip & Cheek Balm",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792446",
+      "SKU_ID": "SC048-01",
+      "SKU_NAME": "SC048-01 Lip & Cheek Balm",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792392",
+      "SKU_ID": "SC046",
+      "SKU_NAME": "SC046 Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792354",
+      "SKU_ID": "SC044-06",
+      "SKU_NAME": "SC044-06 Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792347",
+      "SKU_ID": "SC044-05",
+      "SKU_NAME": "SC044-05  Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792323",
+      "SKU_ID": "SC044-03",
+      "SKU_NAME": "SC044-03  Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792316",
+      "SKU_ID": "SC044-02",
+      "SKU_NAME": "SC044-02  Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792309",
+      "SKU_ID": "SC044-01",
+      "SKU_NAME": "SC044-01 Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792224",
+      "SKU_ID": "SC043-06",
+      "SKU_NAME": "SC043-06 lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792200",
+      "SKU_ID": "SC043-04",
+      "SKU_NAME": "SC043-04 lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792194",
+      "SKU_ID": "SC043-03",
+      "SKU_NAME": "SC043-03 lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792163",
+      "SKU_ID": "SC042-03",
+      "SKU_NAME": "SC042-03 Eyeshadow",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792156",
+      "SKU_ID": "SC042-01",
+      "SKU_NAME": "SC042-01 Eyeshadow",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792064",
+      "SKU_ID": "SC040-04",
+      "SKU_NAME": "SC040-04 Eyeshadow",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792040",
+      "SKU_ID": "SC040-02",
+      "SKU_NAME": "SC040-02 Eyeshadow",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792033",
+      "SKU_ID": "SC040-01",
+      "SKU_NAME": "SC040-01 Eyeshadow",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792019",
+      "SKU_ID": "SC039",
+      "SKU_NAME": "SC039 Makeup Setting Spray",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792125",
+      "SKU_ID": "SC038-C03",
+      "SKU_NAME": "SC038-C03  Foundation (Oil Control)",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792118",
+      "SKU_ID": "SC038-C02",
+      "SKU_NAME": "SC038-C02  Foundation (Oil Control)",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792101",
+      "SKU_ID": "SC038-C01",
+      "SKU_NAME": "SC038-C01 Foundation (Oil Control)",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791876",
+      "SKU_ID": "SC036-L11",
+      "SKU_NAME": "SC036-L11 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791869",
+      "SKU_ID": "SC036-L10",
+      "SKU_NAME": "SC036-L10 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791852",
+      "SKU_ID": "SC036-L09",
+      "SKU_NAME": "SC036-L09 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791838",
+      "SKU_ID": "SC036-L07",
+      "SKU_NAME": "SC036-L07 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791814",
+      "SKU_ID": "SC036-L05",
+      "SKU_NAME": "SC036-L05 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791807",
+      "SKU_ID": "SC036-L04",
+      "SKU_NAME": "SC036-L04 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791791",
+      "SKU_ID": "SC036-L03",
+      "SKU_NAME": "SC036-L03 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791784",
+      "SKU_ID": "SC036-L02",
+      "SKU_NAME": "SC036-L02 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791777",
+      "SKU_ID": "SC036-L01",
+      "SKU_NAME": "SC036-L01 Double-Ended Lipstick",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792002",
+      "SKU_ID": "SC033-H003",
+      "SKU_NAME": "SC033-H003 concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791913",
+      "SKU_ID": "SC033-H002",
+      "SKU_NAME": "SC033-H002 concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791982",
+      "SKU_ID": "SC033-H001",
+      "SKU_NAME": "SC033-H001 concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791623",
+      "SKU_ID": "SC032",
+      "SKU_NAME": "SC032 Makeup Primer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791135",
+      "SKU_ID": "SC030-02",
+      "SKU_NAME": "SC030-02 Magic Contour & Stick Highlight",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791524",
+      "SKU_ID": "SC029-04",
+      "SKU_NAME": "SC029-04 Eyebrow Dying Cream",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791500",
+      "SKU_ID": "SC029-02",
+      "SKU_NAME": "SC029-02 Eyebrow Dying Cream",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791494",
+      "SKU_ID": "SC029-01",
+      "SKU_NAME": "SC029-01 Eyebrow Dying Cream",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791081",
+      "SKU_ID": "SC028-04",
+      "SKU_NAME": "SC028-04 Eyeliner Gel Pen 04 Dark Brown",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791067",
+      "SKU_ID": "SC028-02",
+      "SKU_NAME": "SC028-02  Eyeliner Gel Pen 02 Black",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791050",
+      "SKU_ID": "SC028-01",
+      "SKU_NAME": "SC028-01  Eyeliner Gel Pen 01 White",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263790763",
+      "SKU_ID": "SC023-03",
+      "SKU_NAME": "SC023-03 Liquid Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263790749",
+      "SKU_ID": "SC023-01",
+      "SKU_NAME": "SC023-01 Liquid Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796376",
+      "SKU_ID": "PS02-S04",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796369",
+      "SKU_ID": "PS02-S03",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796352",
+      "SKU_ID": "PS02-S02",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796345",
+      "SKU_ID": "PS02-S01",
+      "SKU_NAME": "PS02-S01 MEMORY COLLECTION PARFUM S01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793146",
+      "SKU_ID": "SC060",
+      "SKU_NAME": "SC060 2 In 1 Charming Eye Eyeliner Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793221",
+      "SKU_ID": "SC059-N220",
+      "SKU_NAME": "SC059-N220  Ultra Longwear Matte Foundation N220 30ml",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793214",
+      "SKU_ID": "SC059-N120",
+      "SKU_NAME": "SC059-N120 Ultra Longwear Matte Foundation N120 30ml",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793207",
+      "SKU_ID": "SC059-N110",
+      "SKU_NAME": "SC059-N110  Ultra Longwear Matte Foundation N110 30ml",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792996",
+      "SKU_ID": "SC057-08",
+      "SKU_NAME": "SC057-08 Lolepop lipstick 08 Purple Grapes",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793009",
+      "SKU_ID": "SC057-07",
+      "SKU_NAME": "SC057-07 Lolepop lipstic 07 Pink Rose",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793016",
+      "SKU_ID": "SC057-06",
+      "SKU_NAME": "SC057-06 Lolepop lipstick 06 Wild Berry",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793023",
+      "SKU_ID": "SC057-05",
+      "SKU_NAME": "SC057-05 Lolepop lipstick 05 Apple Red",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792934",
+      "SKU_ID": "SC057-04",
+      "SKU_NAME": "SC057-04 Lolepop lipstick 04 Pumpkin Brown",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792941",
+      "SKU_ID": "SC057-03",
+      "SKU_NAME": "SC057-03 Lolepop lipstick 03 Cocoa Brown",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792958",
+      "SKU_ID": "SC057-02",
+      "SKU_NAME": "SC057-02 Lolepop lipstick 02 Milk Tea",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792859",
+      "SKU_ID": "SC056",
+      "SKU_NAME": "SC056 Ultra 5D Waterproof Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792989",
+      "SKU_ID": "SC057-01",
+      "SKU_NAME": "SC057-01 Lolepop lipstick 01 Mist Pink",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792842",
+      "SKU_ID": "SC055-03",
+      "SKU_NAME": "SC055-03 Locking Powder 03 Warm Nude",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797236",
+      "SKU_ID": "PR001-01",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795997",
+      "SKU_ID": "PF02-S03",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795980",
+      "SKU_ID": "PF02-S02",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795973",
+      "SKU_ID": "PF02-S01",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795966",
+      "SKU_ID": "PF01-F04",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795959",
+      "SKU_ID": "PF01-F03",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796277",
+      "SKU_ID": "PF02-S04",
+      "SKU_NAME": "PF02-S01 MEMORY COLLECTION PARFUM S04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795942",
+      "SKU_ID": "PF01-F02",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795935",
+      "SKU_ID": "PF01-F01",
+      "SKU_NAME": "PF01-F01 WONDERLAND GARDEN PARFUM F01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797212",
+      "SKU_ID": "MV006-03",
+      "SKU_NAME": "MV006 Aegyosal Pen",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797205",
+      "SKU_ID": "MV006-02",
+      "SKU_NAME": "MV006 Aegyosal Pen",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797199",
+      "SKU_ID": "MV006-01",
+      "SKU_NAME": "MV006 Aegyosal Pen",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797175",
+      "SKU_ID": "MV003-06",
+      "SKU_NAME": "MV003-06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797168",
+      "SKU_ID": "MV003-05",
+      "SKU_NAME": "MV003-05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797151",
+      "SKU_ID": "MV003-04",
+      "SKU_NAME": "MV003-04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797144",
+      "SKU_ID": "MV003-03",
+      "SKU_NAME": "MV003-03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797137",
+      "SKU_ID": "MV003-02",
+      "SKU_NAME": "MV003-02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797120",
+      "SKU_ID": "MV003-01",
+      "SKU_NAME": "MV003-01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796895",
+      "SKU_ID": "MV001-F08",
+      "SKU_NAME": "MV001-F08",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796871",
+      "SKU_ID": "MV001-F06",
+      "SKU_NAME": "MV001-F06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796864",
+      "SKU_ID": "MV001-F05",
+      "SKU_NAME": "MV001-F05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796857",
+      "SKU_ID": "MV001-F04",
+      "SKU_NAME": "MV001-F04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796840",
+      "SKU_ID": "MV001-F03",
+      "SKU_NAME": "MV001-F03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796833",
+      "SKU_ID": "MV001-F02",
+      "SKU_NAME": "MV001-F02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796826",
+      "SKU_ID": "MV001-F01",
+      "SKU_NAME": "MV001-F01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797113",
+      "SKU_ID": "LE009-15",
+      "SKU_NAME": "LE009-15 高定盈亮润泽口红",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797106",
+      "SKU_ID": "LE009-14",
+      "SKU_NAME": "LE009-14 高定盈亮润泽口红",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797090",
+      "SKU_ID": "LE009-13",
+      "SKU_NAME": "LE009-13 高定盈亮润泽口红",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796611",
+      "SKU_ID": "LE003-03",
+      "SKU_NAME": "LE003-03 Bloom Butterfly Jelly Set 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796604",
+      "SKU_ID": "LE003-02",
+      "SKU_NAME": "LE003-02 Bloom Butterfly Jelly Set 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796598",
+      "SKU_ID": "LE003-01",
+      "SKU_NAME": "LE003-01 Bloom Butterfly Jelly Set 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797229",
+      "SKU_ID": "HC022",
+      "SKU_NAME": "HC022",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797182",
+      "SKU_ID": "HC021",
+      "SKU_NAME": "HC021",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796536",
+      "SKU_ID": "HC020-03",
+      "SKU_NAME": "HC020-03 Haute Weightless Cover Powder 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796529",
+      "SKU_ID": "HC020-02",
+      "SKU_NAME": "HC020-02 Haute Weightless Cover Powder 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796512",
+      "SKU_ID": "HC020-01",
+      "SKU_NAME": "HC020-01 Haute Weightless Cover Powder 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796291",
+      "SKU_ID": "HC018-02",
+      "SKU_NAME": "HC018-02 Haute Gold Foil Thermochromic Lipstick 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796284",
+      "SKU_ID": "HC018-01",
+      "SKU_NAME": "HC018-01 Haute Gold Foil Thermochromic Lipstick 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795416",
+      "SKU_ID": "HC016-04",
+      "SKU_NAME": "HC016-04 Haute Dual Color Silky-Soft Lip & Cheek Stick 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795409",
+      "SKU_ID": "HC016-03",
+      "SKU_NAME": "HC016-03 Haute Dual Color Silky-Soft Lip & Cheek Stick 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795393",
+      "SKU_ID": "HC016-02",
+      "SKU_NAME": "HC016-02 Haute Dual Color Silky-Soft Lip & Cheek Stick 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795386",
+      "SKU_ID": "HC016-01",
+      "SKU_NAME": "HC016-01 Haute Dual Color Silky-Soft Lip & Cheek Stick 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795072",
+      "SKU_ID": "HC015-03",
+      "SKU_NAME": "HC015-03 Haute Soft Focus Correct Powder 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795065",
+      "SKU_ID": "HC015-02",
+      "SKU_NAME": "HC015-02 Haute Soft Focus Correct Powder 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795058",
+      "SKU_ID": "HC015-01",
+      "SKU_NAME": "HC015-01 Haute Soft Focus Correct Powder 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794792",
+      "SKU_ID": "HC010",
+      "SKU_NAME": "HC010 Haute Zero Pores sunscreen primer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795331",
+      "SKU_ID": "HC009-08",
+      "SKU_NAME": "HC009-08 Haute Hydrating Satin Lipstick 08",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795324",
+      "SKU_ID": "HC009-07",
+      "SKU_NAME": "HC009-07 Haute Hydrating Satin Lipstick 07",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795317",
+      "SKU_ID": "HC009-06",
+      "SKU_NAME": "HC009-06 Haute Hydrating Satin Lipstick 06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795300",
+      "SKU_ID": "HC009-05",
+      "SKU_NAME": "HC009-05 Haute Hydrating Satin Lipstick 05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795294",
+      "SKU_ID": "HC009-04",
+      "SKU_NAME": "HC009-04 Haute Hydrating Satin Lipstick 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795287",
+      "SKU_ID": "HC009-03",
+      "SKU_NAME": "HC009-03 Haute Hydrating Satin Lipstick 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795270",
+      "SKU_ID": "HC009-02",
+      "SKU_NAME": "HC009-02 Haute Hydrating Satin Lipstick 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795263",
+      "SKU_ID": "HC009-01",
+      "SKU_NAME": "HC009-01 Haute Hydrating Satin Lipstick 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795256",
+      "SKU_ID": "HC008-W02",
+      "SKU_NAME": "HC008-W02 Haute Matte Mesh Cushion Cream W02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795249",
+      "SKU_ID": "HC008-W01",
+      "SKU_NAME": "HC008-W01 Haute Matte Mesh Cushion Cream W01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263795003",
+      "SKU_ID": "HC008-04",
+      "SKU_NAME": "HC008-04 Haute Matte Mesh Cushion Cream 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794990",
+      "SKU_ID": "HC008-03",
+      "SKU_NAME": "HC008-03 Haute Matte Mesh Cushion Cream 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794976",
+      "SKU_ID": "HC008-01",
+      "SKU_NAME": "HC008-01 Haute Matte Mesh Cushion Cream 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794778",
+      "SKU_ID": "HC007-03",
+      "SKU_NAME": "HC007-03 Haute Sculpting Machete Brow Pencil 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794761",
+      "SKU_ID": "HC007-02",
+      "SKU_NAME": "HC007-02 Haute Sculpting Machete Brow Pencil 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796338",
+      "SKU_ID": "PS01-F04",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796314",
+      "SKU_ID": "PS01-F02",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796307",
+      "SKU_ID": "PS01-F01",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797342",
+      "SKU_ID": "PR001-12",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797335",
+      "SKU_ID": "PR001-11",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797328",
+      "SKU_ID": "PR001-10",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797311",
+      "SKU_ID": "PR001-09",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797304",
+      "SKU_ID": "PR001-08",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797298",
+      "SKU_ID": "PR001-07",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797281",
+      "SKU_ID": "PR001-06",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797274",
+      "SKU_ID": "PR001-05",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797250",
+      "SKU_ID": "PR001-03",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263797243",
+      "SKU_ID": "PR001-02",
+      "SKU_NAME": "PR001 Lip Tint",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794556",
+      "SKU_ID": "HC004-01",
+      "SKU_NAME": "HC004-01 Haute All Day Coverage Foundation 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794709",
+      "SKU_ID": "HC003-12",
+      "SKU_NAME": "HC003-12 Haute Hydrating Vinyl Lip Gloss 12",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794693",
+      "SKU_ID": "HC003-11",
+      "SKU_NAME": "HC003-11 Haute Hydrating Vinyl Lip Gloss 11",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794686",
+      "SKU_ID": "HC003-10",
+      "SKU_NAME": "HC003-10 Haute Hydrating Vinyl Lip Gloss 10",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794679",
+      "SKU_ID": "HC003-09",
+      "SKU_NAME": "HC003-09 Haute Hydrating Vinyl Lip Gloss 09",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794662",
+      "SKU_ID": "HC003-08",
+      "SKU_NAME": "HC003-08 Haute Hydrating Vinyl Lip Gloss 08",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794655",
+      "SKU_ID": "HC003-07",
+      "SKU_NAME": "HC003-07 Haute Hydrating Vinyl Lip Gloss 07",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794648",
+      "SKU_ID": "HC003-06",
+      "SKU_NAME": "HC003-06 Haute Hydrating Vinyl Lip Gloss 06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794631",
+      "SKU_ID": "HC003-05",
+      "SKU_NAME": "HC003-05 Haute Hydrating Vinyl Lip Gloss 05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794624",
+      "SKU_ID": "HC003-04",
+      "SKU_NAME": "HC003-04 Haute Hydrating Vinyl Lip Gloss 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794617",
+      "SKU_ID": "HC003-03",
+      "SKU_NAME": "HC003-03 Haute Hydrating Vinyl Lip Gloss 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794600",
+      "SKU_ID": "HC003-02",
+      "SKU_NAME": "HC003-02 Haute Hydrating Vinyl Lip Gloss 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794594",
+      "SKU_ID": "HC003-01",
+      "SKU_NAME": "HC003-01 Haute Hydrating Vinyl Lip Gloss 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794525",
+      "SKU_ID": "HC002-06",
+      "SKU_NAME": "HC002-06 Haute Dreamy Watercolor Liquid Blush 06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794518",
+      "SKU_ID": "HC002-05",
+      "SKU_NAME": "HC002-05 Haute Dreamy Watercolor Liquid Blush 05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794501",
+      "SKU_ID": "HC002-04",
+      "SKU_NAME": "HC002-04 Haute Dreamy Watercolor Liquid Blush 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794495",
+      "SKU_ID": "HC002-03",
+      "SKU_NAME": "HC002-03 Haute Dreamy Watercolor Liquid Blush 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794488",
+      "SKU_ID": "HC002-02",
+      "SKU_NAME": "HC002-02 Haute Dreamy Watercolor Liquid Blush 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794471",
+      "SKU_ID": "HC002-01",
+      "SKU_NAME": "HC002-01 Haute Dreamy Watercolor Liquid Blush 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794457",
+      "SKU_ID": "HC001",
+      "SKU_NAME": "HC001 Haute Volumizing Waterproof Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793047",
+      "SKU_ID": "FC002",
+      "SKU_NAME": "FC002 Facial Cream",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793030",
+      "SKU_ID": "FC001",
+      "SKU_NAME": "FC001 UV Protection Clear Sunscreen",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495810239",
+      "SKU_ID": "E110-H01",
+      "SKU_NAME": "E110-H01 Penjepit Bulu Mata",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495811236",
+      "SKU_ID": "9981",
+      "SKU_NAME": "9981  Instant Oversize Volume Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813919",
+      "SKU_ID": "9144-14",
+      "SKU_NAME": "9144-14 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813902",
+      "SKU_ID": "9144-11",
+      "SKU_NAME": "9144-11 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813896",
+      "SKU_ID": "9144-10",
+      "SKU_NAME": "9144-10 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813889",
+      "SKU_ID": "9144-09",
+      "SKU_NAME": "9144-09 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813872",
+      "SKU_ID": "9144-08",
+      "SKU_NAME": "9144-08 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813865",
+      "SKU_ID": "9144-07",
+      "SKU_NAME": "9144-07 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813858",
+      "SKU_ID": "9144-06",
+      "SKU_NAME": "9144-06 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813841",
+      "SKU_ID": "9144-05",
+      "SKU_NAME": "9144-05 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813834",
+      "SKU_ID": "9144-04",
+      "SKU_NAME": "9144-04 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813827",
+      "SKU_ID": "9144-03",
+      "SKU_NAME": "9144-03 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813810",
+      "SKU_ID": "9144-02",
+      "SKU_NAME": "9144-02 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813278",
+      "SKU_ID": "9144-01",
+      "SKU_NAME": "9144-01 Lips & Cheek Mud",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796147",
+      "SKU_ID": "9137",
+      "SKU_NAME": "9137  Brow Styling Soap",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495811359",
+      "SKU_ID": "9131",
+      "SKU_NAME": "9131  Volume Lengthening Fiber Mascara",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "611885619395",
+      "SKU_ID": "6048-01",
+      "SKU_NAME": "6048-01 Concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "611885622548",
+      "SKU_ID": "2145",
+      "SKU_NAME": "2145 Handbag",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "611885622869",
+      "SKU_ID": "2141",
+      "SKU_NAME": "2141 Self-adhesive sticker",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "611885622852",
+      "SKU_ID": "2140",
+      "SKU_NAME": "2140 Love Keychain",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813544",
+      "SKU_ID": "1019",
+      "SKU_NAME": "1019  Miraculous Cat-Eye Stamp Eyeliner Pen",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813230",
+      "SKU_ID": "1014-05",
+      "SKU_NAME": "1014-05 Lip Gloss",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813223",
+      "SKU_ID": "1014-04",
+      "SKU_NAME": "1014-04 Lip Gloss",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813209",
+      "SKU_ID": "1014-02",
+      "SKU_NAME": "1014-02 Lip Gloss",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495813193",
+      "SKU_ID": "1014-01",
+      "SKU_NAME": "1014-01 Lip Gloss",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "-",
+      "SKU_ID": "苹果15直播赠品",
+      "SKU_NAME": "苹果15直播赠品",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6928495812011",
+      "SKU_ID": "1007-01",
+      "SKU_NAME": "1007-01 Pensil Alis",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263793108",
+      "SKU_ID": "SC061-01",
+      "SKU_NAME": "SC061-01 Lightweight And Seamless Concealer",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794969",
+      "SKU_ID": "HC006-06",
+      "SKU_NAME": "HC006-06 Haute Watery Liquid lip&check Tint 06",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792507",
+      "SKU_ID": "SC049-01",
+      "SKU_NAME": "SC049-01  Blush",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263792057",
+      "SKU_ID": "SC040-03",
+      "SKU_NAME": "SC040-03 Eyeshadow",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263791142",
+      "SKU_ID": "SC030-03",
+      "SKU_NAME": "SC030-03 Magic Contour & Stick Highlight",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796321",
+      "SKU_ID": "PS01-F03",
+      "SKU_NAME": "PS01-F01 WONDERLAND GARDEN PARFUM F03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796888",
+      "SKU_ID": "MV001-F07",
+      "SKU_NAME": "MV001-F07",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263796543",
+      "SKU_ID": "HC020-04",
+      "SKU_NAME": "HC020-04 Haute Weightless Cover Powder 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794785",
+      "SKU_ID": "HC007-04",
+      "SKU_NAME": "HC007-04 Haute Sculpting Machete Brow Pencil 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794754",
+      "SKU_ID": "HC007-01",
+      "SKU_NAME": "HC007-01 Haute Sculpting Machete Brow Pencil 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794952",
+      "SKU_ID": "HC006-05",
+      "SKU_NAME": "HC006-05 Haute Watery Liquid lip&check Tint 05",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794945",
+      "SKU_ID": "HC006-04",
+      "SKU_NAME": "HC006-04 Haute Watery Liquid lip&check Tint 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794938",
+      "SKU_ID": "HC006-03",
+      "SKU_NAME": "HC006-03 Haute Watery Liquid lip&check Tint 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794921",
+      "SKU_ID": "HC006-02",
+      "SKU_NAME": "HC006-02 Haute Watery Liquid lip&check Tint 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794914",
+      "SKU_ID": "HC006-01",
+      "SKU_NAME": "HC006-01 Haute Watery Liquid lip&check Tint 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794747",
+      "SKU_ID": "HC005-04",
+      "SKU_NAME": "HC005-04 Haute Galaxy Swirl Liquid Highlighter 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794730",
+      "SKU_ID": "HC005-03",
+      "SKU_NAME": "HC005-03 Haute Galaxy Swirl Liquid Highlighter 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794723",
+      "SKU_ID": "HC005-02",
+      "SKU_NAME": "HC005-02 Haute Galaxy Swirl Liquid Highlighter 02",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794716",
+      "SKU_ID": "HC005-01",
+      "SKU_NAME": "HC005-01 Haute Galaxy Swirl Liquid Highlighter 01",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794570",
+      "SKU_ID": "HC004-03",
+      "SKU_NAME": "HC004-03 Haute All Day Coverage Foundation 03",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794587",
+      "SKU_ID": "HC004-04",
+      "SKU_NAME": "HC004-04 Haute All Day Coverage Foundation 04",
+      "HARGA": 10000
+    },
+    {
+      "BARCODE": "6973263794563",
+      "SKU_ID": "HC004-02",
+      "SKU_NAME": "HC004-02 Haute All Day Coverage Foundation 02",
+      "HARGA": 10000
+    }
+  ],
+  "users": [
+    {
+      "id": "USR-001",
+      "username": "yaya.sanjaya",
+      "fullName": "Yaya Sanjaya",
+      "email": "yaya.sanjaya@tirtakumalasari.co.id",
+      "role": "SUPER_ADMIN",
+      "department": "Direksi / IT & Supply Chain",
+      "company": "PT. Tirta Kumala Sari",
+      "operatorCode": "OPR-HQ-01",
+      "pin": "1234",
+      "status": "ACTIVE",
+      "avatarColor": "from-[#0F766E] to-[#115E59]"
+    },
+    {
+      "id": "USR-FIN-001",
+      "username": "finance",
+      "fullName": "Tim Finance",
+      "email": "finance@unboxin.id",
+      "role": "FINANCE",
+      "department": "Finance",
+      "company": "PT. Tirta Kumala Sari",
+      "operatorCode": "FIN-001",
+      "pin": "2468",
+      "status": "ACTIVE"
+    }
+  ],
+  "learnedPrefixes": {
+    "JX": {
+      "prefix": "JX",
+      "marketplace": "TikTok Shop",
+      "logistics": "J&T",
+      "createdAt": "2026-11-01T03:20:00.348Z"
+    }
+  }
+}
