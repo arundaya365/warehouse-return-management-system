@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   if (origin && allowedOrigins.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, Authorization');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   }
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
