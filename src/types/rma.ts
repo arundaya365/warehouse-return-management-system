@@ -7,12 +7,13 @@ export type RmaStageStatus =
   | 'DITERIMA_RMA' | 'BUKTI_KURANG' | 'LAYAK_LOGISTIK' | 'TIDAK_LAYAK'
   | 'DRAF_LOGISTIK' | 'DIAJUKAN_LOGISTIK' | 'MENUNGGU_LOGISTIK' | 'HASIL_LOGISTIK'
   | 'INVESTIGASI'
-  | 'SELESAI';
+  | 'SELESAI' | 'DIKEMBALIKAN_CS';
 
 export const RMA_STAGE_LABELS: Record<
   RmaStageStatus,
   { labelId: string; labelEn: string; badgeColor: string; description: string }
 > = {
+  DIKEMBALIKAN_CS: { labelId: 'Dikembalikan ke CS', labelEn: 'Returned to CS', badgeColor: 'bg-amber-50 text-amber-800 border-amber-200', description: 'Riwayat RMA dipertahankan; pekerjaan aktif kembali kepada CS.' },
   DITERIMA_CS: {
     labelId: 'Pencatatan lama (CS)',
     labelEn: 'Received by CS',
@@ -48,6 +49,10 @@ export const RMA_STAGE_LABELS: Record<
 };
 
 export interface RmaClaimItem {
+  sourceKey?: string;
+  sourceClaimAmount?: number;
+  marketplaceReservedAmount?: number;
+  valuationPending?: boolean;
   skuId: string;
   namaBarang: string;
   qty: number;
@@ -62,11 +67,22 @@ export interface RmaClaimRecord {
   awb?: string;
   channel: ClaimChannel; // Logistics target; legacy records may contain a marketplace.
   logisticsName?: string;
+  marketplaceCashAtHandover?: number;
+  handoverReason?: string;
+  handoverEvidence?: string;
+  returnReason?: string;
+  returnedAt?: string;
+  returnedBy?: string;
   marketplaceChannel?: ClaimChannel;
+  storeId?: string;
+  storeName?: string;
+  storeCode?: string;
   marketplaceRejectionReason?: string;
   marketplaceDecisionEvidence?: string;
   marketplaceTicket?: string;
   stageStatus: RmaStageStatus;
+  workflowVersion?: 'SIMPLE';
+  claimStatus?: 'PENDING' | 'SUBMITTED' | 'WAITING' | 'APPROVED' | 'PARTIAL' | 'REJECTED';
   
   // Rincian barang & estimasi ganti rugi
   items: RmaClaimItem[];
@@ -83,6 +99,13 @@ export interface RmaClaimRecord {
   acceptedAt?: string;
   history?: Array<{at: string; by: string; from: string; to: string; note: string}>;
   approvedCompensation?: number;  // Nilai pencairan ganti rugi aktual yang disetujui logistik (saat selesai)
+  financeReceivedAmount?: number;
+  financePaymentDate?: string;
+  financePaymentReference?: string;
+  financePaymentMethod?: string;
+  financePaymentNote?: string;
+  financeUpdatedAt?: string;
+  financeUpdatedBy?: string;
   
   // Serah terima dari CS
   csNotes: string;               // Alasan pelimpahan/catatan kendala dari CS

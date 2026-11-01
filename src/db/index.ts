@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate as migratePostgres } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import * as schema from './schema.ts';
 import { PGlite } from '@electric-sql/pglite';
@@ -24,6 +25,9 @@ export const createPool = () => {
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 15000,
+      ssl: process.env.SQL_SSL === 'true'
+        ? { rejectUnauthorized: process.env.SQL_SSL_REJECT_UNAUTHORIZED !== 'false' }
+        : undefined,
     });
 
     // Prevent unhandled pool-level errors from crashing the application
@@ -52,4 +56,8 @@ const embeddedDb = localDatabase ? embeddedDrizzle(localDatabase, { schema }) : 
 if (embeddedDb) {
   await migrate(embeddedDb, { migrationsFolder: path.resolve('drizzle') });
 }
-export const db = embeddedDb || drizzle(createPool(), { schema });
+const postgresDb = embeddedDb ? null : drizzle(createPool(), { schema });
+if (postgresDb && process.env.RUN_DB_MIGRATIONS !== 'false') {
+  await migratePostgres(postgresDb, { migrationsFolder: path.resolve('drizzle') });
+}
+export const db = embeddedDb || postgresDb!;

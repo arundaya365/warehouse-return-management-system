@@ -47,11 +47,13 @@ test('legacy explicit payout stays visible without converting approval into new 
  assert.equal(rmaCashReceived(record({stageStatus:'INVESTIGASI',approvedAmount:70000})),0);
 });
 import {validateClaimPayload} from '../src/utils/claimWorkflow.ts';
-test('server blocks a forged handover before a saved marketplace rejection',()=>{
- const claim=record({marketplaceDecisionEvidence:'Ticket',marketplaceRejectionReason:'Rejected'});
- assert.ok(validateClaimPayload({}, {_rma_claims_list_:[claim]}));
- const previous={TEST__SKU__0:{row:{Order_ID:'TEST',SKU_ID:'SKU'},claimStatus:'PARTIAL',claimAmount:300000,approvedAmount:100000,settlementAmount:0}};
- const valid={...claim,items:[{skuId:'SKU',namaBarang:'Test',qty:1,kondisi:'Damage Product',hargaSatuan:300000,subtotalEstimasi:200000}]};
- assert.equal(validateClaimPayload(previous,{_rma_claims_list_:[valid]}),null);
- assert.ok(validateClaimPayload(previous,{_rma_claims_list_:[{...valid,estimatedCompensation:200001}]}));
+test('server accepts direct handover with atomic item snapshots and rejects invalid allocation',()=>{
+ const source={row:{Order_ID:'TEST',SKU_ID:'SKU',Kondisi:'Damage Product'},claimStatus:'PENDING',claimAmount:300000,approvedAmount:0,settlementAmount:0};
+ const claim=record({logisticsName:'JNE',handoverReason:'Perlu pemeriksaan logistik',handoverEvidence:'Video unboxing',estimatedCompensation:200000,items:[{sourceKey:'TEST__SKU__0',skuId:'SKU',namaBarang:'Test',qty:1,kondisi:'Damage Product',hargaSatuan:300000,subtotalEstimasi:200000}]});
+ const payload={TEST__SKU__0:source,_rma_claims_list_:[claim]};
+ assert.equal(validateClaimPayload({},payload),null);
+ assert.equal(validateClaimPayload({}, {...payload,_rma_claims_list_:[{...claim,handoverEvidence:'',handoverReason:'',logisticsName:''}]}),null);
+ assert.ok(validateClaimPayload({}, {...payload,_rma_claims_list_:[{...claim,estimatedCompensation:300001}]}));
+ assert.ok(validateClaimPayload({}, {...payload,_rma_claims_list_:[{...claim,items:[...claim.items,...claim.items]}]}));
+ assert.ok(validateClaimPayload({}, {...payload,_rma_claims_list_:[{...claim,id:'other'},claim]}));
 });

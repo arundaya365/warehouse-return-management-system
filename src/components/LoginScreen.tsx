@@ -38,7 +38,7 @@ export const LoginScreen: React.FC = () => {
     identifierRef.current?.focus();
   }, []);
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!identifier.trim()) {
       setErrorMessage(isEn ? 'Please enter Operator ID / Username.' : 'Harap masukkan ID Operator atau Username Anda.');
@@ -54,18 +54,16 @@ export const LoginScreen: React.FC = () => {
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    setTimeout(() => {
-      const res = authenticateWithPin(identifier.trim(), pin.trim());
-      if (res.success) {
-        setIsSuccess(true);
-        // Login berhasil, state hasLoggedIn akan diperbarui oleh AccountContext
-      } else {
-        setIsSubmitting(false);
-        setErrorMessage(res.message);
-        setPin('');
-        pinRef.current?.focus();
-      }
-    }, 250);
+    const res = await authenticateWithPin(identifier.trim(), pin.trim());
+    if (res.success) {
+      setIsSuccess(true);
+      // Login berhasil, state hasLoggedIn akan diperbarui oleh AccountContext
+    } else {
+      setIsSubmitting(false);
+      setErrorMessage(res.message);
+      setPin('');
+      pinRef.current?.focus();
+    }
   };
 
   const handleKeypadPress = (digit: string) => {
@@ -342,3 +340,6 @@ export const LoginScreen: React.FC = () => {
     </div>
   );
 };
+
+
+

@@ -60,7 +60,7 @@ interface AccountContextType {
   resetToDefaultUsers: () => void;
   hasPermission: (permission: keyof RolePermission) => boolean;
   getUserPermissions: (user: UserAccount) => RolePermission;
-  authenticateWithPin: (operatorCodeOrId: string, pin: string) => { success: boolean; message: string; user?: UserAccount };
+  authenticateWithPin: (operatorCodeOrId: string, pin: string) => Promise<{ success: boolean; message: string; user?: UserAccount }>;
   googleDriveEmail: string;
   setGoogleDriveEmail: (email: string) => void;
   isLoginModalOpen: boolean;
@@ -70,7 +70,7 @@ interface AccountContextType {
   targetLoginUser: UserAccount | null;
   setTargetLoginUser: (user: UserAccount | null) => void;
   promptSwitchUser: (userIdOrCode: string) => void;
-  logoutOperator: () => void;
+  logoutOperator: () => Promise<void>;
   companyName: string;
   copyrightText: string;
   appName: string;
@@ -121,19 +121,9 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return '';
   });
 
-  const [hasLoggedIn, setHasLoggedInState] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(STORAGE_HAS_LOGGED_IN_KEY) === 'true';
-    } catch {}
-    return false;
-  });
+  const [hasLoggedIn, setHasLoggedInState] = useState<boolean>(false);
 
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(STORAGE_HAS_LOGGED_IN_KEY) !== 'true';
-    } catch {}
-    return true;
-  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(true);
 
   const [tenantConfig, setTenantConfig] = useState<TenantConfig>(() => {
     try {
@@ -228,6 +218,31 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [currentUserId]);
 
 
+  useEffect(() => {
+    let active = true;
+    fetch('/api/auth/session', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Sesi tidak aktif');
+        return response.json();
+      })
+      .then((payload) => {
+        if (!active || !payload?.user) return;
+        const sessionUser = payload.user as UserAccount;
+        setCurrentUserId(sessionUser.id);
+        setUsers((prev) => prev.some((user) => user.id === sessionUser.id)
+          ? prev.map((user) => user.id === sessionUser.id ? { ...user, ...sessionUser } : user)
+          : [sessionUser, ...prev]);
+        setHasLoggedInState(true);
+        setIsLoginModalOpen(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHasLoggedInState(false);
+        setIsLoginModalOpen(true);
+        try { localStorage.removeItem(STORAGE_HAS_LOGGED_IN_KEY); } catch {}
+      });
+    return () => { active = false; };
+  }, []);
   const [targetLoginUser, setTargetLoginUser] = useState<UserAccount | null>(null);
 
   const promptSwitchUser = (userIdOrCode: string) => {
@@ -244,13 +259,15 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const logoutOperator = () => {
+  const logoutOperator = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
     setHasLoggedIn(false);
     setTargetLoginUser(null);
+    setIsLoginModalOpen(true);
     try {
       localStorage.removeItem(STORAGE_HAS_LOGGED_IN_KEY);
+      localStorage.removeItem(STORAGE_CURRENT_USER_ID_KEY);
     } catch {}
-    setIsLoginModalOpen(false);
   };
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || INITIAL_ACCOUNTS[0];
@@ -273,111 +290,40 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const authenticateWithPin = (
+  const authenticateWithPin = async (
     operatorCodeOrId: string,
     pin: string
-  ): { success: boolean; message: string; user?: UserAccount } => {
+  ): Promise<{ success: boolean; message: string; user?: UserAccount }> => {
     const rawCode = (operatorCodeOrId || '').trim();
-    const cleanCode = rawCode.toUpperCase();
     const cleanPin = (pin || '').trim();
+    if (!rawCode) return { success: false, message: 'Harap masukkan ID / Kode Operator Anda.' };
+    if (!cleanPin) return { success: false, message: 'Harap masukkan PIN keamanan 4-6 digit.' };
 
-    if (!cleanCode) {
-      return { success: false, message: 'Harap masukkan ID / Kode Operator Anda.' };
-    }
-    if (!cleanPin) {
-      return { success: false, message: 'Harap masukkan PIN keamanan 4-6 digit (Default: 1234).' };
-    }
-
-    // 1. Cari berdasarkan kode operator, ID akun, username, atau email
-    let matched = users.find(
-      (u) =>
-        u.operatorCode.trim().toUpperCase() === cleanCode ||
-        u.id.trim().toUpperCase() === cleanCode ||
-        u.username.trim().toUpperCase() === cleanCode ||
-        (u.email && u.email.trim().toUpperCase() === cleanCode)
-    );
-
-    // 2. Jika belum ditemukan, periksa alias umum
-    if (!matched) {
-      const isSuperAdminAlias = [
-        'ADMIN',
-        'SUPERADMIN',
-        'SUPER ADMIN',
-        'SUPER_ADMIN',
-        'ROOT',
-        'YAYA',
-        'YAYA SANJAYA',
-        'HQ',
-        'OPR-HQ-01'
-      ].includes(cleanCode);
-
-      const isManagerAlias = [
-        'MANAGER',
-        'WH_MANAGER',
-        'BUDI',
-        'BUDI SANTOSO',
-        'MGR-WH-02'
-      ].includes(cleanCode);
-
-      const isOperatorAlias = [
-        'OPERATOR',
-        'OPR',
-        'AGUS',
-        'AGUS PRATAMA',
-        'OPR-992'
-      ].includes(cleanCode);
-
-      if (isSuperAdminAlias) {
-        matched = users.find((u) => u.role === 'SUPER_ADMIN') || users[0];
-      } else if (isManagerAlias) {
-        matched = users.find((u) => u.role === 'WAREHOUSE_MANAGER') || users[1];
-      } else if (isOperatorAlias) {
-        matched = users.find((u) => u.operatorCode === 'OPR-992') || users.find((u) => u.role === 'STATION_OPERATOR') || users[2];
-      } else if (cleanCode.includes('@')) {
-        // Jika user mengetikkan alamat email pribadinya (misal akun Google / email pemilik)
-        matched = users.find((u) => u.role === 'SUPER_ADMIN') || users[0];
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: rawCode, pin: cleanPin })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.user) {
+        return { success: false, message: payload?.message || 'Login gagal. Periksa ID operator dan PIN Anda.' };
       }
+
+      const matched = payload.user as UserAccount;
+      setCurrentUserId(matched.id);
+      setTargetLoginUser(null);
+      setUsers((prev) => prev.some((user) => user.id === matched.id)
+        ? prev.map((user) => user.id === matched.id ? { ...user, ...matched } : user)
+        : [matched, ...prev]);
+      setHasLoggedIn(true);
+      setIsLoginModalOpen(false);
+      return { success: true, message: `Login berhasil! Selamat bertugas, ${matched.fullName}.`, user: matched };
+    } catch {
+      return { success: false, message: 'Server login tidak dapat dihubungi. Pastikan server aplikasi sedang menyala.' };
     }
-
-    if (!matched) {
-      return {
-        success: false,
-        message: `ID Operator / Username "${rawCode}" tidak ditemukan. Gunakan OPR-HQ-01 (Super Admin) atau pilih akun di daftar.`
-      };
-    }
-
-    if (matched.status === 'INACTIVE') {
-      return {
-        success: false,
-        message: `Akun "${matched.fullName}" (${matched.operatorCode}) sedang dinonaktifkan oleh Super Admin.`
-      };
-    }
-
-    const userPin = matched.pin || '1234';
-    if (userPin !== cleanPin) {
-      return {
-        success: false,
-        message: 'PIN salah! Silakan periksa kembali PIN keamanan akun Anda.'
-      };
-    }
-
-    // Login Berhasil!
-    setCurrentUserId(matched.id);
-    setTargetLoginUser(null);
-    const now = new Date();
-    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    setUsers((prev) =>
-      prev.map((u) => (u.id === matched.id ? { ...u, lastLogin: timeStr } : u))
-    );
-    setHasLoggedIn(true);
-
-    return {
-      success: true,
-      message: `Login berhasil! Selamat bertugas, ${matched.fullName}.`,
-      user: matched
-    };
   };
-
   const persistAndSyncUsers = (updatedList: UserAccount[]) => {
     setUsers(updatedList);
     try {
@@ -531,3 +477,6 @@ export const useAccount = (): AccountContextType => {
   }
   return context;
 };
+
+
+

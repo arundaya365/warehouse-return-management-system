@@ -10,7 +10,7 @@ import { INITIAL_ACCOUNTS, type UserAccount } from './types/account.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const DATA_DIR = process.env.WAREHOUSE_DATA_DIR ? path.resolve(process.env.WAREHOUSE_DATA_DIR) : path.resolve(__dirname, '..', 'data');
 const DATA_FILE = path.resolve(DATA_DIR, 'warehouse_sync_store.json');
 
 export interface WarehouseSyncData {

@@ -2,17 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getEscalationError, rejectedItems, logisticsChannel, marketplaceSettlement, validateRmaResolution } from '../src/utils/claimWorkflow.ts';
 
-test('marketplace must finish before logistics escalation', () => {
-  for (const claimStatus of ['PENDING', 'SUBMITTED', 'APPROVED', 'PARTIAL']) assert.ok(getEscalationError([{claimStatus}]));
-  assert.equal(getEscalationError([{claimStatus:'REJECTED'}]), null);
-  assert.ok(getEscalationError([{claimStatus:'REJECTED'}, {claimStatus:'SUBMITTED'}]));
+test('CS may hand over drafts and pending marketplace decisions directly', () => {
+  for (const claimStatus of ['PENDING','SUBMITTED','WAITING','REJECTED']) assert.equal(getEscalationError([{claimStatus,claimAmount:100}]),null);
+  assert.ok(getEscalationError([{claimStatus:'APPROVED',claimAmount:100,approvedAmount:100}]));
+  assert.ok(getEscalationError([]));
 });
-test('mixed order forwards only failed goods, preserving approved goods', () => {
-  const items = [{sku:'paid',claimStatus:'APPROVED'}, {sku:'failed',claimStatus:'REJECTED'}];
-  assert.equal(getEscalationError(items), null);
-  assert.deepEqual(rejectedItems(items).map(item => item.sku), ['failed']);
-  assert.equal(items[0].claimStatus, 'APPROVED');
+
+test('direct and partial handover preserve approved goods and exclude their reserved amount', () => {
+  const items=[{sku:'paid',claimStatus:'APPROVED',claimAmount:100,approvedAmount:100},{sku:'draft',claimStatus:'PENDING',claimAmount:200},{sku:'partial',claimStatus:'PARTIAL',claimAmount:300,approvedAmount:100}];
+  assert.equal(getEscalationError(items),null);
+  assert.deepEqual(rejectedItems(items).map(item=>item.sku),['draft','partial']);
+  assert.equal(items[0].claimStatus,'APPROVED');
 });
+
 test('double handover is blocked', () => assert.ok(getEscalationError([{claimStatus:'REJECTED'}], true)));
 test('RMA channel is the logistics carrier, not the marketplace', () => {
   assert.equal(logisticsChannel('J&T'), 'J&T Express');

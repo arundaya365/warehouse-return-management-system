@@ -12,4 +12,5 @@ runtime/
 local-database/
 launcher-build/
 backups/
+data/warehouse_sync_store.json
 *.tar.gz

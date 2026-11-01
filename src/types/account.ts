@@ -1,4 +1,4 @@
-export type UserRole = 'SUPER_ADMIN' | 'WAREHOUSE_MANAGER' | 'STATION_OPERATOR' | 'CS_DISPUTE' | 'AUDITOR';
+export type UserRole = 'SUPER_ADMIN' | 'WAREHOUSE_MANAGER' | 'STATION_OPERATOR' | 'CS_DISPUTE' | 'FINANCE' | 'AUDITOR';
 
 export interface UserAccount {
   id: string;
@@ -22,6 +22,7 @@ export interface RolePermission {
   canAccessReports: boolean;
   canAccessDisputes: boolean;
   canAccessRma: boolean;
+  canAccessFinance: boolean;
   canAccessDatabase: boolean;
   canManageUsers: boolean;
   canExportData: boolean;
@@ -43,6 +44,7 @@ export const ROLE_DEFINITIONS: Record<
       canAccessReports: true,
       canAccessDisputes: true,
       canAccessRma: true,
+      canAccessFinance: true,
       canAccessDatabase: true,
       canManageUsers: true,
       canExportData: true,
@@ -60,6 +62,7 @@ export const ROLE_DEFINITIONS: Record<
       canAccessReports: true,
       canAccessDisputes: true,
       canAccessRma: true,
+      canAccessFinance: false,
       canAccessDatabase: true,
       canManageUsers: false,
       canExportData: true,
@@ -77,6 +80,7 @@ export const ROLE_DEFINITIONS: Record<
       canAccessReports: true,
       canAccessDisputes: false,
       canAccessRma: false,
+      canAccessFinance: false,
       canAccessDatabase: false,
       canManageUsers: false,
       canExportData: false,
@@ -94,7 +98,26 @@ export const ROLE_DEFINITIONS: Record<
       canAccessReports: true,
       canAccessDisputes: true,
       canAccessRma: true,
+      canAccessFinance: false,
       canAccessDatabase: true,
+      canManageUsers: false,
+      canExportData: true,
+      canDeleteReports: false,
+    }
+  },
+  FINANCE: {
+    labelId: 'Finance',
+    labelEn: 'Finance',
+    desc: 'Mencatat dana yang benar-benar diterima dari marketplace dan logistik.',
+    badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
+    permissions: {
+      canAccessDashboard: true,
+      canAccessStation: false,
+      canAccessReports: true,
+      canAccessDisputes: false,
+      canAccessRma: false,
+      canAccessFinance: true,
+      canAccessDatabase: false,
       canManageUsers: false,
       canExportData: true,
       canDeleteReports: false,
@@ -111,6 +134,7 @@ export const ROLE_DEFINITIONS: Record<
       canAccessReports: true,
       canAccessDisputes: true,
       canAccessRma: true,
+      canAccessFinance: true,
       canAccessDatabase: true,
       canManageUsers: false,
       canExportData: true,

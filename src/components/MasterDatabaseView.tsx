@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   FileSpreadsheet,
   Download,
@@ -27,6 +27,7 @@ import {
   parseNumericPrice
 } from '../utils/excelTemplate';
 import { useLanguage } from '../context/LanguageContext';
+import { CompactPagination } from './CompactPagination';
 
 interface MasterDatabaseViewProps {
   masterData: MasterSKUItem[];
@@ -42,6 +43,8 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentPage,setCurrentPage]=useState(1);
+  const [pageSize,setPageSize]=useState(50);
 
   // Form input manual 4 kolom (Barcode, SKU ID, SKU Name, Harga Barang)
   const [newBarcode, setNewBarcode] = useState('');
@@ -110,8 +113,8 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
     });
   };
 
-  const handleDeleteItem = (index: number) => {
-    const updated = masterData.filter((_, i) => i !== index);
+  const handleDeleteItem = (target: MasterSKUItem) => {
+    const updated = masterData.filter(item => !(item.SKU_ID === target.SKU_ID && item.BARCODE === target.BARCODE));
     setMasterData(updated);
     saveMasterDatabase(updated);
   };
@@ -139,6 +142,11 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
       numericStr.includes(q)
     );
   });
+  const totalPages=Math.max(1,Math.ceil(filteredData.length/pageSize));
+  const pageStart=(currentPage-1)*pageSize;
+  const paginatedData=filteredData.slice(pageStart,pageStart+pageSize);
+  useEffect(()=>setCurrentPage(1),[searchQuery,pageSize]);
+  useEffect(()=>setCurrentPage(page=>Math.min(page,totalPages)),[totalPages]);
 
   return (
     <div className="space-y-6">
@@ -387,7 +395,7 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
           <div className="flex items-center space-x-2.5">
             <Package className="w-4 h-4 text-[#0F766E]" />
             <h4 className="font-semibold text-slate-800 text-sm">
-              Daftar Master SKU ({filteredData.length} Barang)
+              Daftar Master SKU ({filteredData.length} dari {masterData.length} SKU)
             </h4>
           </div>
 
@@ -435,10 +443,10 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-[#F0FDFA]/60 transition-colors">
+                paginatedData.map((item, idx) => (
+                  <tr key={`${item.SKU_ID}-${item.BARCODE}`} className="hover:bg-[#F0FDFA]/60 transition-colors">
                     <td className="py-3 px-4 text-center text-slate-400 font-mono font-medium">
-                      {idx + 1}
+                      {pageStart + idx + 1}
                     </td>
                     <td className="py-3 px-4 font-mono font-semibold text-slate-700 whitespace-nowrap">
                       {item.BARCODE || '-'}
@@ -460,7 +468,7 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <button
-                        onClick={() => handleDeleteItem(idx)}
+                        onClick={() => handleDeleteItem(item)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                         title="Hapus SKU ini"
                       >
@@ -472,6 +480,10 @@ export const MasterDatabaseView: React.FC<MasterDatabaseViewProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+        <div className="border-t border-slate-200 bg-white p-3">
+          <p className="mb-3 text-xs text-slate-600"><strong>Katalog tidak dibatasi 286 SKU.</strong> Kapasitas mengikuti ruang penyimpanan server.</p>
+          <CompactPagination page={currentPage} totalItems={filteredData.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={(size)=>{setPageSize(size);setCurrentPage(1)}} pageSizeOptions={[50,100,250]} itemLabel="hasil" ariaLabel="Paginasi data SKU" />
         </div>
       </div>
     </div>

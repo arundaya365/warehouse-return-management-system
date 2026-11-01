@@ -10,6 +10,7 @@ import { processUnboxingReport } from './src/processor.ts';
 import type { UnboxingSessionInput, StandardKondisi } from './src/processor.ts';
 import { WarehouseStore } from './src/serverDataStore.ts';
 import { localDatabase } from './src/db/index.ts';
+import { createSession, getSessionUser, destroySession, setSessionCookie, clearSessionCookie, requireSession, requireRoles } from './src/middleware/auth.ts';
 
 dotenv.config();
 
@@ -19,10 +20,26 @@ const isProd = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '127.0.0.1';
 
+// Perbandingan payload sinkronisasi tidak boleh bergantung pada urutan property JSON.
+const stableStringify = (value: unknown): string => JSON.stringify(value, (_key, current) => {
+  if (!current || typeof current !== 'object' || Array.isArray(current)) return current;
+  return Object.keys(current as Record<string, unknown>)
+    .sort()
+    .reduce<Record<string, unknown>>((sorted, key) => {
+      sorted[key] = (current as Record<string, unknown>)[key];
+      return sorted;
+    }, {});
+});
+
 const app = express();
 if (process.env.LOCAL_TRIAL === 'true') {
+  const canDownloadLocalBackup = (req: Request): boolean => {
+    const tokenMatches = Boolean(process.env.LOCAL_STOP_TOKEN && req.headers['x-local-stop-token'] === process.env.LOCAL_STOP_TOKEN);
+    const sessionUser = getSessionUser(req);
+    return tokenMatches || sessionUser?.role === 'SUPER_ADMIN';
+  };
   app.get('/api/local/backup', async (req, res) => {
-    if (!localDatabase || !process.env.LOCAL_STOP_TOKEN || req.headers['x-local-stop-token'] !== process.env.LOCAL_STOP_TOKEN) {
+    if (!localDatabase || !canDownloadLocalBackup(req)) {
       res.sendStatus(403);
       return;
     }
@@ -34,6 +51,22 @@ if (process.env.LOCAL_TRIAL === 'true') {
       console.error('Local backup failed:', error);
       res.sendStatus(500);
     }
+  });
+  app.get('/api/local/backup/json', (req, res) => {
+    if (!canDownloadLocalBackup(req)) {
+      res.sendStatus(403);
+      return;
+    }
+    const snapshot = WarehouseStore.getAll();
+    const payload = {
+      backupVersion: 1,
+      createdAt: new Date().toISOString(),
+      source: 'unboxin.id local trial',
+      data: snapshot
+    };
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="unboxin-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.send(JSON.stringify(payload, null, 2));
   });
   app.post('/api/local/stop', (req, res) => {
     if (!process.env.LOCAL_STOP_TOKEN || req.headers['x-local-stop-token'] !== process.env.LOCAL_STOP_TOKEN) {
@@ -47,8 +80,10 @@ if (process.env.LOCAL_TRIAL === 'true') {
     }, 300);
   });
 }
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Master SKU may contain tens of thousands of rows. Keep a generous transport
+// ceiling; the database itself has no application-level SKU count limit.
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Inisialisasi Gemini AI jika key tersedia
 const apiKey = process.env.GEMINI_API_KEY;
@@ -71,6 +106,41 @@ if (apiKey) {
 /**
  * Health check endpoint
  */
+app.post('/api/auth/login', (req: Request, res: Response) => {
+  const identifier = String(req.body?.identifier || '').trim().toLowerCase();
+  const pin = String(req.body?.pin || '').trim();
+  if (!identifier || !/^\d{4,6}$/.test(pin)) {
+    res.status(400).json({ success: false, message: 'ID operator dan PIN 4-6 digit wajib diisi.' });
+    return;
+  }
+  const account = WarehouseStore.getAll().users.find((user) =>
+    [user.id, user.operatorCode, user.username, user.email].some((value) => String(value || '').trim().toLowerCase() === identifier)
+  );
+  if (!account || account.status !== 'ACTIVE' || String(account.pin || '') !== pin) {
+    res.status(401).json({ success: false, message: 'ID operator atau PIN tidak sesuai.' });
+    return;
+  }
+  const token = createSession(account);
+  const requestIsHttps = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  setSessionCookie(res, token, requestIsHttps);
+  const { pin: _pin, ...safeAccount } = account;
+  res.json({ success: true, user: safeAccount });
+});
+
+app.get('/api/auth/session', (req: Request, res: Response) => {
+  const user = getSessionUser(req);
+  if (!user) {
+    res.status(401).json({ success: false, message: 'Sesi login tidak ditemukan atau sudah berakhir.' });
+    return;
+  }
+  res.json({ success: true, user });
+});
+
+app.post('/api/auth/logout', (req: Request, res: Response) => {
+  destroySession(req);
+  clearSessionCookie(res);
+  res.json({ success: true });
+});
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -85,6 +155,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
  * Endpoint Utama: Memproses sesi unboxing
  * Menerima payload dari frontend dan mengembalikan FORMAT OUTPUT WAJIB (JSON ARRAY murni).
  */
+app.use('/api/process-unboxing', requireSession);
 app.post('/api/process-unboxing', async (req: Request, res: Response) => {
   try {
     const payload: UnboxingSessionInput = req.body;
@@ -220,6 +291,7 @@ import {
  * DENGAN CLOUD SQL POSTGRESQL (PERSISTENSI LINTAS DEVICE)
  * =========================================================================
  */
+app.use('/api/sync', requireSession);
 
 // 1. Ambil seluruh data pusat gudang (Returns, Disputes, Master SKU, Users)
 app.get('/api/sync', async (_req: Request, res: Response) => {
@@ -254,7 +326,7 @@ app.post('/api/sync/returns', async (req: Request, res: Response) => {
 });
 
 // 3. Timpa seluruh daftar return (bulk sync / full refresh)
-app.post('/api/sync/replace-returns', async (req: Request, res: Response) => {
+app.post('/api/sync/replace-returns', requireRoles('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { rows } = req.body;
     if (!Array.isArray(rows)) {
@@ -273,7 +345,7 @@ app.post('/api/sync/replace-returns', async (req: Request, res: Response) => {
 });
 
 // 4. Hapus order spesifik
-app.post('/api/sync/delete-order', async (req: Request, res: Response) => {
+app.post('/api/sync/delete-order', requireRoles('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { orderId } = req.body;
     if (!orderId) {
@@ -290,7 +362,7 @@ app.post('/api/sync/delete-order', async (req: Request, res: Response) => {
 });
 
 // 5. Hapus baris spesifik (orderId + skuId)
-app.post('/api/sync/delete-row', async (req: Request, res: Response) => {
+app.post('/api/sync/delete-row', requireRoles('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { orderId, skuId } = req.body;
     if (!orderId || !skuId) {
@@ -307,7 +379,7 @@ app.post('/api/sync/delete-row', async (req: Request, res: Response) => {
 });
 
 // 6. Hapus massal (bulk delete orders atau rows)
-app.post('/api/sync/bulk-delete', async (req: Request, res: Response) => {
+app.post('/api/sync/bulk-delete', requireRoles('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { orderIds, rowKeys } = req.body;
     let count = 0;
@@ -329,7 +401,12 @@ app.post('/api/sync/bulk-delete', async (req: Request, res: Response) => {
 });
 
 // 7. Simpan / perbarui catatan dispute claims CS
-app.post('/api/sync/disputes', async (req: Request, res: Response) => {
+let disputeWriteQueue: Promise<void> = Promise.resolve();
+app.post('/api/sync/disputes', requireRoles('SUPER_ADMIN', 'WAREHOUSE_MANAGER', 'CS_DISPUTE', 'FINANCE'), async (req: Request, res: Response) => {
+  const preceding = disputeWriteQueue;
+  let release!: () => void;
+  disputeWriteQueue = new Promise<void>(resolve => { release = resolve; });
+  await preceding;
   try {
     const { disputes } = req.body;
     if (!disputes || typeof disputes !== 'object' || Array.isArray(disputes)) {
@@ -339,7 +416,12 @@ app.post('/api/sync/disputes', async (req: Request, res: Response) => {
     let lastUpdated: string | null = null;
     try {
       const current = await getWarehouseData();
-      const workflowError = validateClaimPayload(current.disputes, disputes);
+      if (req.body.expectedDisputes !== undefined && stableStringify(req.body.expectedDisputes) !== stableStringify(current.disputes)) { res.status(409).json({error:'Data klaim sudah diperbarui tim lain. Muat ulang dan periksa perubahan sebelum menyimpan.'}); return; }
+      const admin = (req as any).sessionUser?.role === 'SUPER_ADMIN' ? (req as any).sessionUser : null;
+      const requestsReopen = Object.entries(disputes).some(([key,item]:any)=>!key.startsWith('_')&&item?.reopenedAt&&!current.disputes?.[key]?.reopenedAt)
+        || (Array.isArray(disputes._rma_claims_list_) && disputes._rma_claims_list_.some((item:any)=>item?.reopenedAt&&!((current.disputes?._rma_claims_list_||[]) as any[]).some(old=>old.id===item.id&&old.reopenedAt)));
+      if (requestsReopen && !admin) { res.status(403).json({error:'Pembukaan kembali kasus memerlukan verifikasi Super Akun.'}); return; }
+      const workflowError = validateClaimPayload(current.disputes, disputes, requestsReopen && Boolean(admin));
       if (workflowError) { res.status(409).json({error: workflowError}); return; }
       lastUpdated = await dbSaveDisputes(disputes);
     } catch (dbErr) {
@@ -352,11 +434,11 @@ app.post('/api/sync/disputes', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error saving disputes:', error);
     res.status(500).json({ error: 'Gagal sinkron disputes' });
-  }
+  } finally { release(); }
 });
 
 // 8. Simpan / perbarui database master SKU
-app.post('/api/sync/master-db', async (req: Request, res: Response) => {
+app.post('/api/sync/master-db', requireRoles('SUPER_ADMIN', 'WAREHOUSE_MANAGER', 'CS_DISPUTE'), async (req: Request, res: Response) => {
   try {
     const { masterDatabase } = req.body;
     if (!Array.isArray(masterDatabase)) {
@@ -383,7 +465,7 @@ app.post('/api/sync/master-db', async (req: Request, res: Response) => {
 });
 
 // 9. Simpan / perbarui pengguna
-app.post('/api/sync/users', async (req: Request, res: Response) => {
+app.post('/api/sync/users', requireRoles('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { users } = req.body;
     if (!Array.isArray(users)) {
@@ -410,7 +492,7 @@ app.post('/api/sync/users', async (req: Request, res: Response) => {
 });
 
 // 10. Hapus akun pengguna secara permanen lintas perangkat
-app.post('/api/sync/delete-user', async (req: Request, res: Response) => {
+app.post('/api/sync/delete-user', requireRoles('SUPER_ADMIN'), async (req: Request, res: Response) => {
   try {
     const { userId, operatorCode } = req.body;
     const target = userId || operatorCode;
@@ -445,7 +527,7 @@ app.post('/api/sync/delete-user', async (req: Request, res: Response) => {
 });
 
 // 11. Bersihkan seluruh akun demo lama (hanya menyisakan Yaya Sanjaya)
-app.post('/api/sync/clean-demo-users', async (_req: Request, res: Response) => {
+app.post('/api/sync/clean-demo-users', requireRoles('SUPER_ADMIN'), async (_req: Request, res: Response) => {
   try {
     let count = 1;
     try {
@@ -549,3 +631,6 @@ initServer().catch((err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });
+
+
+

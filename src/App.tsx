@@ -1,6 +1,7 @@
 import {dashboardPreview} from './data/dashboardPreview';
 import type { SyncState } from './services/dataSyncService';
 import { isRmaClosed } from './utils/claimWorkflow';
+import { financeOutstandingCases } from './utils/claimSummary';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -14,7 +15,12 @@ import { ReportsView } from './components/ReportsView';
 import { MasterDatabaseView } from './components/MasterDatabaseView';
 import { DisputeClaimsView } from './components/DisputeClaimsView';
 import { RMAClaimsView } from './components/RMAClaimsView';
+import { ClaimHistoryView } from './components/ClaimHistoryView';
 import { AccountManagementView } from './components/AccountManagementView';
+import { FinanceView } from './components/FinanceView';
+import { StoreManagementView } from './components/StoreManagementView';
+import { BackupSettingsView } from './components/BackupSettingsView';
+import type { StoreProfile } from './types/store';
 import { SAMPLE_SCENARIOS } from './data/sampleScenarios';
 import { HISTORICAL_RETURN_ROWS } from './data/historicalReturns';
 import { RmaClaimRecord } from './types/rma';
@@ -54,8 +60,12 @@ function AppContent() {
       reports: hasPermission('canAccessReports'),
       disputes: hasPermission('canAccessDisputes'),
       rma: hasPermission('canAccessRma'),
+      finance: hasPermission('canAccessFinance'),
+      claimHistory: hasPermission('canAccessDisputes') || hasPermission('canAccessRma'),
       database: hasPermission('canAccessDatabase'),
-      accounts: hasPermission('canManageUsers') || currentUser.role === 'SUPER_ADMIN'
+      stores: hasPermission('canAccessDatabase'),
+      accounts: hasPermission('canManageUsers') || currentUser.role === 'SUPER_ADMIN',
+      backup: currentUser.role === 'SUPER_ADMIN'
     };
 
     if (!tabPermMap[activeTab]) {
@@ -100,6 +110,7 @@ function AppContent() {
     } catch {}
     return {};
   });
+  const stores = useMemo<StoreProfile[]>(() => Array.isArray(disputeRecords['_stores_list_']) ? disputeRecords['_stores_list_'] : [], [disputeRecords]);
   const [, setCurrentInput] = useState<UnboxingSessionInput | null>(null);
   const [previewMode] = useState(()=>new URLSearchParams(window.location.search).get('dashboard-demo')==='1');
   const [previewState,setPreviewState] = useState<SyncState>(()=>{
@@ -214,7 +225,7 @@ function AppContent() {
 
   // CS has already saved the combined dispute/RMA payload once.
   const handleForwardToRma = (claim: RmaClaimRecord) => {
-    setRmaClaims((previous) => previous.some((item) => item.orderId.trim().toUpperCase() === claim.orderId.trim().toUpperCase())
+    setRmaClaims((previous) => previous.some((item) => item.stageStatus !== 'DIKEMBALIKAN_CS' && item.orderId.trim().toUpperCase() === claim.orderId.trim().toUpperCase())
       ? previous : [claim, ...previous]);
   };
 
@@ -223,42 +234,123 @@ function AppContent() {
     return await handleSaveRmaClaims(next);
   };
 
-  // Rollback / Kembalikan kasus dari Tim RMA ke Tim Customer Service
-  const handleReturnToCs = (orderId: string, reason: string) => {
-    const cleanOrderId = String(orderId || '').trim();
-    // 1. Cabut kasus dari antrean aktif RMA
-    const nextRmaClaims = (rmaClaims || []).filter(
-      (c) => String(c.orderId || '').trim().toUpperCase() !== cleanOrderId.toUpperCase()
-    );
-    setRmaClaims(nextRmaClaims);
+  const handleFinancePayment = async (payment: { lane: 'CS'|'RMA'; recordId: string; amount: number; date: string; reference: string; method: string; note: string }): Promise<boolean> => {
+    const now = new Date().toISOString();
+    const payload = { ...disputeRecords };
+    if (!Number.isSafeInteger(payment.amount) || payment.amount < 0) return false;
+    if (payment.lane === 'CS') {
+      const orderId = String(payment.recordId || '').trim().toUpperCase();
+      const entries = Object.entries(payload).filter(([, value]) => value?.row && String(value.row.Order_ID || '').trim().toUpperCase() === orderId);
+      if (!entries.length) return false;
+      const canonicalEntries = entries.filter(([key]) => key.includes('__'));
+      const targetKey = (canonicalEntries[0] || entries[0])[0];
+      entries.forEach(([key, current]) => { payload[key] = { ...current, financeReceivedAmount: key === targetKey ? payment.amount : 0, financePaymentDate: payment.date || now, financePaymentReference: payment.reference.trim(), financePaymentMethod: payment.method.trim(), financePaymentNote: payment.note.trim(), financeUpdatedAt: now, financeUpdatedBy: currentUser.fullName }; });
+    } else {
+      const current = rmaClaims.find(claim => claim.id === payment.recordId);
+      if (!current) return false;
+      const updatedClaims = rmaClaims.map(claim => claim.id === payment.recordId ? { ...claim, financeReceivedAmount: payment.amount, financePaymentDate: payment.date || now, financePaymentReference: payment.reference.trim(), financePaymentMethod: payment.method.trim(), financePaymentNote: payment.note.trim(), financeUpdatedAt: now, financeUpdatedBy: currentUser.fullName } : claim);
+      payload._rma_claims_list_ = updatedClaims;
+      if (!(await syncService.pushDisputes(payload))) return false;
+      setRmaClaims(updatedClaims);
+      setDisputeRecords(payload);
+      localStorage.setItem(STORAGE_RMA_CLAIMS_KEY, JSON.stringify(updatedClaims));
+      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload));
+      return true;
+    }
+    if (!(await syncService.pushDisputes(payload))) return false;
+    setDisputeRecords(payload);
+    localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload));
+    return true;
+  };
+  const handleSaveStores = async (nextStores: StoreProfile[]): Promise<boolean> => {
+    const payload = { ...disputeRecords, _stores_list_: nextStores };
+    if (await syncService.pushDisputes(payload)) {
+      setDisputeRecords(payload);
+      localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload));
+      return true;
+    }
+    // Database toko tidak boleh menimpa pembaruan klaim dari perangkat lain.
+    // Muat data terakhir, pertahankan klaim terbaru, lalu coba simpan daftar toko lagi sekali.
+    const latest = await syncService.syncPull();
+    if (!latest?.disputes) return false;
+    const retryPayload = { ...latest.disputes, _stores_list_: nextStores };
+    if (!(await syncService.pushDisputes(retryPayload))) return false;
+    setDisputeRecords(retryPayload);
+    localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(retryPayload));
+    return true;
+  };
 
-    // 2. Perbarui status dispute records agar kembali aktif di antrean CS dengan audit catatan pengembalian
-    setDisputeRecords((prev) => {
-      const updated = { ...prev };
-      const nowIso = new Date().toISOString();
-      Object.keys(updated).forEach((key) => {
-        if (key.startsWith(`${cleanOrderId}__`) || key.startsWith(`${cleanOrderId}_`)) {
-          const item = updated[key];
-          if (item) {
-            updated[key] = {
-              ...item,
-              isForwardedToRma: false, // Reset flag agar order aktif kembali di CS
-              claimStatus: item.claimStatus || 'REJECTED', // Preserve the marketplace decision.
-              csNotes: `[DIKEMBALIKAN DARI RMA: ${reason}] ${String(item.csNotes || '').replaceAll('[DIALIHKAN KE RMA]', '')}`.trim(),
-              updatedAt: nowIso
-            };
-          }
-        }
-      });
-      try {
-        const history = [...(Array.isArray(prev._rma_return_history_) ? prev._rma_return_history_ : []), { orderId: cleanOrderId, reason, returnedAt: nowIso, previousRma: rmaClaims.filter((claim) => claim.orderId.trim().toUpperCase() === cleanOrderId.toUpperCase()) }];
-        const payload = { ...updated, _rma_claims_list_: nextRmaClaims, _rma_return_history_: history };
-        localStorage.setItem('rma_cs_dispute_claims_v1', JSON.stringify(payload));
-        localStorage.setItem(STORAGE_RMA_CLAIMS_KEY, JSON.stringify(nextRmaClaims));
-        syncService.pushDisputes(payload);
-      } catch {}
-      return updated;
-    });
+  // Save the ownership change and its history atomically before changing either queue.
+  const handleReturnToCs = async (orderId: string, reason: string): Promise<boolean> => {
+    if (!reason.trim()) return false;
+    const cleanOrderId = String(orderId || '').trim().toUpperCase();
+    const active = rmaClaims.find(claim => claim.orderId.trim().toUpperCase() === cleanOrderId && claim.stageStatus !== 'DIKEMBALIKAN_CS');
+    if (!active) return false;
+    const nowIso = new Date().toISOString();
+    const returned: RmaClaimRecord = {...active, stageStatus:'DIKEMBALIKAN_CS', returnReason:reason.trim(), returnedAt:nowIso, returnedBy:currentUser.fullName, updatedAt:nowIso,
+      history:[...(active.history || []),{at:nowIso,by:currentUser.fullName,from:active.stageStatus,to:'DIKEMBALIKAN_CS',note:reason.trim()}]};
+    const nextRmaClaims = rmaClaims.map(claim => claim.id === active.id ? returned : claim);
+    const updated = {...disputeRecords};
+    for (const [key,item] of Object.entries(updated)) {
+      if (key.startsWith('_') || !item?.row || String(item.row.Order_ID || '').trim().toUpperCase() !== cleanOrderId) continue;
+      updated[key] = {...item,isForwardedToRma:false,csNotes:String(item.csNotes || '').replaceAll('[DIALIHKAN KE RMA]','').trim(),updatedAt:nowIso,
+        history:[...(item.history || []),{at:nowIso,by:currentUser.fullName,note:'Dikembalikan ke CS: '+reason.trim()}]};
+    }
+    const payload = {...updated,_rma_claims_list_:nextRmaClaims};
+    if (!(await syncService.pushDisputes(payload))) return false;
+    setRmaClaims(nextRmaClaims); setDisputeRecords(payload);
+    localStorage.setItem('rma_cs_dispute_claims_v1',JSON.stringify(payload));
+    localStorage.setItem(STORAGE_RMA_CLAIMS_KEY,JSON.stringify(nextRmaClaims));
+    return true;
+  };
+
+  const handleRestoreArchivedClaim = async (row: any, target: 'CS'|'RMA', reason: string): Promise<boolean> => {
+    if (currentUser.role !== 'SUPER_ADMIN' || !reason.trim()) return false;
+    const now = new Date().toISOString();
+    const audit = {at:now,by:currentUser.fullName,note:`Kasus dibuka kembali ke ${target}: ${reason.trim()}`};
+    const orderId = String(row.orderId || '').trim().toUpperCase();
+    if (row.lane === 'RMA') {
+      const nextClaims = rmaClaims.map(claim => claim.id !== row.id ? claim : ({
+        ...claim,
+        previousResolution:{claimStatus:claim.claimStatus,stageStatus:claim.stageStatus,approvedAmount:claim.approvedAmount,approvedCompensation:claim.approvedCompensation,paymentStatus:claim.paymentStatus,resolutionDate:claim.resolutionDate,resolutionNote:claim.resolutionNote,closureReason:claim.closureReason},
+        workflowVersion:'SIMPLE', claimStatus:'PENDING', stageStatus:target==='RMA'?'DIALIHKAN_KE_RMA':'DIKEMBALIKAN_CS',
+        approvedAmount:0, approvedCompensation:0, paymentStatus:'NOT_APPLICABLE', resolutionDate:undefined,resolutionNote:undefined,closureReason:undefined,
+        reopenedAt:now,reopenedBySuperAccount:currentUser.fullName,reopenReason:reason.trim(),updatedAt:now,
+        history:[...(claim.history||[]),{at:now,by:currentUser.fullName,from:claim.stageStatus,to:target==='RMA'?'DIALIHKAN_KE_RMA':'DIKEMBALIKAN_CS',note:audit.note}]
+      } as any));
+      const reopenedDisputes={...disputeRecords};
+      if(target==='CS')for(const [key,item] of Object.entries(reopenedDisputes)){
+        if(key.startsWith('_')||!item?.row||String(item.row.Order_ID||'').trim().toUpperCase()!==orderId)continue;
+        reopenedDisputes[key]={...item,previousResolution:item.previousResolution||{claimStatus:item.claimStatus,approvedAmount:item.approvedAmount,settlementAmount:item.settlementAmount,closedAt:item.closedAt,closureReason:item.closureReason},claimStatus:'PENDING',approvedAmount:0,settlementAmount:0,closedAt:undefined,closureReason:undefined,isForwardedToRma:false,reopenedAt:now,reopenedBySuperAccount:currentUser.fullName,reopenReason:reason.trim(),updatedAt:now,history:[...(item.history||[]),audit]};
+      }
+      const payload={...reopenedDisputes,_rma_claims_list_:nextClaims};
+      if (!(await syncService.pushDisputesAsSuperAdmin(payload,currentUser.id,currentUser.pin))) return false;
+      setRmaClaims(nextClaims);setDisputeRecords(payload);localStorage.setItem('rma_cs_dispute_claims_v1',JSON.stringify(payload));localStorage.setItem(STORAGE_RMA_CLAIMS_KEY,JSON.stringify(nextClaims));
+      setActiveTab(target==='RMA'?'rma':'disputes'); return true;
+    }
+    const nextRecords={...disputeRecords};
+    for(const [key,item] of Object.entries(nextRecords)){
+      if(key.startsWith('_')||!item?.row||String(item.row.Order_ID||'').trim().toUpperCase()!==orderId)continue;
+      if(!['APPROVED','PARTIAL','REJECTED'].includes(item.claimStatus)&&!item.closedAt)continue;
+      nextRecords[key]={...item,previousResolution:{claimStatus:item.claimStatus,approvedAmount:item.approvedAmount,settlementAmount:item.settlementAmount,closedAt:item.closedAt,closureReason:item.closureReason},claimStatus:'PENDING',approvedAmount:0,settlementAmount:0,closedAt:undefined,closureReason:undefined,isForwardedToRma:target==='RMA',reopenedAt:now,reopenedBySuperAccount:currentUser.fullName,reopenReason:reason.trim(),updatedAt:now,history:[...(item.history||[]),audit]};
+    }
+    let nextClaims=rmaClaims;
+    if(target==='RMA'){
+      const existingRma=rmaClaims.find(claim=>claim.orderId.trim().toUpperCase()===orderId&&claim.stageStatus!=='DIKEMBALIKAN_CS');
+      if(existingRma){
+        nextClaims=rmaClaims.map(claim=>claim.id!==existingRma.id?claim:({...claim,previousResolution:{claimStatus:claim.claimStatus,stageStatus:claim.stageStatus,approvedAmount:claim.approvedAmount,approvedCompensation:claim.approvedCompensation,paymentStatus:claim.paymentStatus,resolutionDate:claim.resolutionDate,resolutionNote:claim.resolutionNote,closureReason:claim.closureReason},workflowVersion:'SIMPLE',claimStatus:'PENDING',stageStatus:'DIALIHKAN_KE_RMA',approvedAmount:0,approvedCompensation:0,paymentStatus:'NOT_APPLICABLE',resolutionDate:undefined,resolutionNote:undefined,closureReason:undefined,reopenedAt:now,reopenedBySuperAccount:currentUser.fullName,reopenReason:reason.trim(),updatedAt:now,history:[...(claim.history||[]),{at:now,by:currentUser.fullName,from:claim.stageStatus,to:'DIALIHKAN_KE_RMA',note:audit.note}]} as any));
+        nextRecords._rma_claims_list_=nextClaims;
+      } else {
+      let sources=Object.entries(nextRecords).filter(([key,item])=>!key.startsWith('_')&&item?.row&&String(item.row.Order_ID||'').trim().toUpperCase()===orderId&&item.row.Kondisi!=='Good');
+      if(sources.some(([key])=>key.includes('__')))sources=sources.filter(([key])=>key.includes('__'));
+      const items=sources.map(([key,item])=>({sourceKey:key,sourceClaimAmount:Number(item.claimAmount)||0,marketplaceReservedAmount:0,valuationPending:!(Number(item.claimAmount)>0),skuId:String(item.row.SKU_ID||''),namaBarang:String(item.row.Nama_Produk||item.row.Nama_Barang||item.row.SKU_ID||''),qty:1,kondisi:String(item.row.Kondisi||''),hargaSatuan:Number(item.claimAmount)||0,subtotalEstimasi:Number(item.claimAmount)||0}));
+      const first=sources[0]?.[1];
+      const newClaim:any={id:`rma_reopen_${orderId}_${Date.now()}`,orderId,awb:String(first?.row?.AWB||first?.row?.No_Resi||''),channel:first?.channel||'Lainnya',stageStatus:'DIALIHKAN_KE_RMA',workflowVersion:'SIMPLE',claimStatus:'PENDING',items,estimatedCompensation:items.reduce((sum,item)=>sum+item.subtotalEstimasi,0),csNotes:`Dibuka kembali oleh Super Akun: ${reason.trim()}`,forwardedBy:currentUser.fullName,forwardedAt:now,updatedAt:now,reopenedAt:now,reopenedBySuperAccount:currentUser.fullName,reopenReason:reason.trim(),history:[{at:now,by:currentUser.fullName,from:'RIWAYAT',to:'DIALIHKAN_KE_RMA',note:audit.note}]};
+      nextClaims=[newClaim,...rmaClaims];nextRecords._rma_claims_list_=nextClaims;
+      }
+    }
+    if (!(await syncService.pushDisputesAsSuperAdmin(nextRecords,currentUser.id,currentUser.pin))) return false;
+    setRmaClaims(nextClaims);setDisputeRecords(nextRecords);localStorage.setItem('rma_cs_dispute_claims_v1',JSON.stringify(nextRecords));localStorage.setItem(STORAGE_RMA_CLAIMS_KEY,JSON.stringify(nextClaims));setActiveTab(target==='RMA'?'rma':'disputes');return true;
   };
 
   // Load database lokal pada inisialisasi awal jika offline
@@ -291,8 +383,16 @@ function AppContent() {
     setCurrentInput(rawInput);
   };
 
+  const hasProtectedClaimHistory = (orderIds: string[]) => {
+    const ids = new Set(orderIds.map(id => String(id || '').trim().toUpperCase()));
+    if (!rmaClaims.some(claim => ids.has(claim.orderId.trim().toUpperCase()))) return false;
+    window.alert('Retur ini memiliki riwayat RMA dan tidak dapat dihapus dari laporan. Riwayat klaim dan pembayaran harus tetap tersimpan.');
+    return true;
+  };
+
   // Hapus data return per Order ID (Khusus Super Admin)
   const handleDeleteOrder = (orderId: string) => {
+    if (hasProtectedClaimHistory([orderId])) return;
     const cleanId = String(orderId || '').trim();
     const idUpper = cleanId.toUpperCase();
 
@@ -358,6 +458,7 @@ function AppContent() {
 
   // Hapus baris data return tertentu (Khusus Super Admin)
   const handleDeleteRow = (orderId: string, skuId: string) => {
+    if (hasProtectedClaimHistory([orderId])) return;
     const oUpper = String(orderId || '').trim().toUpperCase();
     const sUpper = String(skuId || '').trim().toUpperCase();
 
@@ -414,6 +515,7 @@ function AppContent() {
 
   // Hapus massal beberapa Order ID sekaligus (Khusus Super Admin)
   const handleDeleteBulkOrders = (orderIds: string[]) => {
+    if (hasProtectedClaimHistory(orderIds)) return;
     if (!orderIds || orderIds.length === 0) return;
     const cleanIdSet = new Set(orderIds.map((id) => String(id || '').trim().toUpperCase()));
 
@@ -481,6 +583,7 @@ function AppContent() {
 
   // Hapus massal beberapa baris SKU spesifik sekaligus (Khusus Super Admin)
   const handleDeleteBulkRows = (rowKeys: { orderId: string; skuId: string }[]) => {
+    if (hasProtectedClaimHistory(rowKeys.map(row => row.orderId))) return;
     if (!rowKeys || rowKeys.length === 0) return;
     const keySet = new Set(
       rowKeys.map((k) => `${String(k.orderId || '').trim().toUpperCase()}__${String(k.skuId || '').trim().toUpperCase()}`)
@@ -594,6 +697,8 @@ function AppContent() {
         return; // Tidak dihitung ke badge aktif CS
       }
 
+      if (damageRows.length && damageRows.every((row,index) => (disputeRecords[`${orderId}__${row.SKU_ID}__${index}`] || disputeRecords[`${orderId}_${row.SKU_ID}_${index}`])?.closedAt)) return;
+
       // 3. Tentukan status gabungan klaim untuk Order ID ini
       let orderHasPending = false;
       let orderHasSubmitted = false;
@@ -663,13 +768,23 @@ function AppContent() {
 
   const activeCsDisputeCount = csDisputeBreakdown.activeCount;
 
-  // 3. Aturan baku angka badge RMA Claim:
-  // - Kasus klaim logistik RMA yang masih aktif (stageStatus belum SELESAI)
+  // 3. Badge RMA hanya menampilkan banding yang masih membutuhkan tindakan RMA.
+  // Keputusan akhir sudah menjadi urusan Finance atau Riwayat Klaim, bukan antrean RMA.
   const activeRmaCount = useMemo(() => {
-    return (rmaClaims || []).filter((c) => !isRmaClosed(c.stageStatus)).length;
+    return (rmaClaims || []).filter((claim) => {
+      const hasFinalOutcome = ['APPROVED', 'PARTIAL', 'REJECTED'].includes(String(claim.logisticsOutcome || claim.claimStatus || ''));
+      return !isRmaClosed(claim.stageStatus) && !hasFinalOutcome;
+    }).length;
   }, [rmaClaims]);
 
-  // 4. Aturan baku angka badge Halaman Laporan:
+  // 4. Badge Finance menampilkan jumlah jalur klaim dengan sisa dana belum diterima.
+  // Satu order dihitung sekali per jalur (Marketplace atau Logistik), walaupun memuat banyak SKU.
+  const outstandingFinanceCount = useMemo(
+    () => financeOutstandingCases(processedRows, disputeRecords, rmaClaims).total,
+    [processedRows, disputeRecords, rmaClaims]
+  );
+
+  // 5. Aturan baku angka badge Halaman Laporan:
   // - Menampilkan JUMLAH RETURN (Order ID / paket retur unik), bukan jumlah total baris SKU
   const distinctReturnOrdersCount = useMemo(() => {
     return new Set(
@@ -695,6 +810,7 @@ function AppContent() {
         reportCount={distinctReturnOrdersCount}
         damageCount={activeCsDisputeCount}
         rmaCount={activeRmaCount}
+        financeCount={outstandingFinanceCount}
         csDisputeStats={csDisputeBreakdown}
         masterCount={masterDatabase.length}
         operatorId="RMA Warehouse Otwoo"
@@ -702,7 +818,7 @@ function AppContent() {
       />
 
       {/* 3. Main Content Viewport */}
-      <main id="warehouse-content" className={`warehouse-content ${activeTab==='dashboard'?'dashboard-content':''} flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 py-4 sm:py-5 space-y-6 relative z-10`}>
+      <main id="warehouse-content" className={`warehouse-content ${activeTab==='dashboard'?'dashboard-content':''} flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 py-4 sm:py-5 space-y-6 relative`}>
         {localTrial && activeTab!=='dashboard' && <details className="warehouse-trial-note"><summary>{isEn ? 'Local trial · storage information' : 'Trial lokal · informasi penyimpanan'}</summary><p>{isEn ? 'Returns, master SKUs, accounts and CS disputes are stored on this laptop. Firestore sync is disabled. CS and RMA claims are synced to the laptop database. Save videos separately. Initial records are sample data.' : 'Retur, master SKU, akun, dan klaim CS tersimpan di laptop ini. Sinkronisasi Firestore dimatikan. Klaim CS dan RMA ikut disinkronkan ke database laptop. Simpan video secara terpisah. Data awal merupakan contoh.'}</p></details>}
         {/* TAB 0: Dashboard Analisis & Tren Retur (Harian & Bulanan) */}
         {activeTab === 'dashboard' && (
@@ -745,7 +861,6 @@ function AppContent() {
             masterDatabase={masterDatabase}
             rows={processedRows}
             onNavigateToStation={() => setActiveTab('station')}
-            onNavigateToDisputes={() => setActiveTab('disputes')}
             onDeleteOrder={handleDeleteOrder}
             onDeleteRow={handleDeleteRow}
             onDeleteBulkOrders={handleDeleteBulkOrders}
@@ -761,8 +876,10 @@ function AppContent() {
             onNavigateToStation={() => setActiveTab('station')}
             onNavigateToReports={() => setActiveTab('reports')}
             onNavigateToRma={() => setActiveTab('rma')}
+            onNavigateToHistory={() => setActiveTab('claimHistory')}
             onDeleteOrder={handleDeleteOrder}
             rmaClaims={rmaClaims}
+            stores={stores}
             onForwardToRma={handleForwardToRma}
             onDisputeRecordsChange={setDisputeRecords}
           />
@@ -773,9 +890,26 @@ function AppContent() {
           <RMAClaimsView
             rmaClaims={rmaClaims}
             onUpdateRmaClaim={handleUpdateRmaClaim}
+            onReturnToCs={handleReturnToCs}
+            marketplaceDisputes={disputeRecords}
+            stores={stores}
             onNavigateToDisputes={() => setActiveTab('disputes')}
             masterDatabase={masterDatabase}
           />
+        )}
+
+        {activeTab === 'finance' && (
+          <FinanceView
+            rows={processedRows}
+            disputes={disputeRecords}
+            rmaClaims={rmaClaims}
+            stores={stores}
+            onSavePayment={handleFinancePayment}
+          />
+        )}
+
+        {activeTab === 'claimHistory' && (
+          <ClaimHistoryView disputes={disputeRecords} rmaClaims={rmaClaims} onRestore={handleRestoreArchivedClaim} />
         )}
 
         {/* TAB 4: Database Master SKU (Excel / CSV & Template) */}
@@ -793,6 +927,10 @@ function AppContent() {
             />
           </div>
         )}
+
+        {activeTab === 'stores' && <StoreManagementView stores={stores} onSave={handleSaveStores} />}
+
+        {activeTab === 'backup' && <BackupSettingsView />}
 
         {/* TAB 5: Manajemen Akun Pengguna & Hak Akses Peran */}
         {activeTab === 'accounts' && <AccountManagementView />}

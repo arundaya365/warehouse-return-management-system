@@ -157,12 +157,12 @@ export const LoginGateModal: React.FC<LoginGateModalProps> = ({
   if (!isOpen) return null;
 
   // Execute verification
-  const executeVerification = (pinToTest: string) => {
+  const executeVerification = async (pinToTest: string) => {
     if (!selectedUserObj) return;
     setIsVerifying(true);
     setErrorMessage(null);
 
-    const result = authenticateWithPin(selectedUserObj.operatorCode, pinToTest);
+    const result = await authenticateWithPin(selectedUserObj.operatorCode, pinToTest);
     if (!result.success) {
       playSound('error');
       setIsShaking(true);
@@ -669,3 +669,4 @@ export const LoginGateModal: React.FC<LoginGateModalProps> = ({
     </div>
   );
 };
+

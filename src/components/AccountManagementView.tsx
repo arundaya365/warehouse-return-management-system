@@ -5,12 +5,10 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  Building2,
   Mail,
   User,
   Key,
   BadgeCheck,
-  RotateCcw,
   Search,
   Filter,
   Check,
@@ -43,6 +41,7 @@ import {
 } from '../context/AccountContext';
 import { useLanguage } from '../context/LanguageContext';
 import { firestoreSync } from '../services/firestoreSyncService';
+import { CompactPagination } from './CompactPagination';
 
 export interface ModulePermissionConfig {
   key: keyof RolePermission;
@@ -137,12 +136,8 @@ export const AccountManagementView: React.FC = () => {
     updateUser,
     toggleUserStatus,
     deleteUser,
-    resetToDefaultUsers,
-    cleanDemoAccounts,
     saveUsersToCloud,
-    appName,
     companyName,
-    copyrightText,
     logoutOperator,
     promptSwitchUser
   } = useAccount();
@@ -150,6 +145,9 @@ export const AccountManagementView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
@@ -174,6 +172,7 @@ export const AccountManagementView: React.FC = () => {
 
   // Feedback Notification Toast
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
 
   // State to toggle show/hide PIN globally or by user id
   const [revealedPins, setRevealedPins] = useState<Record<string, boolean>>({});
@@ -259,8 +258,16 @@ export const AccountManagementView: React.FC = () => {
       u.operatorCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.department.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const matchesStatus = statusFilter === 'ALL' || u.status === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedUsers = filteredUsers.slice((safePage - 1) * pageSize, safePage * pageSize);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, roleFilter, statusFilter, pageSize]);
+  const activeUserCount = users.filter(user => user.status === 'ACTIVE').length;
+  const inactiveUserCount = users.length - activeUserCount;
+  const roleCount = new Set(users.map(user => user.role)).size;
 
   const handleOpenAdd = () => {
     const defaultRole: UserRole = 'STATION_OPERATOR';
@@ -280,6 +287,7 @@ export const AccountManagementView: React.FC = () => {
       permissions: roleDefaultPerms
     });
     setEditingUser(null);
+    setFormError('');
     setIsAddModalOpen(true);
   };
 
@@ -297,6 +305,7 @@ export const AccountManagementView: React.FC = () => {
       status: user.status,
       permissions: { ...activePerms }
     });
+    setFormError('');
     setIsAddModalOpen(true);
   };
 
@@ -327,17 +336,27 @@ export const AccountManagementView: React.FC = () => {
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName.trim() || !formData.username.trim() || !formData.email.trim()) {
+      setFormError('Nama lengkap, username, dan email wajib diisi.');
       return;
     }
+    const normalizedUsername = formData.username.trim().toLowerCase();
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const normalizedCode = formData.operatorCode.trim().toUpperCase();
+    const duplicate = users.some(user => user.id !== editingUser?.id && (user.username.toLowerCase() === normalizedUsername || user.email.toLowerCase() === normalizedEmail || (!!normalizedCode && user.operatorCode.toUpperCase() === normalizedCode)));
+    if (duplicate) {
+      setFormError('Username, email, atau kode operator sudah digunakan akun lain.');
+      return;
+    }
+    setFormError('');
 
     const cleanPin = formData.pin.trim() || String(Math.floor(1000 + Math.random() * 9000));
     const cleanCode = formData.operatorCode.trim() || `OPR-${Math.floor(100 + Math.random() * 900)}`;
 
     if (editingUser) {
       updateUser(editingUser.id, {
-        username: formData.username.trim().toLowerCase(),
+        username: normalizedUsername,
         fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        email: normalizedEmail,
         role: formData.role,
         department: formData.department.trim(),
         operatorCode: cleanCode,
@@ -348,9 +367,9 @@ export const AccountManagementView: React.FC = () => {
       showToast(`✓ Akun "${formData.fullName}" berhasil diperbarui dan tersimpan ke Cloud Firestore!`);
     } else {
       addUser({
-        username: formData.username.trim().toLowerCase(),
+        username: normalizedUsername,
         fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        email: normalizedEmail,
         role: formData.role,
         department: formData.department.trim() || 'Warehouse Operations',
         operatorCode: cleanCode,
@@ -406,9 +425,7 @@ export const AccountManagementView: React.FC = () => {
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                {isEn ? 'User Accounts & Access Control' : 'Manajemen Akun & Hak Akses Super Admin'}
-              </h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kelola akun</h1>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0F766E] border border-teal-200">
                 {users.length} {isEn ? 'Registered Accounts' : 'Akun Terdaftar'}
               </span>
@@ -429,16 +446,7 @@ export const AccountManagementView: React.FC = () => {
                 </span>
               )}
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="font-semibold text-slate-700">{appName}</span>
-              <span className="text-slate-300">•</span>
-              <span className="inline-flex items-center text-[#0F766E] font-medium">
-                <Building2 className="w-3.5 h-3.5 mr-1" />
-                {companyName}
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="text-slate-500">{copyrightText}</span>
-            </p>
+            <p className="mt-1 text-sm text-slate-500">Atur akun operator, peran, dan akses modul.</p>
           </div>
         </div>
 
@@ -456,31 +464,6 @@ export const AccountManagementView: React.FC = () => {
 
           <button
             type="button"
-            onClick={async () => {
-              if (window.confirm('Bersihkan seluruh akun demo lama selain Yaya Sanjaya dari semua perangkat dan database?')) {
-                await cleanDemoAccounts();
-                showToast('✓ Seluruh akun demo berhasil dibersihkan! Tersisa akun resmi Yaya Sanjaya.');
-              }
-            }}
-            className="px-3.5 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
-            title="Bersihkan seluruh akun demo selain Yaya Sanjaya dari Cloud SQL dan Firestore"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Bersihkan Akun Demo</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={resetToDefaultUsers}
-            className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
-            title={isEn ? 'Reset to default accounts' : 'Reset ke akun resmi bawaan'}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{isEn ? 'Reset Default' : 'Reset Bawaan'}</span>
-          </button>
-
-          <button
-            type="button"
             onClick={handleOpenAdd}
             className="px-4 py-2.5 rounded-xl bg-[#0F766E] hover:bg-[#115E59] text-white text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 cursor-pointer shadow-sm active:scale-95"
           >
@@ -490,32 +473,22 @@ export const AccountManagementView: React.FC = () => {
         </div>
       </div>
 
-      {/* Super Admin Privileges Notice */}
-      <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-teal-900">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-[#0F766E] text-white flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="font-bold text-slate-900 flex items-center space-x-2">
-              <span>Wewenang Kontrol Super Admin Aktif</span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
-                Akses Penuh
-              </span>
-            </div>
-            <p className="text-slate-600 text-[11px] mt-0.5">
-              Super Admin dapat <strong>membuat akun baru</strong>, <strong>menghapus akun</strong>, mengatur <strong>PIN login cepat</strong> gudang, dan menentukan <strong>hak akses apa saja yang dibuka</strong> untuk masing-masing staf.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOpenAdd}
-          className="px-3 py-1.5 rounded-xl bg-white hover:bg-teal-50 text-[#0F766E] border border-teal-300 font-bold text-xs shrink-0 cursor-pointer shadow-2xs"
-        >
-          + Tambah Akun Sekarang
-        </button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total akun</p>
+          <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-slate-900">{users.length}</strong>
+          <p className="mt-1 text-xs text-slate-500">{roleCount} peran terdaftar</p>
+        </article>
+        <article className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Akun aktif</p>
+          <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-emerald-900">{activeUserCount}</strong>
+          <p className="mt-1 text-xs text-emerald-800">Dapat digunakan untuk masuk</p>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Akun nonaktif</p>
+          <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-slate-800">{inactiveUserCount}</strong>
+          <p className="mt-1 text-xs text-slate-500">Tidak dapat masuk sementara</p>
+        </article>
       </div>
 
       {/* 2. Active Session Card (Quick Switcher) */}
@@ -591,7 +564,7 @@ export const AccountManagementView: React.FC = () => {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder={isEn ? 'Search name, username, operator code, email...' : 'Cari nama, username, kode operator, PIN, email...'}
+            placeholder={isEn ? 'Search name, username, operator code, email...' : 'Cari nama, username, kode operator, email...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 focus:border-[#0F766E]"
@@ -619,7 +592,18 @@ export const AccountManagementView: React.FC = () => {
             <option value="WAREHOUSE_MANAGER">Warehouse Manager</option>
             <option value="STATION_OPERATOR">Operator Unboxing</option>
             <option value="CS_DISPUTE">CS Dispute Specialist</option>
+            <option value="FINANCE">Finance</option>
             <option value="AUDITOR">Auditor & QC</option>
+          </select>
+          <select
+            aria-label="Filter status akun"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE')}
+            className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0F766E]/20 cursor-pointer"
+          >
+            <option value="ALL">Semua status</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="INACTIVE">Nonaktif</option>
           </select>
         </div>
       </div>
@@ -648,7 +632,7 @@ export const AccountManagementView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => {
+                paginatedUsers.map((user) => {
                   const isCurrent = user.id === currentUser.id;
                   const roleDef = ROLE_DEFINITIONS[user.role];
                   const userPerms = getUserPermissions(user);
@@ -803,13 +787,14 @@ export const AccountManagementView: React.FC = () => {
 
                           <button
                             type="button"
-                            onClick={() => toggleUserStatus(user.id)}
+                            disabled={isCurrent}
+                            onClick={() => { if (!isCurrent) toggleUserStatus(user.id); }}
                             className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                               user.status === 'ACTIVE'
                                 ? 'text-amber-600 hover:bg-amber-50'
                                 : 'text-emerald-600 hover:bg-emerald-50'
-                            }`}
-                            title={user.status === 'ACTIVE' ? 'Nonaktifkan akun' : 'Aktifkan akun'}
+                            } disabled:cursor-not-allowed disabled:opacity-40`}
+                            title={isCurrent ? 'Akun yang sedang digunakan tidak dapat dinonaktifkan' : user.status === 'ACTIVE' ? 'Nonaktifkan akun' : 'Aktifkan akun'}
                           >
                             {user.status === 'ACTIVE' ? (
                               <XCircle className="w-3.5 h-3.5" />
@@ -819,12 +804,12 @@ export const AccountManagementView: React.FC = () => {
                           </button>
 
                           {/* Tombol Hapus Akun (Super Admin Yaya Sanjaya diproteksi) */}
-                          {user.id === 'USR-001' || user.operatorCode === 'OPR-HQ-01' ? (
+                          {isCurrent || user.id === 'USR-001' || user.operatorCode === 'OPR-HQ-01' ? (
                             <span
                               className="px-2 py-0.5 rounded text-[10px] font-semibold text-teal-800 bg-teal-50 border border-teal-200 select-none"
-                              title="Akun Utama Super Admin Permanen (Tidak dapat dihapus)"
+                              title={isCurrent ? 'Akun yang sedang digunakan tidak dapat dihapus' : 'Akun Utama Super Admin Permanen (Tidak dapat dihapus)'}
                             >
-                              Permanen
+                              {isCurrent ? 'Sedang digunakan' : 'Permanen'}
                             </span>
                           ) : (
                             <button
@@ -847,42 +832,12 @@ export const AccountManagementView: React.FC = () => {
         </div>
       </div>
 
-      {/* 5. Role Hierarchy & Security Matrix Guide */}
-      <div className="glass-card rounded-3xl p-6 shadow-sm border border-slate-200 bg-white space-y-4">
-        <div className="flex items-center space-x-2 text-sm font-bold text-slate-900">
-          <ShieldCheck className="w-4 h-4 text-[#0F766E]" />
-          <span>{isEn ? 'Role-Based Access Control (RBAC) Matrix' : 'Standar Matriks Hak Akses Modul & Peran'}</span>
-        </div>
+      {filteredUsers.length > 0 && <CompactPagination page={safePage} totalItems={filteredUsers.length} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }} pageSizeOptions={[25, 50, 100]} itemLabel="akun" ariaLabel="Paginasi akun" />}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Object.entries(ROLE_DEFINITIONS).map(([roleKey, def]) => (
-            <div key={roleKey} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${def.badgeColor}`}>
-                  {isEn ? def.labelEn : def.labelId}
-                </span>
-                <span className="text-[10px] font-mono text-slate-400">{roleKey}</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">{def.desc}</p>
-              <div className="pt-2 border-t border-slate-200/60 flex flex-wrap gap-1 text-[10px]">
-                {def.permissions.canAccessStation && (
-                  <span className="px-1.5 py-0.5 bg-white text-slate-700 rounded border border-slate-200">✓ Stasiun Unboxing</span>
-                )}
-                {def.permissions.canAccessReports && (
-                  <span className="px-1.5 py-0.5 bg-white text-slate-700 rounded border border-slate-200">✓ Laporan</span>
-                )}
-                {def.permissions.canAccessDisputes && (
-                  <span className="px-1.5 py-0.5 bg-white text-slate-700 rounded border border-slate-200">✓ Aju Banding CS</span>
-                )}
-                {def.permissions.canAccessDatabase && (
-                  <span className="px-1.5 py-0.5 bg-white text-slate-700 rounded border border-slate-200">✓ Master Excel</span>
-                )}
-                {def.permissions.canManageUsers && (
-                  <span className="px-1.5 py-0.5 bg-teal-50 text-[#0F766E] rounded border border-teal-200 font-semibold">✓ Kelola Akun</span>
-                )}
-              </div>
-            </div>
-          ))}
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-900"><ShieldCheck className="h-4 w-4 text-[#0F766E]" />Hak akses mengikuti peran</div>
+          <p className="text-xs text-slate-500">Ubah izin khusus melalui tombol <strong>Ubah akses</strong> pada daftar akun.</p>
         </div>
       </div>
 
@@ -890,8 +845,8 @@ export const AccountManagementView: React.FC = () => {
       {/* MODAL 1: TAMBAH / EDIT PENGGUNA LENGKAP DENGAN PIN & CHECKLIST HAK AKSES */}
       {/* ========================================================================= */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col my-auto">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col my-0">
             {/* Modal Header */}
             <div className="bg-[#0F766E] p-5 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center space-x-3">
@@ -917,7 +872,8 @@ export const AccountManagementView: React.FC = () => {
             </div>
 
             {/* Modal Form Body */}
-            <form onSubmit={handleSaveForm} className="p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 flex-1">
+            <form onSubmit={handleSaveForm} className="min-h-0 p-5 sm:p-6 space-y-4 overflow-y-auto text-xs text-slate-700 flex-1">
+              {formError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">{formError}</p>}
               {/* Row 1: Nama Lengkap & Username */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1">
@@ -1037,6 +993,7 @@ export const AccountManagementView: React.FC = () => {
                     <option value="WAREHOUSE_MANAGER">Warehouse Manager (Manajer Operasional)</option>
                     <option value="STATION_OPERATOR">Operator Unboxing (Stasiun Kerja Fisik)</option>
                     <option value="CS_DISPUTE">CS Dispute Specialist (Klaim Ekspedisi)</option>
+                    <option value="FINANCE">Finance (Pencatatan Dana Diterima)</option>
                     <option value="AUDITOR">Auditor & QC (Pemeriksaan Kepatuhan)</option>
                   </select>
                 </div>
@@ -1160,8 +1117,8 @@ export const AccountManagementView: React.FC = () => {
       {/* MODAL 2: UBAH HAK AKSES CEPAT PER PENGGUNA                                */}
       {/* ========================================================================= */}
       {permissionTargetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[calc(100dvh-24px)]">
             <div className="bg-[#0F766E] p-4 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-white">
@@ -1186,7 +1143,7 @@ export const AccountManagementView: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-5 space-y-3 overflow-y-auto flex-1">
+            <div className="min-h-0 p-5 space-y-3 overflow-y-auto flex-1">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-600">
                   Centang modul yang diizinkan untuk <strong>{permissionTargetUser.fullName}</strong>:
@@ -1201,6 +1158,7 @@ export const AccountManagementView: React.FC = () => {
                         canAccessReports: true,
                         canAccessDisputes: true,
                         canAccessRma: true,
+                        canAccessFinance: true,
                         canAccessDatabase: true,
                         canManageUsers: true,
                         canExportData: true,

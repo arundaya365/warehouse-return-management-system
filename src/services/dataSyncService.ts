@@ -4,6 +4,8 @@ import type { UserAccount } from '../types/account';
 import { firestoreSync } from './firestoreSyncService';
 import { applyRemoteLearnedPrefixes, saveLearnedAwbPrefix } from '../utils/awbDetection';
 
+const sessionFetch = (input: RequestInfo | URL, init: RequestInit = {}) => fetch(input, { ...init, credentials: 'include' });
+
 export interface SyncPayload {
   version: number;
   lastUpdated: string;
@@ -28,6 +30,8 @@ class DataSyncService {
   private lastSyncTime: Date | null = null;
   private isSyncing = false;
   private lastKnownUpdated: string = '';
+  private lastDisputes: Record<string,any> | undefined;
+  private lastErrorMessage = '';
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -95,6 +99,7 @@ class DataSyncService {
   private notifySyncListeners(data: SyncPayload) {
     this.lastSyncTime = new Date();
     this.lastKnownUpdated = data.lastUpdated;
+    this.lastDisputes = data.disputes;
     this.updateStatus('synced');
     if (data.learnedPrefixes && typeof data.learnedPrefixes === 'object') {
       applyRemoteLearnedPrefixes(data.learnedPrefixes);
@@ -137,7 +142,7 @@ class DataSyncService {
     this.updateStatus('syncing');
 
     try {
-      const res = await fetch('/api/sync', {
+      const res = await sessionFetch('/api/sync', {
         headers: { 'Cache-Control': 'no-cache' }
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -182,7 +187,7 @@ class DataSyncService {
         console.warn('Firestore pushReturns background warning:', err);
       });
 
-      const res = await fetch('/api/sync/returns', {
+      const res = await sessionFetch('/api/sync/returns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows, orderId })
@@ -209,7 +214,7 @@ class DataSyncService {
         console.warn('Firestore deleteOrder warning:', err);
       });
 
-      const res = await fetch('/api/sync/delete-order', {
+      const res = await sessionFetch('/api/sync/delete-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId })
@@ -234,7 +239,7 @@ class DataSyncService {
         console.warn('Firestore deleteRow warning:', err);
       });
 
-      const res = await fetch('/api/sync/delete-row', {
+      const res = await sessionFetch('/api/sync/delete-row', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, skuId })
@@ -262,7 +267,7 @@ class DataSyncService {
         console.warn('Firestore deleteBulkOrders warning:', err);
       });
 
-      const res = await fetch('/api/sync/bulk-delete', {
+      const res = await sessionFetch('/api/sync/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderIds })
@@ -287,7 +292,7 @@ class DataSyncService {
         console.warn('Firestore deleteBulkRows warning:', err);
       });
 
-      const res = await fetch('/api/sync/bulk-delete', {
+      const res = await sessionFetch('/api/sync/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rowKeys })
@@ -307,24 +312,47 @@ class DataSyncService {
    */
   public async pushDisputes(disputes: Record<string, any>): Promise<boolean> {
     try {
+      this.lastErrorMessage = '';
       this.updateStatus('syncing');
-      firestoreSync.pushDisputes(disputes).catch((err) => {
-        console.warn('Firestore pushDisputes warning:', err);
-      });
-
-      const res = await fetch('/api/sync/disputes', {
+      const res = await sessionFetch('/api/sync/disputes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ disputes })
+        body: JSON.stringify({ disputes, expectedDisputes: this.lastDisputes })
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const errorPayload = !res.ok ? await res.json().catch(() => ({})) : null;
+      if (!res.ok) {
+        if (res.status === 409) await this.syncPull();
+        throw new Error(errorPayload?.error || `Penyimpanan klaim gagal (HTTP ${res.status}).`);
+      }
+      this.lastDisputes = disputes;
+      firestoreSync.pushDisputes(disputes).catch(err => console.warn('Firestore pushDisputes warning:', err));
       await this.syncPull();
       return true;
     } catch (err) {
       console.error('Gagal kirim disputes ke server:', err);
+      this.lastErrorMessage = err instanceof Error ? err.message : 'Server tidak dapat menyimpan perubahan klaim.';
       this.updateStatus('error');
       return false;
     }
+  }
+
+  public getLastErrorMessage(): string {
+    return this.lastErrorMessage;
+  }
+
+  public async pushDisputesAsSuperAdmin(disputes: Record<string, any>, adminId: string, adminPin: string): Promise<boolean> {
+    try {
+      this.updateStatus('syncing');
+      const res = await sessionFetch('/api/sync/disputes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({disputes,expectedDisputes:this.lastDisputes})
+      });
+      if(!res.ok){if(res.status===409)await this.syncPull();throw new Error(`HTTP ${res.status}`);}
+      this.lastDisputes=disputes;
+      firestoreSync.pushDisputes(disputes).catch(err=>console.warn('Firestore pushDisputes warning:',err));
+      await this.syncPull(); return true;
+    } catch(err){console.error('Gagal membuka kembali kasus:',err);this.updateStatus('error');return false;}
   }
 
   /**
@@ -338,7 +366,7 @@ class DataSyncService {
         console.warn('Firestore pushMasterDatabase warning:', err);
       });
 
-      const res = await fetch('/api/sync/master-db', {
+      const res = await sessionFetch('/api/sync/master-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ masterDatabase })
@@ -363,7 +391,7 @@ class DataSyncService {
         console.warn('Firestore pushUsers warning:', err);
       });
 
-      const res = await fetch('/api/sync/users', {
+      const res = await sessionFetch('/api/sync/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ users })
@@ -387,7 +415,7 @@ class DataSyncService {
       const target = userId || operatorCode;
       if (!target) return false;
 
-      const res = await fetch('/api/sync/delete-user', {
+      const res = await sessionFetch('/api/sync/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, operatorCode })
@@ -408,7 +436,7 @@ class DataSyncService {
   public async cleanDemoUsers(): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      const res = await fetch('/api/sync/clean-demo-users', {
+      const res = await sessionFetch('/api/sync/clean-demo-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -434,7 +462,7 @@ class DataSyncService {
       saveLearnedAwbPrefix(cleanPrefix, marketplace, logistics);
 
       // 2. Kirim ke backend Cloud SQL
-      const res = await fetch('/api/sync/awb-prefix', {
+      const res = await sessionFetch('/api/sync/awb-prefix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prefix: cleanPrefix, marketplace, logistics })
@@ -458,3 +486,7 @@ class DataSyncService {
 
 
 export const syncService = new DataSyncService();
+
+
+
+

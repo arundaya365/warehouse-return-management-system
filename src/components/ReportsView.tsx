@@ -1,12 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   FileText,
-  Video,
   CheckCircle2,
   AlertTriangle,
   HelpCircle,
   Cloud,
-  ArrowRight,
   Filter,
   Package,
   Calendar,
@@ -36,7 +34,6 @@ interface ReportsViewProps {
   masterDatabase?: {SKU_ID: string; BARCODE?: string; HARGA?: number}[];
   rows: ProcessedReturnRow[];
   onNavigateToStation: () => void;
-  onNavigateToDisputes?: () => void;
   onDeleteOrder?: (orderId: string) => void;
   onDeleteRow?: (orderId: string, skuId: string) => void;
   onDeleteBulkOrders?: (orderIds: string[]) => void;
@@ -111,13 +108,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   masterDatabase = [],
   rows,
   onNavigateToStation,
-  onNavigateToDisputes,
   onDeleteOrder,
   onDeleteRow,
   onDeleteBulkOrders,
   onDeleteBulkRows
 }) => {
-  const { t, isEn } = useLanguage();
+  const { isEn } = useLanguage();
   // =========================================================================
   // STATE FILTER: TANGGAL PROSES (DARI TANGGAL KE TANGGAL), ORDER ID, OPERATOR, SKU ID, KONDISI
   // =========================================================================
@@ -414,7 +410,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const goodCount = filteredRows.filter((r) => r.Kondisi === 'Good').length;
   const damageProductCount = filteredRows.filter((r) => r.Kondisi === 'Damage Product').length;
   const damagePackagingCount = filteredRows.filter((r) => r.Kondisi === 'Damage Packaging').length;
-  const missingCount = filteredRows.filter((r) => r.Kondisi === 'Missing').length;
   const unexpectedCount = filteredRows.filter((r) => r.Kondisi === 'Unexpected').length;
   const driveLinkedCount = filteredRows.filter((r) => r.Link_Video && r.Link_Video.includes('drive.google.com')).length;
 
@@ -569,59 +564,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* ======================================================================= */}
-      {/* 1. TOP HEADER & NAVIGATION CALLOUT                                      */}
-      {/* ======================================================================= */}
-      <div className="glass-card rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-[#0F766E] flex items-center justify-center text-white shadow-sm shrink-0">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                {t('reports_title')}
-              </h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0F766E] border border-teal-200">
-                {rows.length} {isEn ? 'Total Rows' : 'Total Baris'}
-              </span>
-              {activeFilterCount > 0 && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 flex items-center space-x-1">
-                  <span>{activeFilterCount} {isEn ? 'Active Filters' : 'Filter Aktif'} ({filteredRows.length} {isEn ? 'Matches' : 'Cocok'})</span>
-                </span>
-              )}
-            </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              {t('reports_subtitle')}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center space-x-2 gap-y-2 shrink-0">
-          {onNavigateToDisputes && (damageProductCount + damagePackagingCount + missingCount + unexpectedCount) > 0 && (
-            <button
-              onClick={onNavigateToDisputes}
-              className="py-2.5 px-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs sm:text-sm border border-rose-200 shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
-              title={isEn ? "Open CS Dispute Claims for damaged return items" : "Buka halaman Pengajuan banding CS untuk klaim barang rusak ke Marketplace/Logistik"}
-            >
-              <ShieldAlert className="w-4 h-4 text-rose-600" />
-              <span>{isEn ? 'Dispute Claims' : 'Pengajuan banding'} ({damageProductCount + damagePackagingCount + missingCount + unexpectedCount})</span>
-            </button>
-          )}
-
-          {/* Tombol Download Terfilter */}
-
-
-          <button
-            onClick={onNavigateToStation}
-            className="py-2.5 px-4 rounded-2xl bg-[#0F766E] hover:bg-[#115E59] text-white font-semibold text-xs sm:text-sm shadow-sm transition-all flex items-center space-x-2 active:scale-95 cursor-pointer shrink-0"
-          >
-            <Video className="w-4 h-4" />
-            <span>{isEn ? '+ Open Unboxing Station' : 'Buka stasiun unboxing'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      <h1 className="sr-only">Laporan pemeriksaan retur</h1>
 
       {/* ======================================================================= */}
       {/* 2. PANEL FILTER MULTI-PARAMETER (TANGGAL, ORDER ID, OPERATOR, SKU ID)   */}
@@ -1357,7 +1300,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             hideToolbar
             reportViewMode={reportViewMode}
             valueForRow={valueForRow}
-            onNavigateToDisputes={onNavigateToDisputes}
             onDeleteOrder={onDeleteOrder}
             onDeleteRow={onDeleteRow}
             onDeleteBulkOrders={onDeleteBulkOrders}

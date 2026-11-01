@@ -36,7 +36,7 @@ Tes integrasi backend memakai database uji terpisah dalam folder qa-backend-* di
 
 ## Perubahan utama
 
-Dashboard periode7/30/kustom, perbandingan yang tidak menganggap kenaikan kerusakan positif, ekspor CSV terfilter, state sinkronisasi dan akses keyboard. Klaim CS memisahkan persetujuan dan pembayaran; hanya sisa gagal diserahkan ke RMA untuk pemeriksaan kelayakan sebelum banding logistik. Operasi penggantian retur dan klaim memakai transaksi. API tidak lagi mengaku sukses dari cache ketika database gagal; inisialisasi tidak menghidupkan kembali contoh setelah tabel sengaja dikosongkan.
+Dashboard periode7/30/kustom, perbandingan yang tidak menganggap kenaikan kerusakan positif, ekspor CSV terfilter, state sinkronisasi dan akses keyboard. Riwayat Klaim mengekspor seluruh baris yang lolos filter (bukan hanya halaman yang tampil) ke CSV dengan pengaman formula spreadsheet. Klaim CS memisahkan persetujuan dan pembayaran; hanya sisa gagal diserahkan ke RMA untuk pemeriksaan kelayakan sebelum banding logistik. Operasi penggantian retur dan klaim memakai transaksi. API tidak lagi mengaku sukses dari cache ketika database gagal; inisialisasi tidak menghidupkan kembali contoh setelah tabel sengaja dikosongkan.
 
 Nilai barang memakai harga Master SKU saat ini. Dana klaim mengikuti tanggal retur, bukan tanggal pembayaran. Google Drive memerlukan login/token valid; menyimpan email tidak memberikan akses. Tambahkan localhost pada Firebase Authorized domains.
 

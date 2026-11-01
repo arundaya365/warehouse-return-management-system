@@ -9,11 +9,6 @@ import {
   Search,
   ExternalLink,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Layers,
   Filter,
   ChevronDown,
   ChevronUp,
@@ -33,6 +28,7 @@ import { ProcessedReturnRow, StandardKondisi } from '../processor';
 import { ExportFilteredModal } from './ExportFilteredModal';
 import { useAccount, ROLE_DEFINITIONS } from '../context/AccountContext';
 import { detectMarketplaceAndLogistics } from '../utils/awbDetection';
+import { CompactPagination } from './CompactPagination';
 
 export const getDirectVideoUrl = (url: string, orderId?: string): string => {
   if (!url) return '';
@@ -89,7 +85,6 @@ interface ResultViewerProps {
   hideToolbar?: boolean;
   valueForRow?: (row: ProcessedReturnRow) => number | undefined;
   rows: ProcessedReturnRow[];
-  onNavigateToDisputes?: () => void;
   onDeleteOrder?: (orderId: string) => void;
   onDeleteRow?: (orderId: string, skuId: string) => void;
   onDeleteBulkOrders?: (orderIds: string[]) => void;
@@ -99,7 +94,6 @@ interface ResultViewerProps {
 export const ResultViewer: React.FC<ResultViewerProps> = ({
   reportViewMode, hideToolbar = false, valueForRow,
   rows,
-  onNavigateToDisputes,
   onDeleteOrder,
   onDeleteRow,
   onDeleteBulkOrders,
@@ -177,8 +171,8 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
     setDeleteTarget(null);
   };
 
-  // Paginasi: Maksimal 100 baris per halaman
-  const ROWS_PER_PAGE = 100;
+  // Paginasi standar laporan: 50 baris per halaman
+  const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Filter internal tabel jika pengguna mengetik di search bar cepat tabel
@@ -282,7 +276,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
 
   // Total data yang dipaginasi tergantung mode tampilan
   const totalItemCount = viewMode === 'order_summary' ? orderSummaries.length : displayRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalItemCount / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalItemCount / pageSize));
 
   // Reset ke halaman 1 jika filter berubah atau mode berubah
   useEffect(() => {
@@ -296,9 +290,9 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
     }
   }, [currentPage, totalPages]);
 
-  // Slice baris: maksimal 100 baris per halaman
-  const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-  const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalItemCount);
+  // Slice baris berdasarkan ukuran halaman yang dipilih pengguna
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItemCount);
 
   const paginatedOrders = useMemo(() => {
     return orderSummaries.slice(startIndex, endIndex);
@@ -507,26 +501,18 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
   };
 
   // Helper untuk generate deretan nomor halaman
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('...');
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-      if (currentPage < totalPages - 2) pages.push('...');
-      pages.push(totalPages);
-    }
-    return pages;
-  };
-
-  const problemItems = displayRows.filter((r) => r.Kondisi !== 'Good');
-
+  const renderPagination = (totalCount: number, noun: string) => (
+    <CompactPagination
+      page={currentPage}
+      totalItems={totalCount}
+      pageSize={pageSize}
+      onPageChange={setCurrentPage}
+      onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+      pageSizeOptions={[25, 50, 100]}
+      itemLabel={noun}
+      ariaLabel={`Paginasi ${noun}`}
+    />
+  );
   return (
     <div className="space-y-4">
       {/* Header Bar */}
@@ -542,15 +528,9 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold">
               {displayRows.length} Total Qty
             </span>
-            {totalItemCount > 100 && (
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-medium flex items-center space-x-1">
-                <Layers className="w-3 h-3 text-slate-500" />
-                <span>Paginasi 100 / Halaman</span>
-              </span>
-            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Laporan dikelompokkan per nomor pesanan, dengan jumlah barang dan variasi SKU. Setiap halaman memuat maksimal 100 pesanan.
+            Laporan dikelompokkan per nomor pesanan, dengan jumlah barang dan variasi SKU. Setiap halaman memuat maksimal 50 pesanan secara default.
           </p>
         </div>
 
@@ -641,7 +621,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
         /* ========================================================================= */
         /* MODE 1: RINGKASAN PER ORDER ID (QTY & VARIASI SKU DALAM 1 ORDER ID)       */
         /* ========================================================================= */
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           {/* Sub-toolbar Order Summary */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             {!hideToolbar && (<div className="relative w-full sm:w-80">
@@ -688,7 +668,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             </div>
           </div>
 
-          {/* Card-based Order List with Thick Borders, Visual Spacing & Sequence Badges */}
+          {/* Daftar order bergaya baris ringkas */}
           {canDelete && (
             <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200 mb-3 text-xs">
               <label className="flex items-center space-x-2 font-semibold text-slate-700 cursor-pointer">
@@ -716,7 +696,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-1.5">
             {paginatedOrders.map((order, idx) => {
               const absoluteIndex = startIndex + idx + 1;
               const isExpanded = expandedOrderIds.has(order.Order_ID);
@@ -724,23 +704,23 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
               return (
                 <div
                   key={order.Order_ID}
-                  className={`rounded-2xl border-2 transition-all duration-200 bg-white shadow-xs hover:shadow-md overflow-hidden ${
+                  className={`rounded-lg border transition-colors duration-150 bg-white shadow-none hover:shadow-sm overflow-hidden ${
                     isExpanded
-                      ? 'border-teal-500 ring-2 ring-teal-500/15 shadow-md'
-                      : 'border-slate-200 hover:border-slate-300'
+                      ? 'border-teal-500 ring-1 ring-teal-500/20'
+                      : 'border-slate-200 hover:border-teal-200'
                   }`}
                 >
                   {/* Card Header: Clickable to expand/collapse */}
                   <div
-                    className={`p-4 sm:p-4.5 cursor-pointer transition-colors ${
+                    className={`p-2 sm:p-2.5 cursor-pointer transition-colors ${
                       isExpanded
-                        ? 'bg-gradient-to-r from-teal-50/60 via-slate-50/50 to-white'
-                        : 'hover:bg-slate-50/60'
+                        ? 'bg-teal-50/35'
+                        : 'hover:bg-slate-50/70'
                     }`}
                     onClick={() => toggleOrderExpand(order.Order_ID)}
                   >
                     {/* ROW 1: PRIMARY IDENTITY */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-slate-100">
                       <div className="flex items-center flex-wrap gap-2 sm:gap-2.5">
                         {canDelete && (
                           <div onClick={(e) => e.stopPropagation()}>
@@ -760,14 +740,14 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                         )}
 
                         {/* Nomor Urut Kontras */}
-                        <div className="inline-flex items-center space-x-1 px-3 py-1 rounded-xl bg-slate-900 text-white font-mono font-black text-xs tracking-wider shadow-xs border border-slate-800 shrink-0">
+                        <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-slate-900 text-white font-mono font-bold text-[10px] tracking-wide shrink-0">
                           <span>ORDER</span>
                           <span className="text-teal-400">#{String(absoluteIndex).padStart(2, '0')}</span>
                         </div>
 
                         {/* Order ID */}
-                        <div className="flex items-center space-x-1.5 bg-slate-100/90 px-2.5 py-1 rounded-xl border border-slate-200 shrink-0">
-                          <span className="font-mono font-black text-slate-900 text-xs sm:text-sm select-all">
+                        <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-md border border-slate-200 shrink-0">
+                          <span className="font-mono font-bold text-slate-900 text-xs select-all">
                             {order.Order_ID}
                           </span>
                           <button
@@ -791,7 +771,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
 
                         {/* Marketplace Chip */}
                         {order.Marketplace && (
-                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold shrink-0">
+                          <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold shrink-0">
                             <ShoppingBag className="w-3 h-3 text-teal-600" />
                             <span>{order.Marketplace}</span>
                           </span>
@@ -799,7 +779,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
 
                         {/* Ekspedisi Chip */}
                         {order.Ekspedisi && (
-                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-bold shrink-0">
+                          <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold shrink-0">
                             <Truck className="w-3 h-3 text-indigo-600" />
                             <span>{order.Ekspedisi}</span>
                           </span>
@@ -817,7 +797,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleOrderExpand(order.Order_ID)}
-                          className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                          className={`inline-flex items-center space-x-1 px-2 py-1 rounded-md text-[10px] font-bold transition-colors cursor-pointer ${
                             isExpanded
                               ? 'bg-[#0F766E] text-white'
                               : 'bg-white hover:bg-teal-50 text-slate-700 hover:text-[#0F766E] border border-slate-300'
@@ -854,23 +834,23 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                     </div>
 
                     {/* ROW 2: DETAILED METRICS STRIP */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 text-xs">
-                      {valueForRow && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3"><div className="text-xs text-slate-600">Nilai barang terdata</div><strong>{money(order.rows.reduce((sum,row)=>sum+(valueForRow(row) ?? 0),0))}</strong>{order.rows.some(row=>valueForRow(row)===undefined) && <div className="text-xs text-amber-800">Sebagian harga belum tersedia</div>}</div>}
+                    <div className={`grid grid-cols-2 sm:grid-cols-4 ${valueForRow ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-1.5 pt-2 text-[11px]`}>
+                      {valueForRow && <div className="rounded-md border border-teal-200 bg-teal-50 p-2"><div className="text-[10px] text-slate-600">Nilai barang terdata</div><strong>{money(order.rows.reduce((sum,row)=>sum+(valueForRow(row) ?? 0),0))}</strong>{order.rows.some(row=>valueForRow(row)===undefined) && <div className="text-[10px] text-amber-800">Sebagian harga belum tersedia</div>}</div>}
                       {/* Metric 1: Total Qty */}
-                      <div className="flex items-center space-x-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
-                        <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
+                      <div className="flex items-center space-x-1.5 bg-slate-50/80 p-1.5 rounded-md border border-slate-200/80">
+                        <div className="w-6 h-6 rounded-md bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
                           <Package className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-[10px] text-slate-500 font-semibold uppercase">Jumlah barang (unit)</div>
-                          <span className="font-mono font-black text-slate-900 text-xs sm:text-sm">
+                          <div className="text-[9px] text-slate-500 font-semibold uppercase">Jumlah barang</div>
+                          <span className="font-mono font-bold text-slate-900 text-xs">
                             {order.totalQty} Unit
                           </span>
                         </div>
                       </div>
 
                       {/* Metric 2: Variasi SKU */}
-                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                      <div className="bg-slate-50/80 p-1.5 rounded-md border border-slate-200/80">
                         <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1 flex items-center space-x-1">
                           <Boxes className="w-3 h-3 text-[#0F766E]" />
                           <span>Variasi SKU ({order.skuVariationsCount})</span>
@@ -891,7 +871,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                       </div>
 
                       {/* Metric 3: Kondisi Fisik */}
-                      <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                      <div className="bg-slate-50/80 p-1.5 rounded-md border border-slate-200/80">
                         <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Kondisi Fisik</div>
                         <div className="flex flex-wrap gap-1">
                           {order.conditionBreakdown.good > 0 && (
@@ -934,7 +914,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
                       </div>
 
                       {/* Metric 4: Video Bukti & Waktu */}
-                      <div className="flex items-center justify-between bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between bg-slate-50/80 p-1.5 rounded-md border border-slate-200/80" onClick={(e) => e.stopPropagation()}>
                         <div className="min-w-0">
                           <div className="text-[10px] text-slate-500 font-semibold uppercase">Video & Waktu</div>
                           <div className="text-[11px] font-mono text-slate-800 font-semibold truncate max-w-[140px]" title={order.Nama_File_Video}>
@@ -963,7 +943,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
 
                   {/* SUB-TABLE: RINCIAN SEMUA SKU DI DALAM 1 ORDER ID (Panel berlatar kontras) */}
                   {isExpanded && (
-                    <div className="bg-slate-50/95 border-t-2 border-teal-500 p-4 sm:p-5 space-y-3 shadow-inner">
+                    <div className="bg-slate-50/95 border-t border-teal-300 p-2.5 sm:p-3 space-y-2 shadow-inner">
                               <div className="flex items-center justify-between text-xs">
                                 <div className="flex items-center space-x-2 font-bold text-slate-800">
                                   <Package className="w-4 h-4 text-[#0F766E]" />
@@ -1094,88 +1074,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             </div>
           )}
 
-          {/* Pagination bar untuk Order Summary */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-white/90 border border-slate-200/90 shadow-xs">
-            <div className="text-xs text-slate-600">
-              Menampilkan <strong className="text-slate-900 font-mono">{startIndex + 1}</strong> – <strong className="text-slate-900 font-mono">{endIndex}</strong> dari <strong className="text-slate-900 font-mono">{orderSummaries.length}</strong> Order ID
-              <span className="text-slate-400 ml-2 font-mono">
-                (Batas 100 Order/halaman)
-              </span>
-            </div>
-
-            {totalPages > 1 ? (
-              <div className="flex items-center space-x-1.5">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  title="Halaman Pertama"
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center space-x-1 cursor-pointer"
-                  title="Halaman Sebelumnya"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sebelumnya</span>
-                </button>
-
-                <div className="flex items-center space-x-1">
-                  {getPageNumbers().map((page, i) => {
-                    if (page === '...') {
-                      return (
-                        <span key={`ellipsis-${i}`} className="px-2 py-1 text-slate-400 text-xs">
-                          ...
-                        </span>
-                      );
-                    }
-                    const pageNum = page as number;
-                    const isActive = pageNum === currentPage;
-                    return (
-                      <button
-                        key={`page-${pageNum}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-[#0F766E] text-white shadow-xs'
-                            : 'bg-white text-slate-700 hover:bg-[#F0FDFA] hover:text-[#0F766E] border border-slate-200'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center space-x-1 cursor-pointer"
-                  title="Halaman Berikutnya"
-                >
-                  <span className="hidden sm:inline">Berikutnya</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  title="Halaman Terakhir"
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
-                ✓ Seluruh Order ID tertampung dalam 1 halaman
-              </div>
-            )}
-          </div>
+          {renderPagination(orderSummaries.length, 'Order ID')}
         </div>
       ) : viewMode === 'sku_detail' ? (
         /* ========================================================================= */
@@ -1406,88 +1305,7 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
             </div>
           )}
 
-          {/* PAGINATION CONTROLS BAR (MAKSIMAL 100 BARIS PER HALAMAN) */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-white/90 border border-slate-200/90 shadow-xs">
-            <div className="text-xs text-slate-600">
-              Menampilkan baris <strong className="text-slate-900 font-mono">{startIndex + 1}</strong> – <strong className="text-slate-900 font-mono">{endIndex}</strong> dari <strong className="text-slate-900 font-mono">{displayRows.length}</strong> data
-              <span className="text-slate-400 ml-2 font-mono">
-                (Batas 100 baris/halaman)
-              </span>
-            </div>
-
-            {totalPages > 1 ? (
-              <div className="flex items-center space-x-1.5">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  title="Halaman Pertama"
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center space-x-1 cursor-pointer"
-                  title="Halaman Sebelumnya"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sebelumnya</span>
-                </button>
-
-                <div className="flex items-center space-x-1">
-                  {getPageNumbers().map((page, i) => {
-                    if (page === '...') {
-                      return (
-                        <span key={`ellipsis-${i}`} className="px-2 py-1 text-slate-400 text-xs">
-                          ...
-                        </span>
-                      );
-                    }
-                    const pageNum = page as number;
-                    const isActive = pageNum === currentPage;
-                    return (
-                      <button
-                        key={`page-${pageNum}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-[#0F766E] text-white shadow-xs'
-                            : 'bg-white text-slate-700 hover:bg-[#F0FDFA] hover:text-[#0F766E] border border-slate-200'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center space-x-1 cursor-pointer"
-                  title="Halaman Berikutnya"
-                >
-                  <span className="hidden sm:inline">Berikutnya</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  title="Halaman Terakhir"
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
-                ✓ Semua baris tertampung dalam 1 halaman
-              </div>
-            )}
-          </div>
+          {renderPagination(displayRows.length, 'baris')}
         </div>
       ) : (
         /* ========================================================================= */
@@ -1511,33 +1329,6 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({
           <div className="relative rounded-2xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs text-emerald-400 overflow-x-auto max-h-[500px]">
             <pre className="whitespace-pre">{jsonString}</pre>
           </div>
-        </div>
-      )}
-
-      {/* Problem Banner if discrepancy exists */}
-      {problemItems.length > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-          <div className="flex items-center space-x-2 font-bold text-amber-800">
-            <AlertCircle className="w-4 h-4 text-amber-600" />
-            <span>Ringkasan Ketidaksesuaian Retur (Dispute / Klaim Bukti Unboxing)</span>
-          </div>
-          <p className="mt-1 text-amber-800/90">
-            Terdapat <strong>{problemItems.length} produk</strong> dengan kondisi rusak/hilang (
-            {problemItems.slice(0, 5).map((p) => `${p.SKU_ID}: ${p.Kondisi}`).join(', ')}
-            {problemItems.length > 5 ? ` dan ${problemItems.length - 5} lainnya...` : ''}). Video evidence di Google Drive dapat digunakan sebagai bukti otentik sanggahan klaim retur.
-          </p>
-          {onNavigateToDisputes && (
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={onNavigateToDisputes}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Buka Formulir Pengajuan banding CS ({problemItems.length} Kasus Kerusakan)</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
 

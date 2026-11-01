@@ -70,3 +70,4 @@ First-mount opacity/<=8px entrance300ms, metric stagger50ms, chart500ms. Control
 
 ## Navigation readability — latest override
 At desktop widths >=1024px, all permissioned modules appear on a dedicated second row under brand/account; flex-wrap is allowed instead of hidden links. Labels use14px, full text, and no truncation. Tablet/phone use a clearly labelled Menu disclosure with vertical scrolling and the same full item labels. This explicit user decision supersedes earlier four-primary navigation and Lainnya notes. Other dashboard tokens and structure remain unchanged.
+
