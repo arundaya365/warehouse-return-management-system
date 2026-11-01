@@ -219,7 +219,7 @@ app.get('/api/auth/session', async (req: Request, res: Response) => {
 });
 
 app.post('/api/auth/login', async (req: Request, res: Response) => {
-  const identifier = String(req.body?.username || req.body?.operatorCode || req.body?.email || '').trim().toLowerCase();
+  const identifier = String(req.body?.identifier || req.body?.username || req.body?.operatorCode || req.body?.email || '').trim().toLowerCase();
   const pin = String(req.body?.pin || '').trim();
   if (!identifier || !pin) { res.status(400).json({ error: 'ID operator dan PIN wajib diisi.' }); return; }
   const data = await getWarehouseData();
