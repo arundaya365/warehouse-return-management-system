@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { randomBytes } from 'crypto';
 import { processUnboxingReport } from './src/processor.ts';
 import type { UnboxingSessionInput, StandardKondisi } from './src/processor.ts';
 import { WarehouseStore } from './src/serverDataStore.ts';
@@ -16,6 +17,18 @@ const isProd = process.env.NODE_ENV === 'production';
 const PORT = 3000;
 
 const app = express();
+const allowedOrigins = new Set(['https://onboxin.online', 'https://www.onboxin.online']);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  }
+  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+  next();
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -186,6 +199,43 @@ import {
 // Inisialisasi seeding database di background
 ensureDatabaseSeeded().catch((err) => {
   console.warn('Database seeding check deferred:', err);
+});
+
+const activeSessions = new Map<string, string>();
+const sessionCookie = 'unboxin_session';
+const parseCookies = (header: string | undefined) => Object.fromEntries((header || '').split(';').map((part) => {
+  const index = part.indexOf('=');
+  return index > 0 ? [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())] : ['', ''];
+}).filter(([key]) => key));
+
+app.get('/api/auth/session', async (req: Request, res: Response) => {
+  const sessionId = parseCookies(req.headers.cookie)[sessionCookie];
+  const userId = sessionId ? activeSessions.get(sessionId) : undefined;
+  if (!userId) { res.status(401).json({ authenticated: false }); return; }
+  const data = await getWarehouseData();
+  const user = data.users.find((item) => item.id === userId);
+  if (!user) { res.status(401).json({ authenticated: false }); return; }
+  res.json({ authenticated: true, user });
+});
+
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+  const identifier = String(req.body?.username || req.body?.operatorCode || req.body?.email || '').trim().toLowerCase();
+  const pin = String(req.body?.pin || '').trim();
+  if (!identifier || !pin) { res.status(400).json({ error: 'ID operator dan PIN wajib diisi.' }); return; }
+  const data = await getWarehouseData();
+  const user = data.users.find((item) => [item.id, item.username, item.operatorCode, item.email].some((value) => String(value || '').toLowerCase() === identifier));
+  if (!user || user.status !== 'ACTIVE' || String(user.pin || '') !== pin) { res.status(401).json({ error: 'ID operator atau PIN tidak valid.' }); return; }
+  const sessionId = randomBytes(32).toString('hex');
+  activeSessions.set(sessionId, user.id);
+  res.setHeader('Set-Cookie', `${sessionCookie}=${encodeURIComponent(sessionId)}; Path=/; Max-Age=43200; HttpOnly; Secure; SameSite=None`);
+  res.json({ authenticated: true, user });
+});
+
+app.post('/api/auth/logout', (req: Request, res: Response) => {
+  const sessionId = parseCookies(req.headers.cookie)[sessionCookie];
+  if (sessionId) activeSessions.delete(sessionId);
+  res.setHeader('Set-Cookie', `${sessionCookie}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None`);
+  res.json({ success: true });
 });
 
 /**
@@ -526,3 +576,5 @@ initServer().catch((err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });
+
+
