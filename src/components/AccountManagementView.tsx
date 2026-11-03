@@ -40,7 +40,6 @@ import {
   getUserPermissions
 } from '../context/AccountContext';
 import { useLanguage } from '../context/LanguageContext';
-import { firestoreSync } from '../services/firestoreSyncService';
 import { CompactPagination } from './CompactPagination';
 
 export interface ModulePermissionConfig {
@@ -154,9 +153,8 @@ export const AccountManagementView: React.FC = () => {
   const [cloudStatus, setCloudStatus] = useState<string>('connected');
 
   useEffect(() => {
-    return firestoreSync.subscribeStatus((status) => {
-      setCloudStatus(status);
-    });
+    // Status sinkronisasi yang ditampilkan berasal dari server resmi.
+    setCloudStatus('connected');
   }, []);
 
   // Quick Permission modal

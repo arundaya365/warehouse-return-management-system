@@ -24,6 +24,7 @@ import type { StoreProfile } from './types/store';
 import { SAMPLE_SCENARIOS } from './data/sampleScenarios';
 import { HISTORICAL_RETURN_ROWS } from './data/historicalReturns';
 import { RmaClaimRecord } from './types/rma';
+import { canonicalizeReturnRows } from './utils/returnRows';
 import {
   ProcessedReturnRow,
   UnboxingSessionInput,
@@ -31,9 +32,7 @@ import {
 } from './processor';
 import {
   MasterOrderSKU,
-  loadMasterDatabase,
-  saveMasterDatabase,
-  mergeMasterSkus
+  saveMasterDatabase
 } from './utils/excelTemplate';
 import { initAuth, googleSignIn, logoutGoogle } from './services/googleDriveService';
 import type { User } from 'firebase/auth';
@@ -45,6 +44,7 @@ import { syncService } from './services/dataSyncService';
 
 
 const STORAGE_PROCESSED_RETURNS_KEY = 'unboxin_processed_returns_v1';
+const SERVER_SOURCE_MIGRATION_KEY = 'onboxin_postgres_source_v1';
 
 function AppContent() {
   const localTrial = import.meta.env.VITE_LOCAL_TRIAL === 'true';
@@ -78,38 +78,11 @@ function AppContent() {
   const STORAGE_SEEDED_FLAG = 'rma_initial_seed_completed_v1';
   const STORAGE_RMA_CLAIMS_KEY = 'rma_claims_records_v1';
 
-  const [processedRows, setProcessedRows] = useState<ProcessedReturnRow[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_PROCESSED_RETURNS_KEY);
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [];
-  });
-
-  const [rmaClaims, setRmaClaims] = useState<RmaClaimRecord[]>(() => {
-    try {
-      const savedReturns = localStorage.getItem(STORAGE_PROCESSED_RETURNS_KEY);
-      if (savedReturns && JSON.parse(savedReturns).length === 0) return [];
-      const saved = localStorage.getItem(STORAGE_RMA_CLAIMS_KEY);
-      if (saved !== null) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [];
-  });
-  const [disputeRecords, setDisputeRecords] = useState<Record<string, any>>(() => {
-    try {
-      const savedReturns = localStorage.getItem(STORAGE_PROCESSED_RETURNS_KEY);
-      if (savedReturns && JSON.parse(savedReturns).length === 0) return {};
-      const saved = localStorage.getItem('rma_cs_dispute_claims_v1');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return {};
-  });
+  // Data operasional dimulai kosong sampai API PostgreSQL menyelesaikan pull awal.
+  // Cache browser hanya disimpan untuk dukungan offline, bukan dipakai sebagai sumber awal.
+  const [processedRows, setProcessedRows] = useState<ProcessedReturnRow[]>([]);
+  const [rmaClaims, setRmaClaims] = useState<RmaClaimRecord[]>([]);
+  const [disputeRecords, setDisputeRecords] = useState<Record<string, any>>({});
   const stores = useMemo<StoreProfile[]>(() => Array.isArray(disputeRecords['_stores_list_']) ? disputeRecords['_stores_list_'] : [], [disputeRecords]);
   const [, setCurrentInput] = useState<UnboxingSessionInput | null>(null);
   const [previewMode] = useState(()=>new URLSearchParams(window.location.search).get('dashboard-demo')==='1');
@@ -125,14 +98,7 @@ function AppContent() {
   useEffect(()=>syncService.subscribeStatus((state,time)=>{setDashboardSyncState(state);if(time)setDashboardUpdatedAt(time);}),[]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Master Database SKU & Orders (Excel / CSV) - Inisialisasi awal langsung dari penyimpanan lokal browser
-  const [masterDatabase, setMasterDatabase] = useState<MasterOrderSKU[]>(() => {
-    try {
-      const initial = loadMasterDatabase();
-      if (Array.isArray(initial) && initial.length > 0) return initial;
-    } catch {}
-    return [];
-  });
+  const [masterDatabase, setMasterDatabase] = useState<MasterOrderSKU[]>([]);
   const [selectedAwbForStation, setSelectedAwbForStation] = useState<string>('');
 
   // Google Drive Authentication State
@@ -150,11 +116,19 @@ function AppContent() {
 
   // Sinkronisasi data real-time dengan server database Cloud SQL (Mirroring Web & Mobile Browser)
   useEffect(() => {
+    // Sekali saat migrasi ke PostgreSQL: buang cache Firestore/browser lama agar
+    // angka lama tidak kembali tercampur ke data resmi server.
+    try {
+      if (!localStorage.getItem(SERVER_SOURCE_MIGRATION_KEY)) {
+        [STORAGE_PROCESSED_RETURNS_KEY, STORAGE_RMA_CLAIMS_KEY, 'rma_cs_dispute_claims_v1', 'rma_claims_records_v1', 'rma_claims_storage_v1'].forEach((key) => localStorage.removeItem(key));
+        localStorage.setItem(SERVER_SOURCE_MIGRATION_KEY, '1');
+      }
+    } catch {}
     const unsubscribe = syncService.subscribe((payload) => {
       if (payload.returns && Array.isArray(payload.returns)) {
-        setProcessedRows(payload.returns);
+        setProcessedRows(canonicalizeReturnRows(payload.returns));
         try {
-          localStorage.setItem(STORAGE_PROCESSED_RETURNS_KEY, JSON.stringify(payload.returns));
+          localStorage.setItem(STORAGE_PROCESSED_RETURNS_KEY, JSON.stringify(canonicalizeReturnRows(payload.returns)));
         } catch {}
 
         if (payload.returns.length === 0) {
@@ -182,17 +156,9 @@ function AppContent() {
           setDisputeRecords(payload.disputes);
         }
       }
-      if (payload.masterDatabase && Array.isArray(payload.masterDatabase) && payload.masterDatabase.length > 0) {
-        const local = loadMasterDatabase();
-        if (local && local.length > payload.masterDatabase.length) {
-          const mergedWithLocal = mergeMasterSkus(local, payload.masterDatabase).merged;
-          setMasterDatabase(mergedWithLocal);
-          saveMasterDatabase(mergedWithLocal);
-          syncService.pushMasterDatabase(mergedWithLocal).catch(() => {});
-        } else {
-          setMasterDatabase(payload.masterDatabase);
-          saveMasterDatabase(payload.masterDatabase);
-        }
+      if (payload.masterDatabase && Array.isArray(payload.masterDatabase)) {
+        setMasterDatabase(payload.masterDatabase);
+        saveMasterDatabase(payload.masterDatabase);
       }
     });
 
@@ -353,14 +319,6 @@ function AppContent() {
     setRmaClaims(nextClaims);setDisputeRecords(nextRecords);localStorage.setItem('rma_cs_dispute_claims_v1',JSON.stringify(nextRecords));localStorage.setItem(STORAGE_RMA_CLAIMS_KEY,JSON.stringify(nextClaims));setActiveTab(target==='RMA'?'rma':'disputes');return true;
   };
 
-  // Load database lokal pada inisialisasi awal jika offline
-  useEffect(() => {
-    const loaded = loadMasterDatabase();
-    if (loaded && loaded.length > 0) {
-      setMasterDatabase(loaded);
-    }
-  }, []);
-
   // Simpan perubahan data returns ke localStorage sebagai offline cache
   useEffect(() => {
     try {
@@ -368,7 +326,7 @@ function AppContent() {
     } catch {}
   }, [processedRows]);
 
-  const handleProcessComplete = (rows: ProcessedReturnRow[], rawInput: UnboxingSessionInput) => {
+  const handleProcessComplete = (rows: ProcessedReturnRow[], rawInput: UnboxingSessionInput, alreadySaved = false) => {
     const orderId = rawInput.Order_ID || rawInput.order_id;
     setProcessedRows((prev) => {
       const remaining = prev.filter((r) => r.Order_ID !== orderId);
@@ -378,21 +336,18 @@ function AppContent() {
       } catch {}
       return updated;
     });
-    // Kirim langsung ke server database bersama (Cloud SQL)
-    syncService.pushReturns(rows, orderId);
+    // API /process-unboxing sudah menyimpan hasilnya. Mengirim ulang ke endpoint
+    // sinkronisasi dapat membuat dua transaksi tulis untuk sesi yang sama.
+    if (alreadySaved) {
+      syncService.syncPull().catch(() => {});
+    } else {
+      syncService.pushReturns(rows, orderId);
+    }
     setCurrentInput(rawInput);
-  };
-
-  const hasProtectedClaimHistory = (orderIds: string[]) => {
-    const ids = new Set(orderIds.map(id => String(id || '').trim().toUpperCase()));
-    if (!rmaClaims.some(claim => ids.has(claim.orderId.trim().toUpperCase()))) return false;
-    window.alert('Retur ini memiliki riwayat RMA dan tidak dapat dihapus dari laporan. Riwayat klaim dan pembayaran harus tetap tersimpan.');
-    return true;
   };
 
   // Hapus data return per Order ID (Khusus Super Admin)
   const handleDeleteOrder = (orderId: string) => {
-    if (hasProtectedClaimHistory([orderId])) return;
     const cleanId = String(orderId || '').trim();
     const idUpper = cleanId.toUpperCase();
 
@@ -458,7 +413,6 @@ function AppContent() {
 
   // Hapus baris data return tertentu (Khusus Super Admin)
   const handleDeleteRow = (orderId: string, skuId: string) => {
-    if (hasProtectedClaimHistory([orderId])) return;
     const oUpper = String(orderId || '').trim().toUpperCase();
     const sUpper = String(skuId || '').trim().toUpperCase();
 
@@ -515,7 +469,6 @@ function AppContent() {
 
   // Hapus massal beberapa Order ID sekaligus (Khusus Super Admin)
   const handleDeleteBulkOrders = (orderIds: string[]) => {
-    if (hasProtectedClaimHistory(orderIds)) return;
     if (!orderIds || orderIds.length === 0) return;
     const cleanIdSet = new Set(orderIds.map((id) => String(id || '').trim().toUpperCase()));
 
@@ -583,7 +536,6 @@ function AppContent() {
 
   // Hapus massal beberapa baris SKU spesifik sekaligus (Khusus Super Admin)
   const handleDeleteBulkRows = (rowKeys: { orderId: string; skuId: string }[]) => {
-    if (hasProtectedClaimHistory(rowKeys.map(row => row.orderId))) return;
     if (!rowKeys || rowKeys.length === 0) return;
     const keySet = new Set(
       rowKeys.map((k) => `${String(k.orderId || '').trim().toUpperCase()}__${String(k.skuId || '').trim().toUpperCase()}`)

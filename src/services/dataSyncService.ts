@@ -1,10 +1,13 @@
 import { ProcessedReturnRow } from '../processor';
 import { MasterSKUItem } from '../utils/excelTemplate';
 import type { UserAccount } from '../types/account';
-import { firestoreSync } from './firestoreSyncService';
+import { apiUrl } from './apiClient';
 import { applyRemoteLearnedPrefixes, saveLearnedAwbPrefix } from '../utils/awbDetection';
 
-const sessionFetch = (input: RequestInfo | URL, init: RequestInit = {}) => fetch(input, { ...init, credentials: 'include' });
+const sessionFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const target = typeof input === 'string' && input.startsWith('/') ? apiUrl(input) : input;
+  return fetch(target, { ...init, credentials: 'include' });
+};
 
 export interface SyncPayload {
   version: number;
@@ -35,17 +38,6 @@ class DataSyncService {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      // 1. Hubungkan pendengar data cloud Firestore real-time (Mirroring instan HP & PC)
-      try {
-        firestoreSync.subscribe((cloudState) => {
-          if (cloudState && cloudState.lastUpdated) {
-            this.notifySyncListeners(cloudState);
-          }
-        });
-      } catch (fErr) {
-        console.warn('Firestore subscription warning:', fErr);
-      }
-
       try {
         if ('BroadcastChannel' in window) {
           this.broadcastChannel = new BroadcastChannel('rma_warehouse_sync_channel');
@@ -145,6 +137,11 @@ class DataSyncService {
       const res = await sessionFetch('/api/sync', {
         headers: { 'Cache-Control': 'no-cache' }
       });
+      if (res.status === 401) {
+        // Do not leave an operator in a screen that looks logged in while the
+        // server session is no longer valid (for example after a restart).
+        window.dispatchEvent(new CustomEvent('unboxin:session-expired'));
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data: SyncPayload = await res.json();
@@ -176,17 +173,10 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Simpan unboxing returns ke cloud Firestore & server
-   */
+  /** Simpan unboxing ke sumber data resmi (PostgreSQL melalui API). */
   public async pushReturns(rows: ProcessedReturnRow[], orderId?: string): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      // Push ke Firestore Cloud untuk mirroring instan HP & PC
-      firestoreSync.pushReturns(rows, orderId).catch((err) => {
-        console.warn('Firestore pushReturns background warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/returns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,18 +192,10 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Hapus Order ID dari cloud & server
-   */
+  /** Hapus Order ID dari sumber data resmi. */
   public async deleteOrder(orderId: string): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      const currentReturns = firestoreSync.getCurrentState()?.returns || [];
-      const remaining = currentReturns.filter((r) => r.Order_ID !== orderId);
-      firestoreSync.replaceReturns(remaining).catch((err) => {
-        console.warn('Firestore deleteOrder warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/delete-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -229,16 +211,10 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Hapus Baris Return (Order ID + SKU ID) dari cloud & server
-   */
+  /** Hapus baris return (Order ID + SKU ID) dari sumber data resmi. */
   public async deleteRow(orderId: string, skuId: string): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      firestoreSync.deleteBulkRows([{ orderId, skuId }]).catch((err) => {
-        console.warn('Firestore deleteRow warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/delete-row', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -260,13 +236,6 @@ class DataSyncService {
   public async deleteBulkOrders(orderIds: string[]): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      const currentReturns = firestoreSync.getCurrentState()?.returns || [];
-      const idSet = new Set(orderIds);
-      const remaining = currentReturns.filter((r) => !idSet.has(r.Order_ID));
-      firestoreSync.replaceReturns(remaining).catch((err) => {
-        console.warn('Firestore deleteBulkOrders warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -288,10 +257,6 @@ class DataSyncService {
   public async deleteBulkRows(rowKeys: { orderId: string; skuId: string }[]): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      firestoreSync.deleteBulkRows(rowKeys).catch((err) => {
-        console.warn('Firestore deleteBulkRows warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,7 +290,6 @@ class DataSyncService {
         throw new Error(errorPayload?.error || `Penyimpanan klaim gagal (HTTP ${res.status}).`);
       }
       this.lastDisputes = disputes;
-      firestoreSync.pushDisputes(disputes).catch(err => console.warn('Firestore pushDisputes warning:', err));
       await this.syncPull();
       return true;
     } catch (err) {
@@ -350,22 +314,14 @@ class DataSyncService {
       });
       if(!res.ok){if(res.status===409)await this.syncPull();throw new Error(`HTTP ${res.status}`);}
       this.lastDisputes=disputes;
-      firestoreSync.pushDisputes(disputes).catch(err=>console.warn('Firestore pushDisputes warning:',err));
       await this.syncPull(); return true;
     } catch(err){console.error('Gagal membuka kembali kasus:',err);this.updateStatus('error');return false;}
   }
 
-  /**
-   * Simpan database master SKU ke cloud Firestore & server (Mirroring instan ke HP, PC 1, PC 2)
-   */
+  /** Simpan database master SKU ke sumber data resmi. */
   public async pushMasterDatabase(masterDatabase: MasterSKUItem[]): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      // Push ke Firestore Cloud
-      firestoreSync.pushMasterDatabase(masterDatabase).catch((err) => {
-        console.warn('Firestore pushMasterDatabase warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/master-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -381,16 +337,10 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Simpan daftar pengguna / akun ke cloud Firestore & server
-   */
+  /** Simpan daftar pengguna / akun ke sumber data resmi. */
   public async pushUsers(users: UserAccount[]): Promise<boolean> {
     try {
       this.updateStatus('syncing');
-      firestoreSync.pushUsers(users).catch((err) => {
-        console.warn('Firestore pushUsers warning:', err);
-      });
-
       const res = await sessionFetch('/api/sync/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -406,9 +356,7 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Hapus akun pengguna secara permanen dari Cloud SQL & sinkronkan ke Firestore
-   */
+  /** Hapus akun pengguna secara permanen dari sumber data resmi. */
   public async deleteUser(userId: string, operatorCode?: string): Promise<boolean> {
     try {
       this.updateStatus('syncing');
@@ -430,9 +378,7 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Bersihkan semua akun demo lama dari Cloud SQL dan sinkronkan ke Firestore
-   */
+  /** Bersihkan semua akun demo lama dari sumber data resmi. */
   public async cleanDemoUsers(): Promise<boolean> {
     try {
       this.updateStatus('syncing');

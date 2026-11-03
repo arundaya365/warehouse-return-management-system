@@ -8,7 +8,7 @@ import {
   INITIAL_ACCOUNTS
 } from '../types/account.ts';
 import { syncService } from '../services/dataSyncService';
-import { firestoreSync } from '../services/firestoreSyncService';
+import { apiUrl } from '../services/apiClient';
 
 export type { UserRole, UserAccount, RolePermission };
 export { ROLE_DEFINITIONS, INITIAL_ACCOUNTS };
@@ -176,17 +176,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   useEffect(() => {
-    // 1. Hubungkan pendengar data cloud Firestore real-time (Mirroring instan ke semua HP & PC)
-    const unsubFirestore = firestoreSync.subscribe((cloudState) => {
-      if (cloudState && Array.isArray(cloudState.users) && cloudState.users.length > 0) {
-        setUsers(cloudState.users);
-        try {
-          localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(cloudState.users));
-        } catch {}
-      }
-    });
-
-    // 2. Hubungkan pendengar syncService (Polling Express & BroadcastChannel lokal)
+    // PostgreSQL melalui API adalah satu-satunya sumber akun resmi.
     const unsubSyncService = syncService.subscribe((payload) => {
       if (payload.users && Array.isArray(payload.users) && payload.users.length > 0) {
         setUsers(payload.users);
@@ -196,11 +186,10 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // 3. Tarik sinkronisasi awal saat aplikasi dibuka
+    // Tarik sinkronisasi awal saat aplikasi dibuka.
     syncService.syncPull().catch(() => {});
 
     return () => {
-      unsubFirestore();
       unsubSyncService();
     };
   }, []);
@@ -220,7 +209,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     let active = true;
-    fetch('/api/auth/session', { credentials: 'include' })
+    fetch(apiUrl('/api/auth/session'), { credentials: 'include' })
       .then(async (response) => {
         if (!response.ok) throw new Error('Sesi tidak aktif');
         return response.json();
@@ -243,6 +232,19 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      setHasLoggedInState(false);
+      setIsLoginModalOpen(true);
+      try {
+        localStorage.removeItem(STORAGE_HAS_LOGGED_IN_KEY);
+        localStorage.removeItem(STORAGE_CURRENT_USER_ID_KEY);
+      } catch {}
+    };
+    window.addEventListener('unboxin:session-expired', handleExpiredSession);
+    return () => window.removeEventListener('unboxin:session-expired', handleExpiredSession);
+  }, []);
   const [targetLoginUser, setTargetLoginUser] = useState<UserAccount | null>(null);
 
   const promptSwitchUser = (userIdOrCode: string) => {
@@ -260,7 +262,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const logoutOperator = async () => {
-    try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+    try { await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' }); } catch {}
     setHasLoggedIn(false);
     setTargetLoginUser(null);
     setIsLoginModalOpen(true);
@@ -300,7 +302,7 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!cleanPin) return { success: false, message: 'Harap masukkan PIN keamanan 4-6 digit.' };
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -329,10 +331,6 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(updatedList));
     } catch {}
-    // Otomatis simpan ke Cloud Firestore & endpoint server sinkronisasi
-    firestoreSync.pushUsers(updatedList).catch((err) => {
-      console.warn('Firestore pushUsers warning:', err);
-    });
     syncService.pushUsers(updatedList).catch((err) => {
       console.warn('Server pushUsers warning:', err);
     });
@@ -408,16 +406,14 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const yayaOnly = INITIAL_ACCOUNTS; // USR-001 Yaya Sanjaya
     persistAndSyncUsers(yayaOnly);
     const ok = await syncService.cleanDemoUsers();
-    await firestoreSync.pushUsers(yayaOnly);
     return ok;
   };
 
   const saveUsersToCloud = async (customUsers?: UserAccount[]): Promise<boolean> => {
     const target = customUsers || users;
-    persistAndSyncUsers(target);
-    const fOk = await firestoreSync.pushUsers(target);
-    const sOk = await syncService.pushUsers(target);
-    return fOk || sOk;
+    setUsers(target);
+    try { localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(target)); } catch {}
+    return await syncService.pushUsers(target);
   };
 
   const hasPermission = (permissionKey: keyof RolePermission): boolean => {
